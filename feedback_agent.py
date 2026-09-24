@@ -35,7 +35,6 @@ from io import BytesIO, StringIO
 # ─── THIRD-PARTY (pip install -r requirements.txt) ───────────────────
 import pandas as pd
 import numpy as np
-import altair as alt
 
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
