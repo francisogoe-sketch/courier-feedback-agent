@@ -20,3 +20,4 @@ google-api-python-client>=2.90.0
 # Optional: advanced LLM classification (Phase 3)
 # openai>=1.0.0
 # anthropic>=0.20.0
+altair
