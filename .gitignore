@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+venv/
+env/
+.env
+
+# Google credentials (NEVER commit these)
+service_account.json
+oauth_token.pkl
+oauth_client.json
+application_default_credentials.json
+*credentials*.json
+
+# Agent outputs (uploaded to Drive — no need to track)
+*.xlsx
+*.csv
+courier_feedback_classified_*.csv
+courier_feedback_report_*.xlsx
+
+# Logs
+logs/
+*.log
+
+# Windows
+Thumbs.db
+Desktop.ini
