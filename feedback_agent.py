@@ -35,6 +35,7 @@ from io import BytesIO, StringIO
 # ─── THIRD-PARTY (pip install -r requirements.txt) ───────────────────
 import pandas as pd
 import numpy as np
+import altair as alt
 
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
@@ -65,8 +66,7 @@ class Config:
                           "1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm")   # shared folder
     SERVICE_ACCOUNT_KEY = os.getenv("GOOGLE_SA_KEY",
                           "service_account.json")                 # path to key file
-    OUTPUT_FOLDER_NAME  = "weekly_reports"
-    OUTPUT_FOLDER_ID    = "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K"                        # subfolder for reports
+    OUTPUT_FOLDER_NAME  = "weekly_reports"                        # subfolder for reports
 
     # ── Email (optional — leave blank to skip) ────────────────────────
     SMTP_HOST     = os.getenv("SMTP_HOST",   "smtp.gmail.com")
@@ -79,7 +79,7 @@ class Config:
     # ── Processing ────────────────────────────────────────────────────
     CSV_PATTERN         = ".csv"                                  # file extension filter
     MIN_RESPONSE_WORDS  = 2                                       # filter noise
-    SUPPORTED_REGIONS   = ["CA","UK","IL","SK","AT","DE","IE"]
+    SUPPORTED_REGIONS   = ["CA","UK","IL","SK","AT"]
     TRANSLATION_ENABLED = False   # set True + add API key to translate IL/SK
     TRANSLATE_API_KEY   = os.getenv("GOOGLE_TRANSLATE_KEY", "")
 
@@ -96,104 +96,115 @@ class Config:
 #     Priority order matches the CSAT theme priority sequence
 # ══════════════════════════════════════════════════════════════════════
 THEMES = {
-    # Priority 1 — tech root cause caught first
+    # ── Priority 1 — Agent Support-related ───────────────────────────
+    "Support Quality": {
+        "super_category": "Agent Support-related",
+        "routing_team":   "ACT / QA",
+        "cadence":        "Weekly",
+        "keywords": [
+            "rude","unhelpful","not helpful","did not help","no help",
+            "unprofessional","dismissive","incompetent","bad agent",
+            "bad support","poor support","worst support","worst service",
+            "horrible support","terrible support","useless","didn't resolve",
+            "did not resolve","not resolved","closed chat","closed my ticket",
+            "ended chat","end the chat","left chat","without explain",
+            "without resolving","before answering","ignored","rude agent",
+            "not listening","bad service","poor service","worst experience",
+            "never helped","waste of time","not answer","not answering",
+            "nobody answered","nobody here","no response","not professional",
+            "attitude","disrespectful","very rude","extremely rude",
+            "terrible agent","no one helped","hung up","cut off",
+            "f u","fu ","גרוע מאוד","קפיא את הצאט",
+            "dispecerka","podpora","chapava",
+        ],
+    },
+    # ── Priority 2 — Live Chat / No Response ─────────────────────────
+    "Live Chat / No Response": {
+        "super_category": "Agent Support-related",
+        "routing_team":   "Automation / Bot Team",
+        "cadence":        "Weekly",
+        "keywords": [
+            "nobody answered","nobody here","not answering","no answer",
+            "no one answered","chat frozen","chat closed","nobody",
+            "no reply","no response","not responded","unanswered",
+            "waiting in chat","still waiting","waited long","nefunguje",
+            "never answered","no agent","bot","automated response",
+        ],
+    },
+    # ── Priority 3 — App / Tech Issues ───────────────────────────────
     "App / Tech Issues": {
         "super_category": "System/Platform-related",
-        "routing_team":   "P&T",
+        "routing_team":   "Product & Tech",
         "cadence":        "Weekly",
-        "emoji":          ":large_yellow_circle:",
         "keywords": [
-            "app","application","gps","navigation","crash","freeze","frozen",
-            "bug","glitch","not working","broken","error","cannot mark",
-            "mark delivered","mark arrival","mark complete",
-            "service unavailable","technical","system","platform",
-            "login","sign in","loading","slow app","packed","nefunguje",
+            "app","application","gps","navigation","crash","freeze",
+            "frozen","bug","glitch","not working","broken","error",
+            "cannot mark","can't mark","mark delivered","mark arrival",
+            "mark complete","service unavailable","technical","system",
+            "platform","login","sign in","loading","slow app",
+            "אפליקציה","בעיית gps","לסמן הגעה","packed","nefunguje",
         ],
     },
-    # Priority 2 — payment caught early to prevent keyword theft by support theme
-    "Compensation / Payment": {
-        "super_category": "System/Platform-related",
-        "routing_team":   "Courier Pay",
-        "cadence":        "Monthly",
-        "emoji":          ":large_yellow_circle:",
+    # ── Priority 4 — Order Issues ─────────────────────────────────────
+    "Order Issues": {
+        "super_category": "Partner-related",
+        "routing_team":   "Restaurant Ops",
+        "cadence":        "Weekly",
         "keywords": [
-            "payment","pay","payout","not paid","missing payment",
-            "low fee","fee","rate","acceptance rate","penalty",
-            "compensation","earnings","incentive","bonus",
-            "challenge","reward","rewards","credit","refund",
+            "order","restaurant closed","shop closed","store closed",
+            "restaurant timing","wrong address","bad address","wrong location",
+            "cannot find","can't find","incorrect address","packaging",
+            "spilled","missing item","wrong item","order not showing",
+            "in transit","on transit","הזמנה","delivery issue",
         ],
     },
-    # Priority 3 — age verification caught early for same reason
+    # ── Priority 5 — Partner Wait Time / Delays ───────────────────────
+    "Partner Wait Time / Delays": {
+        "super_category": "Partner-related",
+        "routing_team":   "Restaurant Ops",
+        "cadence":        "Weekly",
+        "keywords": [
+            "wait","waiting","delay","delayed","late","slow",
+            "restaurant wait","pickup delay","too long","long time",
+            "taking too long","hours","מתעכבים","עיכוב",
+            "Verzögerung","warten",
+        ],
+    },
+    # ── Priority 6 — Age Verification ────────────────────────────────
     "Age Verification": {
         "super_category": "System/Platform-related",
-        "routing_team":   "Quality / P&T",
+        "routing_team":   "Compliance / Product",
         "cadence":        "Monthly",
-        "emoji":          ":white_circle:",
         "keywords": [
             "age verification","age verify","id check","verify age",
             "forgot to do age","age check",
         ],
     },
-    # Priority 4 — support quality: big bucket, now clean of payment/age responses
-    "Support Quality": {
-        "super_category": "Agent Support-related",
-        "routing_team":   "ACT",
-        "cadence":        "Weekly",
-        "emoji":          ":red_circle:",
-        "keywords": [
-            "rude","unhelpful","not helpful","did not help","no help",
-            "unprofessional","dismissive","incompetent","bad agent",
-            "bad support","poor support","worst support","worst service",
-            "horrible support","terrible support","useless","did not resolve",
-            "not resolved","closed chat","closed my ticket","ended chat",
-            "end the chat","left chat","without explain","without resolving",
-            "before answering","ignored","not listening","bad service",
-            "poor service","never helped","waste of time","not answering",
-            "no response","not professional","disrespectful","very rude",
-            "extremely rude","no one helped","nobody answered","nobody here",
-            "no answer","chat frozen","no reply","unanswered","never answered",
-            "no agent","f u","fu ",
-        ],
-    },
-    # Priority 5 — outside courier ops (restaurant/traffic)
-    "Partner / External Delays": {
-        "super_category": "Partner-related",
-        "routing_team":   "Partner Team",
+    # ── Priority 7 — Compensation / Payment ──────────────────────────
+    "Compensation / Payment": {
+        "super_category": "System/Platform-related",
+        "routing_team":   "Finance Ops",
         "cadence":        "Monthly",
-        "emoji":          ":large_blue_circle:",
         "keywords": [
-            "wait","waiting","delay","delayed","late","slow",
-            "restaurant wait","pickup delay","too long","long time",
-            "taking too long","traffic","restaurant slow","partner",
+            "payment","pay","payout","not paid","missing payment",
+            "low fee","fee","rate","acceptance rate","penalty",
+            "compensation","paid","earnings","incentive","bonus",
+            "challenge","reward","rewards","credit","refund",
+            "תגמול","משלוחים","אתגר","Bezahlung","Zahlung",
         ],
     },
-    # Priority 6 — order flow (overlaps with Partner)
-    "Order Issues": {
-        "super_category": "Partner-related",
-        "routing_team":   "Partner / P&T",
-        "cadence":        "Monthly",
-        "emoji":          ":large_blue_circle:",
-        "keywords": [
-            "order","restaurant closed","shop closed","store closed",
-            "restaurant timing","wrong address","bad address","wrong location",
-            "cannot find","incorrect address","packaging","spilled",
-            "missing item","wrong item","order not showing",
-            "in transit","on transit","delivery issue",
-        ],
-    },
-    # Priority 7 — positive: routed to ACT for monthly QBR content
+    # ── Priority 8 — Positive Feedback ───────────────────────────────
     "Positive Feedback": {
         "super_category": "Positive",
-        "routing_team":   "ACT (QBR)",
+        "routing_team":   "ACT Recognition",
         "cadence":        "Monthly",
-        "emoji":          ":large_green_circle:",
         "keywords": [
             "thank","thanks","great","amazing","excellent","good",
             "helpful","very helpful","love","perfect","fantastic",
             "well done","appreciate","happy","satisfied","awesome",
             "best","wonderful","superb","brilliant","resolved",
             "quick","fast response","nice","kind","friendly",
-            "super podpora","dakujem",
+            "אוהב אותכם","super podpora","dakujem","very pekne","ochotna",
         ],
     },
 }
@@ -221,8 +232,7 @@ class DriveClient:
     ]
 
     def __init__(self):
-        import google.auth
-        creds, _ = google.auth.default(scopes=self.SCOPES)
+        import google.auth; creds, _ = google.auth.default(scopes=self.SCOPES)
         self.service = build("drive", "v3", credentials=creds)
         log.info("Google Drive client initialised.")
 
@@ -274,8 +284,7 @@ class DriveClient:
             "mimeType": "application/vnd.google-apps.folder",
             "parents": [parent_id],
         }
-        folder = self.service.files().create(body=meta, fields="id",
-                    supportsAllDrives=True).execute()
+        folder = self.service.files().create(body=meta, fields="id").execute()
         log.info(f"  Created Drive subfolder: {name}")
         return folder["id"]
 
@@ -739,7 +748,7 @@ class FeedbackAgentPipeline:
 
             # ── Step 5: Upload to Drive ────────────────────────────────
             log.info("STEP 5 › Uploading outputs to Drive…")
-            out_fid = Config.OUTPUT_FOLDER_ID
+            out_fid = "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K"
             drive_link = self.drive.upload_file(
                 xlsx_path, out_fid,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -765,7 +774,7 @@ def parse_args():
         description="Courier Feedback Intelligence Agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("--slack",action="store_true");p.add_argument("--dry-run",   action="store_true",
+    p.add_argument("--dry-run",   action="store_true",
                    help="Classify only; do not upload or email")
     p.add_argument("--folder-id", default=None,
                    help="Override Drive folder ID")
