@@ -115,7 +115,7 @@ class DriveClient:
            .list(q=q,fields="files(id,name)",pageSize=300,
                  supportsAllDrives=True,includeItemsFromAllDrives=True)
            .execute())
-        files=[f for f in r.get("files",[]) if f["name"].lower().endswith(".csv")]
+        files=[f for f in r.get("files",[]) if f["name"].lower().endswith(".csv") and any(q in f["name"].upper() for q in ["Q1","Q2","Q3"])]
         log.info(f"Found {len(files)} CSV files.")
         return files
 
@@ -629,7 +629,7 @@ class FeedbackAgentPipeline:
                 if len(joined)>0:
                     joined["group_key"]=gk; frames.append(joined)
                     log.info(f"  {gk}: {len(joined):,} rows (Q1={'y' if q1 is not None else 'n'} Q2={'y' if q2 is not None else 'n'} Q3={'y' if q3 is not None else 'n'})")
-            all_df=pd.concat(frames,ignore_index=True)
+            all_df=pd.concat(frames,ignore_index=True) if frames else (_ for _ in ()).throw(RuntimeError("No valid Q1/Q2/Q3 files found in source folder. Check filenames contain Q1, Q2 or Q3."))
             log.info(f"  Combined: {len(all_df):,} rows")
 
             log.info("STEP 4  Classifying...")
