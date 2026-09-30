@@ -351,7 +351,15 @@ class ReportBuilder:
         valid_periods=df[df[period_col].replace("",pd.NA).notna()]
         for (period,market),grp in valid_periods.groupby([period_col,"market"]):
             v=grp[grp["csat_valid"]==1]; X=grp[grp["in_X"]==1]; Xs=len(X)
-            pos=v["csat_positive"].sum(); neg=v["csat_negative"].sum(); vt=len(v)
+            # Use q1_sa filtered by market+period for Q1 CSAT metrics
+            q1_sub = pd.DataFrame()
+            if hasattr(self,"q1_sa") and self.q1_sa is not None and period_col in self.q1_sa.columns:
+                q1_sub = self.q1_sa[(self.q1_sa["market"]==market)&(self.q1_sa[period_col]==period)&(self.q1_sa["csat_valid"]==1)]
+            if len(q1_sub)==0 and hasattr(self,"q1_sa") and self.q1_sa is not None:
+                q1_sub = self.q1_sa[(self.q1_sa["market"]==market)&(self.q1_sa["csat_valid"]==1)]
+            pos=int(q1_sub["csat_positive"].sum()) if len(q1_sub)>0 else int(v["csat_positive"].sum())
+            neg=int(q1_sub["csat_negative"].sum()) if len(q1_sub)>0 else int(v["csat_negative"].sum())
+            vt=len(q1_sub) if len(q1_sub)>0 else len(v)
             pp=round(pos/vt*100,1) if vt>0 else 0
             np_=round(neg/vt*100,1) if vt>0 else 0
             ps=[round(len(grp[grp["pillar"]==p])/Xs*100,1) if Xs>0 else 0
@@ -647,12 +655,15 @@ class FeedbackAgentPipeline:
                     non_id=sorted(all_cols,key=lambda col:-qf2[col].astype(str).str.lower().str.strip().isin(yn_vals).mean())
                     if non_id:
                         rc2=non_id[0]
-                        resolved_vals=qf2[rc2].astype(str).str.lower().str.strip().isin(["yes","y","1","true","resolved"]).astype(int)
+                        resolved_vals=qf2[rc2].astype(str).str.lower().str.strip().isin(["yes","y","1","true","resolved","כן","נפתר"]).astype(int)
                         q2_frames.append(pd.DataFrame({"market":mkt2,"platform":plt2,"period":prd2,"resolved":resolved_vals,"total":1}))
             # Process Q1 standalone
             if q1_frames:
                 q1_sa=pd.concat(q1_frames,ignore_index=True)
                 q1_sa["csat_valid"]=q1_sa["q1_rating"].isin(VALID_RATINGS).astype(int)
+                q1_sa["Date"]=pd.to_datetime(q1_sa["Date"],errors="coerce")
+                q1_sa["week_start"]=q1_sa["Date"].dt.to_period("W").apply(lambda p:p.start_time.strftime("%Y-%m-%d") if hasattr(p,"start_time") else "")
+                q1_sa["month"]=q1_sa["Date"].dt.strftime("%Y-%m")
                 if "submitted_at" in q1_sa.columns:
                     q1_sa["Date"]=pd.to_datetime(q1_sa["submitted_at"],errors="coerce")
                     q1_sa["week_start"]=q1_sa["Date"].dt.to_period("W").apply(lambda p: p.start_time.strftime("%Y-%m-%d") if hasattr(p,"start_time") else "")
