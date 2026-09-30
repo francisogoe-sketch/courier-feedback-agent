@@ -386,7 +386,7 @@ class ReportBuilder:
         ws.sheet_view.showGridLines=False
         ws.column_dimensions["A"].width=3
         for col in ["B","C","D","E","F","G","H"]: ws.column_dimensions[col].width=22
-        df=self.q1_sa if (hasattr(self,"q1_sa") and self.q1_sa is not None) else self.df; valid=df[df["csat_valid"]==1]; X=df[df["in_X"]==1]
+        df=self.df; valid=df[df["csat_valid"]==1]; X=df[df["in_X"]==1]
         vt=len(valid); Xt=len(X)
         if hasattr(self,"q1_sa") and self.q1_sa is not None:
             q1v=self.q1_sa[self.q1_sa["csat_valid"]==1]; vt=len(q1v)
