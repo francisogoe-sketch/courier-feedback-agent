@@ -393,8 +393,8 @@ class ReportBuilder:
             pp=round(q1v["csat_positive"].sum()/vt*100,1) if vt>0 else 0
             np_=round(q1v["csat_negative"].sum()/vt*100,1) if vt>0 else 0
         else:
-        pp=round(valid["csat_positive"].sum()/vt*100,1) if vt>0 else 0
-        np_=round(valid["csat_negative"].sum()/vt*100,1) if vt>0 else 0
+            pp=round(valid["csat_positive"].sum()/vt*100,1) if vt>0 else 0
+            np_=round(valid["csat_negative"].sum()/vt*100,1) if vt>0 else 0
         ws.merge_cells("B1:H1"); self._h(ws["B1"],Config.REPORT_TITLE,sz=14); ws.row_dimensions[1].height=34
         ws.merge_cells("B2:H2"); self._h(ws["B2"],f"{self.week} | Total:{len(df):,} | Q1 Valid:{vt:,} | X(Pillars1-4):{Xt:,}",bg=self.C["bl"],sz=9); ws.row_dimensions[2].height=18
         ws.merge_cells("B3:H3"); self._h(ws["B3"],Config.DATA_CAVEAT,bg="FFFFF3E0",fg="FF7B3F00",sz=8,bold=False); ws.row_dimensions[3].height=26
