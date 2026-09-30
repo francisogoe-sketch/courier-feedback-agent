@@ -645,7 +645,10 @@ class FeedbackAgentPipeline:
                     qf=groups[gk2][1].copy()
                     rc=next((col for col in qf.columns if qf[col].astype(str).str.strip().isin(list(VALID_RATINGS)+["","nan"]).mean()>0.2),None)
                     if not rc: rc=next((col for col in qf.columns if col.lower() not in ["visitor id","visitor_id","respondent_id","courier_id"]),None)
-                    if rc: q1_frames.append(pd.DataFrame({"market":mkt2,"platform":plt2,"period":prd2,"q1_rating":qf[rc].astype(str).str.strip()}))
+                        if rc:
+                            _dc="Date" if "Date" in qf.columns else ("submitted_at" if "submitted_at" in qf.columns else None)
+                            _dt=qf[_dc] if _dc else pd.Series([pd.NaT]*len(qf))
+                            q1_frames.append(pd.DataFrame({"market":mkt2,"platform":plt2,"period":prd2,"q1_rating":qf[rc].astype(str).str.strip(),"Date":_dt}))
                 # Q2 standalone
                 if groups[gk2][2] is not None:
                     qf2=groups[gk2][2].copy()
