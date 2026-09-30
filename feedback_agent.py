@@ -421,7 +421,7 @@ class ReportBuilder:
         ws.row_dimensions[10].height=22
         ri=11
         for p in PILLAR_ORDER:
-            grp=df[df["pillar"]==p]; v=grp[grp["csat_valid"]==1]
+            grp=df[df["pillar"]==p] if "pillar" in df.columns else pd.DataFrame(); v=grp[grp["csat_valid"]==1]
             share=round(len(grp)/Xt*100,1) if (Xt>0 and p!="Pillar 5") else 0
             pp2=round(v["csat_positive"].sum()/len(v)*100,1) if len(v)>0 else 0
             np2=round(v["csat_negative"].sum()/len(v)*100,1) if len(v)>0 else 0
@@ -510,7 +510,7 @@ class ReportBuilder:
             self._h(ws.cell(2,ci),h,bg=self.C["gy"],fg=self.C["dk"][2:],sz=9)
         ri=3
         for p in PILLAR_ORDER:
-            grp=df[df["pillar"]==p]
+            grp=df[df["pillar"]==p] if "pillar" in df.columns else pd.DataFrame()
             if len(grp)==0: continue
             r=grp["resolved"].sum(); rate=round(r/len(grp)*100,1)
             pc=self.PC.get(p,self.C["gy"])
