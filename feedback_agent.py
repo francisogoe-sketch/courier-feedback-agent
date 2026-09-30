@@ -444,7 +444,7 @@ class ReportBuilder:
     def _q1_sheet(self):
         ws=self.wb.create_sheet("Q1 CSAT by Market")
         ws.sheet_view.showGridLines=False
-        df=self.df
+        df=self.q1_sa if (hasattr(self,"q1_sa") and self.q1_sa is not None) else self.df
         ws.merge_cells("A1:H1"); self._h(ws["A1"],"Q1 CSAT Ratings — Positive(3-4-5) vs Negative(1-2) by Market",sz=11)
         heads=["Market","Platform","Total","Q1 Valid","Positive","Pos%","Negative","Neg%"]
         ws=[ws if True else None][0]
@@ -641,7 +641,7 @@ class FeedbackAgentPipeline:
                 # Q2 standalone
                 if groups[gk2][2] is not None:
                     qf2=groups[gk2][2].copy()
-                    non_id=[col for col in qf2.columns if col.lower() not in ["visitor id","visitor_id","respondent_id","courier_id"]]
+                    import re as _re; non_id=[col for col in qf2.columns if col.lower() not in ["visitor id","visitor_id","respondent_id","courier_id"] and not _re.search(r"[0-9a-f]{8}-[0-9a-f]{4}",str(qf2[col].dropna().head(5).tolist()),_re.I)]
                     if non_id:
                         rc2=non_id[0]
                         resolved_vals=qf2[rc2].astype(str).str.lower().str.strip().isin(["yes","y","1","true","resolved"]).astype(int)
