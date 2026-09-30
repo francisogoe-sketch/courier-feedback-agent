@@ -355,7 +355,7 @@ class ReportBuilder:
             pp=round(pos/vt*100,1) if vt>0 else 0
             np_=round(neg/vt*100,1) if vt>0 else 0
             ps=[round(len(grp[grp["pillar"]==p])/Xs*100,1) if Xs>0 else 0
-                for p in ["Pillar 1","Pillar 2","Pillar 3","Pillar 4"]]
+            for p in ["Pillar 1","Pillar 2","Pillar 3","Pillar 4"]]
             res=""
             if "resolved" in grp.columns and grp["resolved"].notna().any():
                 r=grp["resolved"].sum(); res=f"{round(r/len(grp)*100,1)}%"
