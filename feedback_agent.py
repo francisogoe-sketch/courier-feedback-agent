@@ -665,7 +665,7 @@ class FeedbackAgentPipeline:
                 q1_sa=pd.concat(q1_frames,ignore_index=True)
                 q1_sa["csat_valid"]=q1_sa["q1_rating"].isin(VALID_RATINGS).astype(int)
                 q1_sa["Date"]=pd.to_datetime(q1_sa["Date"],errors="coerce")
-                q1_sa["week_start"]=q1_sa["Date"].dt.to_period("W").apply(lambda p:p.start_time.strftime("%Y-%m-%d") if hasattr(p,"start_time") else "")
+                q1_sa["week_start"]=q1_sa["Date"].dt.to_period("W").dt.start_time.dt.strftime("%Y-%m-%d").fillna("")
                 q1_sa["month"]=q1_sa["Date"].dt.strftime("%Y-%m")
                 if "submitted_at" in q1_sa.columns:
                     q1_sa["Date"]=pd.to_datetime(q1_sa["submitted_at"],errors="coerce")
