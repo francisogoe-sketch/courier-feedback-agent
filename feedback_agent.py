@@ -351,11 +351,7 @@ class ReportBuilder:
         valid_periods=df[df[period_col].replace("",pd.NA).notna()]
         for (period,market),grp in valid_periods.groupby([period_col,"market"]):
             v=grp[grp["csat_valid"]==1]; X=grp[grp["in_X"]==1]; Xs=len(X)
-            q1m=self.q1_sa[self.q1_sa["market"]==market] if (hasattr(self,"q1_sa") and self.q1_sa is not None) else pd.DataFrame()
-q1mv=q1m[q1m["csat_valid"]==1] if len(q1m)>0 else pd.DataFrame()
-pos=int(q1mv["csat_positive"].sum()) if len(q1mv)>0 else int(v["csat_positive"].sum())
-neg=int(q1mv["csat_negative"].sum()) if len(q1mv)>0 else int(v["csat_negative"].sum())
-vt=len(q1mv) if len(q1mv)>0 else len(v)
+            pos=v["csat_positive"].sum(); neg=v["csat_negative"].sum(); vt=len(v)
             pp=round(pos/vt*100,1) if vt>0 else 0
             np_=round(neg/vt*100,1) if vt>0 else 0
             ps=[round(len(grp[grp["pillar"]==p])/Xs*100,1) if Xs>0 else 0
