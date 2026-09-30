@@ -113,7 +113,7 @@ class DriveClient:
            "and mimeType!='application/vnd.google-apps.folder' and trashed=false")
         r=(self.service.files()
            .list(q=q,fields="files(id,name)",pageSize=300,
-                 supportsAllDrives=True,includeItemsFromAllDrives=True)
+                 supportsAllDrives=True,includeItemsFromAllDrives=True,corpora="drive",driveId="0ACgszt17wBfHUk9PVA")
            .execute())
         files=[f for f in r.get("files",[]) if f["name"].lower().endswith(".csv") and any(q in f["name"].upper() for q in ["Q1","Q2","Q3"])]
         log.info(f"Found {len(files)} CSV files.")
