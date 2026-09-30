@@ -641,7 +641,10 @@ class FeedbackAgentPipeline:
                 # Q2 standalone
                 if groups[gk2][2] is not None:
                     qf2=groups[gk2][2].copy()
-                    import re as _re; non_id=[col for col in qf2.columns if col.lower() not in ["visitor id","visitor_id","respondent_id","courier_id"] and not _re.search(r"[0-9a-f]{8}-[0-9a-f]{4}",str(qf2[col].dropna().head(5).tolist()),_re.I)]
+                    import re as _re
+                    all_cols=[col for col in qf2.columns if col.lower() not in ["visitor id","visitor_id","respondent_id","courier_id"] and not _re.search(r"[0-9a-f]{8}-[0-9a-f]{4}",str(qf2[col].dropna().head(3).tolist()),_re.I)]
+                    yn_vals={"yes","no","y","n","true","false","1","0","resolved","not resolved","unresolved"}
+                    non_id=sorted(all_cols,key=lambda col:-qf2[col].astype(str).str.lower().str.strip().isin(yn_vals).mean())
                     if non_id:
                         rc2=non_id[0]
                         resolved_vals=qf2[rc2].astype(str).str.lower().str.strip().isin(["yes","y","1","true","resolved"]).astype(int)
@@ -650,6 +653,10 @@ class FeedbackAgentPipeline:
             if q1_frames:
                 q1_sa=pd.concat(q1_frames,ignore_index=True)
                 q1_sa["csat_valid"]=q1_sa["q1_rating"].isin(VALID_RATINGS).astype(int)
+                if "submitted_at" in q1_sa.columns:
+                    q1_sa["Date"]=pd.to_datetime(q1_sa["submitted_at"],errors="coerce")
+                    q1_sa["week_start"]=q1_sa["Date"].dt.to_period("W").apply(lambda p: p.start_time.strftime("%Y-%m-%d") if hasattr(p,"start_time") else "")
+                    q1_sa["month"]=q1_sa["Date"].dt.strftime("%Y-%m")
                 q1_sa["csat_positive"]=q1_sa["q1_rating"].isin(POS_RATINGS).astype(int)
                 q1_sa["csat_negative"]=q1_sa["q1_rating"].isin(NEG_RATINGS).astype(int)
                 v2=q1_sa["csat_valid"].sum(); p2=q1_sa["csat_positive"].sum(); n2=q1_sa["csat_negative"].sum()
