@@ -283,7 +283,7 @@ class FeedbackClassifier:
         # Q2 resolution
         if "q2_resolution" in df.columns:
             df["resolved"]=df["q2_resolution"].astype(str).str.lower().str.strip()\
-                .isin(["yes","y","1","true","resolved"]).astype(int)
+                .isin(["yes","y","1","true","resolved","כן","נפתר"]).astype(int)
         else:
             df["resolved"]=pd.NA
 
@@ -351,7 +351,11 @@ class ReportBuilder:
         valid_periods=df[df[period_col].replace("",pd.NA).notna()]
         for (period,market),grp in valid_periods.groupby([period_col,"market"]):
             v=grp[grp["csat_valid"]==1]; X=grp[grp["in_X"]==1]; Xs=len(X)
-            pos=v["csat_positive"].sum(); neg=v["csat_negative"].sum(); vt=len(v)
+            q1m=self.q1_sa[self.q1_sa["market"]==market] if (hasattr(self,"q1_sa") and self.q1_sa is not None) else pd.DataFrame()
+q1mv=q1m[q1m["csat_valid"]==1] if len(q1m)>0 else pd.DataFrame()
+pos=int(q1mv["csat_positive"].sum()) if len(q1mv)>0 else int(v["csat_positive"].sum())
+neg=int(q1mv["csat_negative"].sum()) if len(q1mv)>0 else int(v["csat_negative"].sum())
+vt=len(q1mv) if len(q1mv)>0 else len(v)
             pp=round(pos/vt*100,1) if vt>0 else 0
             np_=round(neg/vt*100,1) if vt>0 else 0
             ps=[round(len(grp[grp["pillar"]==p])/Xs*100,1) if Xs>0 else 0
@@ -498,7 +502,7 @@ class ReportBuilder:
         ws.sheet_view.showGridLines=False
         df=self.df
         ws.merge_cells("A1:E1")
-        self._h(ws["A1"],"Q2 Resolution Rate by Pillar and Market | Formula: Resolved/Total×100",sz=9,bold=False,bg="FFE8F5E9",fg="FF1A2E44")
+        self._h(ws["A1"],"Q2 Resolution Rate | Formula: Resolved/Total×100 | Note: IL in Hebrew (כן=Yes) - shows 0% until translation added",sz=9,bold=False,bg="FFE8F5E9",fg="FF1A2E44")
         # Use Q2 standalone if available
         if hasattr(self,"q2_sa") and self.q2_sa is not None:
             df=self.q2_sa
@@ -643,7 +647,7 @@ class FeedbackAgentPipeline:
                     qf2=groups[gk2][2].copy()
                     import re as _re
                     all_cols=[col for col in qf2.columns if col.lower() not in ["visitor id","visitor_id","respondent_id","courier_id"] and not _re.search(r"[0-9a-f]{8}-[0-9a-f]{4}",str(qf2[col].dropna().head(3).tolist()),_re.I)]
-                    yn_vals={"yes","no","y","n","true","false","1","0","resolved","not resolved","unresolved"}
+                    yn_vals={"yes","no","y","n","true","false","1","0","resolved","not resolved","unresolved","כן","לא","נפתר","לא נפתר"}
                     non_id=sorted(all_cols,key=lambda col:-qf2[col].astype(str).str.lower().str.strip().isin(yn_vals).mean())
                     if non_id:
                         rc2=non_id[0]
