@@ -313,9 +313,9 @@ class ReportBuilder:
         "Pillar 4":"FF2A6496","Pillar 5":"FFB0BEC5"}
     SEN={"positive":"FF4CAF50","negative":"FFE84855","neutral":"FFB0BEC5","no_response":"FFE0E0E0"}
 
-    def __init__(self,df,week):
+    def __init__(self,df,week,q1_sa=None,q2_sa=None):
         self.df=df; self.week=week
-        self.wb=Workbook(); self.wb.remove(self.wb.active)
+        self.wb=Workbook(); self.wb.remove(self.wb.active); self.q1_sa=q1_sa; self.q2_sa=q2_sa
 
     def _h(self,c,t,bg=None,fg="FFFFFFFF",sz=10,bold=True,align="center"):
         c.value=t; c.fill=PatternFill("solid",fgColor=bg or self.C["dk"])
