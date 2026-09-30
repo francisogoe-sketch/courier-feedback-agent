@@ -388,6 +388,11 @@ class ReportBuilder:
         for col in ["B","C","D","E","F","G","H"]: ws.column_dimensions[col].width=22
         df=self.df; valid=df[df["csat_valid"]==1]; X=df[df["in_X"]==1]
         vt=len(valid); Xt=len(X)
+        if hasattr(self,"q1_sa") and self.q1_sa is not None:
+            q1v=self.q1_sa[self.q1_sa["csat_valid"]==1]; vt=len(q1v)
+            pp=round(q1v["csat_positive"].sum()/vt*100,1) if vt>0 else 0
+            np_=round(q1v["csat_negative"].sum()/vt*100,1) if vt>0 else 0
+        else:
         pp=round(valid["csat_positive"].sum()/vt*100,1) if vt>0 else 0
         np_=round(valid["csat_negative"].sum()/vt*100,1) if vt>0 else 0
         ws.merge_cells("B1:H1"); self._h(ws["B1"],Config.REPORT_TITLE,sz=14); ws.row_dimensions[1].height=34
@@ -494,6 +499,9 @@ class ReportBuilder:
         df=self.df
         ws.merge_cells("A1:E1")
         self._h(ws["A1"],"Q2 Resolution Rate by Pillar and Market | Formula: Resolved/Total×100",sz=9,bold=False,bg="FFE8F5E9",fg="FF1A2E44")
+        # Use Q2 standalone if available
+        if hasattr(self,"q2_sa") and self.q2_sa is not None:
+            df=self.q2_sa
         has_q2="resolved" in df.columns and df["resolved"].notna().any()
         if not has_q2:
             ws["A2"].value="Q2 resolution data not available"; ws["A2"].font=Font(size=10,italic=True,color="FF999999"); return
@@ -620,6 +628,39 @@ class FeedbackAgentPipeline:
                 group_meta[gk]={k:v for k,v in p.items() if k!="question"}
             log.info(f"  {len(groups)} market/platform/period groups")
 
+            log.info("STEP 2b  Q1+Q2 standalone processing...")
+            q1_frames=[]; q2_frames=[]
+            for gk2,meta2 in group_meta.items():
+                mkt2=meta2["market"]; plt2=meta2["platform"]; prd2=meta2["period"]
+                # Q1 standalone
+                if groups[gk2][1] is not None:
+                    qf=groups[gk2][1].copy()
+                    rc=next((col for col in qf.columns if qf[col].astype(str).str.strip().isin(list(VALID_RATINGS)+["","nan"]).mean()>0.2),None)
+                    if not rc: rc=next((col for col in qf.columns if col.lower() not in ["visitor id","visitor_id","respondent_id","courier_id"]),None)
+                    if rc: q1_frames.append(pd.DataFrame({"market":mkt2,"platform":plt2,"period":prd2,"q1_rating":qf[rc].astype(str).str.strip()}))
+                # Q2 standalone
+                if groups[gk2][2] is not None:
+                    qf2=groups[gk2][2].copy()
+                    non_id=[col for col in qf2.columns if col.lower() not in ["visitor id","visitor_id","respondent_id","courier_id"]]
+                    if non_id:
+                        rc2=non_id[0]
+                        resolved_vals=qf2[rc2].astype(str).str.lower().str.strip().isin(["yes","y","1","true","resolved"]).astype(int)
+                        q2_frames.append(pd.DataFrame({"market":mkt2,"platform":plt2,"period":prd2,"resolved":resolved_vals,"total":1}))
+            # Process Q1 standalone
+            if q1_frames:
+                q1_sa=pd.concat(q1_frames,ignore_index=True)
+                q1_sa["csat_valid"]=q1_sa["q1_rating"].isin(VALID_RATINGS).astype(int)
+                q1_sa["csat_positive"]=q1_sa["q1_rating"].isin(POS_RATINGS).astype(int)
+                q1_sa["csat_negative"]=q1_sa["q1_rating"].isin(NEG_RATINGS).astype(int)
+                v2=q1_sa["csat_valid"].sum(); p2=q1_sa["csat_positive"].sum(); n2=q1_sa["csat_negative"].sum()
+                log.info(f"  Q1: valid={v2:,} pos={p2:,} neg={n2:,} | pos%={round(p2/v2*100,1) if v2 else 0}% neg%={round(n2/v2*100,1) if v2 else 0}%")
+            else: q1_sa=None; log.warning("  No Q1 data found")
+            # Process Q2 standalone
+            if q2_frames:
+                q2_sa=pd.concat(q2_frames,ignore_index=True)
+                tot=len(q2_sa); res=q2_sa["resolved"].sum()
+                log.info(f"  Q2: total={tot:,} resolved={res:,} rate={round(res/tot*100,1) if tot else 0}%")
+            else: q2_sa=None; log.warning("  No Q2 data found")
             log.info("STEP 3  Joining Q1+Q2+Q3 per group...")
             frames=[]
             for gk,meta in group_meta.items():
@@ -645,7 +686,7 @@ class FeedbackAgentPipeline:
             log.info("STEP 5  Building 7-tab Excel report...")
             with tempfile.TemporaryDirectory() as tmp:
                 xp=os.path.join(tmp,rfn); cp=os.path.join(tmp,cfn)
-                ReportBuilder(cdf,Config.WEEK_LABEL).build(xp); cdf.to_csv(cp,index=False)
+                ReportBuilder(cdf,Config.WEEK_LABEL,q1_sa=q1_sa,q2_sa=q2_sa).build(xp); cdf.to_csv(cp,index=False)
                 log.info("STEP 6  Uploading to Drive...")
                 link=self.drive.upload_file(xp,Config.OUTPUT_FOLDER_ID,
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
