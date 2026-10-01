@@ -776,51 +776,114 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function getMapping() {
-  var safe = function(id, def) {
-    var el = document.getElementById(id);
-    return el ? el.value : def;
-  };
+  var safe=function(id,def){var el=document.getElementById(id);return el?el.value:def;};
   return {
-    date:       safe('mapDate',       'Date'),
-    market:     safe('mapMarket',     'Market'),
-    text:       safe('mapText',       'Q3 Text'),
-    theme:      safe('mapTheme',      'Theme'),
-    sentiment:  safe('mapSentiment',  'Csat Sentiment'),
-    resolution: safe('mapResolution', 'Resolved')
+    date:      safe('mapDate','Date'),
+    market:    safe('mapMarket','Market'),
+    text:      safe('mapText','Q3 Text'),
+    theme:     safe('mapTheme','Theme'),
+    sentiment: safe('mapSentiment','Csat Sentiment'),
+    resolution:safe('mapResolution','Resolved')
   };
+}
+
+function normalizePillar(s) {
+  var p=s.toLowerCase();
+  if(p.indexOf('support')>=0||p==='pillar 1'||p==='pillar1')return 'Support Quality';
+  if(p.indexOf('tech')>=0||p.indexOf('app')>=0||p==='pillar 2'||p==='pillar2')return 'App / Tech Issues';
+  if(p.indexOf('partner')>=0||p.indexOf('external')>=0||p.indexOf('delay')>=0||p==='pillar 3'||p==='pillar3')return 'Partner and External Delays';
+  if(p.indexOf('comp')>=0||p.indexOf('pay')>=0||p==='pillar 4'||p==='pillar4')return 'Compensation';
+  return 'General / Minimal Feedback';
+}
+
+function updateDashboard() {
+  var total=TC.length; if(!total)return;
+  var neg=0,pos=0,res=0;
+  TC.forEach(function(t){if(t.q1<=2)neg++;else pos++;if(t.q2==='Yes')res++;});
+  var p5k=['general / minimal / positive','general / minimal feedback','positive feedback','general','minimal'];
+  var xRows=TC.filter(function(t){return p5k.indexOf(t.pillar.toLowerCase())<0;});
+  var X=xRows.length;
+  var nP=(neg/total*100).toFixed(1),pP=(pos/total*100).toFixed(1);
+
+  /* KPI tiles */
+  var kv=document.querySelectorAll('.kv');
+  if(kv[0])kv[0].textContent=total.toLocaleString();
+  if(kv[1]){kv[1].textContent=pP+'%';kv[1].style.color=pP>=60?'#16A34A':pP>=50?'#D97706':'#DC2626';}
+  if(kv[2]){kv[2].textContent=nP+'%';kv[2].style.color=nP>22?'#DC2626':nP>=18?'#D97706':'#16A34A';}
+  if(kv[3])kv[3].textContent=X.toLocaleString();
+
+  /* Date range */
+  var dates=TC.map(function(t){return t.date;}).filter(function(d){return d&&d.length===10;}).sort();
+  var dMin=dates.length?dates[0]:'',dMax=dates.length?dates[dates.length-1]:'';
+
+  /* Header subtitle */
+  var hm=document.querySelector('.hm');
+  if(hm&&dMin){
+    var s=hm.textContent;
+    s=s.replace(/\d+,?\d* total responses/,total.toLocaleString()+' total responses');
+    s=s.replace(/Q1 valid:.*$/,'Q1 valid: '+total.toLocaleString());
+    hm.textContent=s;
+  }
+  /* KPI date subtitle */
+  var ks=document.querySelectorAll('.ks');
+  if(ks[0]&&dMin)ks[0].textContent=dMin+' to '+dMax;
+  if(ks[1])ks[1].textContent=pos.toLocaleString()+' responses';
+  if(ks[2])ks[2].textContent=neg.toLocaleString()+' responses | >22% = action';
+  if(ks[3])ks[3].textContent='Pillars 1-4 | '+X.toLocaleString()+' active responses';
+
+  /* Per-pillar stats */
+  var PILLARS=['Support Quality','App / Tech Issues','Partner and External Delays','Compensation'];
+  var PS={};
+  PILLARS.forEach(function(p){
+    var rows=xRows.filter(function(t){return t.pillar===p;});
+    var pn=rows.filter(function(t){return t.q1<=2;}).length;
+    var pp=rows.filter(function(t){return t.q1>=3;}).length;
+    var pt=rows.length;
+    PS[p]={t:pt,n:pn,p:pp,np:pt?(pn/pt*100).toFixed(1):'0',pp2:pt?(pp/pt*100).toFixed(1):'0',xp:X?(pt/X*100).toFixed(1):'0'};
+  });
+
+  /* Update pillar pills in headers */
+  document.querySelectorAll('.phdr').forEach(function(hdr){
+    /* Find which pillar this is */
+    var nameEl=hdr.querySelector('div[style*="font-size:.88rem"]')||hdr.querySelector('div[style*="font-weight:800"]');
+    if(!nameEl)return;
+    var pName=nameEl.textContent.trim().replace(/^#\d\s*/,'');
+    var st=PS[pName]; if(!st)return;
+    var nc=st.np>22?'#DC2626':st.np>=18?'#D97706':'#16A34A';
+    hdr.querySelectorAll('.pi').forEach(function(pill){
+      var t=pill.textContent;
+      if(t.indexOf('neg')>=0){pill.style.background=nc+'22';pill.style.color=nc;pill.textContent='\u25bc '+st.np+'% neg';}
+      else if(t.indexOf('pos')>=0){pill.textContent='\u25b2 '+st.pp2+'% pos';}
+      else if(t.indexOf('of X')>=0){pill.textContent=st.t.toLocaleString()+' ('+st.xp+'% of X)';}
+    });
+  });
 }
 
 function applyUpload() {
   try {
-    if (!parsedFileData || !parsedFileData.length) {
-      alert('No data loaded. Please select a CSV file first.');
-      return;
-    }
-    var map = getMapping();
-    /* Build rows from CSV */
-    var newTC = [];
-    parsedFileData.forEach(function(row, i) {
-      var sRaw=String(row[map.sentiment]||'').trim(),sL=sRaw.toLowerCase(),sN=parseInt(sRaw),q1;
+    if(!parsedFileData||!parsedFileData.length){alert('No data loaded. Select a CSV file first.');return;}
+    var map=getMapping();
+    var newTC=[];
+    parsedFileData.forEach(function(row,i){
+      var sR=String(row[map.sentiment]||'').trim(),sL=sR.toLowerCase(),sN=parseInt(sR),q1;
       if(!isNaN(sN)&&sN>=1&&sN<=5){q1=sN;}
       else if(sL.indexOf('pos')>=0){q1=4;}
       else if(sL.indexOf('neg')>=0){q1=2;}
       else{q1=3;}
-      var rRaw=String(row[map.resolution]||'').trim().toLowerCase();
-      var q2=(rRaw==='yes'||rRaw==='1'||rRaw==='true'||rRaw==='\u05db\u05df')?'Yes':'No';
+      var rR=String(row[map.resolution]||'').trim().toLowerCase();
+      var q2=(rR==='yes'||rR==='1'||rR==='true'||rR==='\u05db\u05df')?'Yes':'No';
       var txt=String(row[map.text]||'').trim();
-      if(!txt)return; /* skip empty rows */
+      if(!txt)return;
+      var pRaw=String(row[map.theme]||'').trim();
       newTC.push({
         id:'U'+String(i+1).padStart(4,'0'),
         date:String(row[map.date]||'').slice(0,10),
         mkt:String(row[map.market]||'Unknown').slice(0,20),
         platform:String(row['Platform']||row['platform']||'Uploaded'),
-        q1:q1, q2:q2,
-        pillar:String(row[map.theme]||'General / Minimal Feedback'),
-        theme:String(row[map.theme]||'Uploaded'),
-        text:txt
+        q1:q1,q2:q2,pillar:normalizePillar(pRaw),theme:pRaw,text:txt
       });
     });
-    if(!newTC.length){alert('No valid rows found. Make sure the Q3 Text column has content.');return;}
+    if(!newTC.length){alert('No valid rows found after parsing. Check Q3 Text column has content.');return;}
     /* Merge with dedup */
     var seen={};
     TC.forEach(function(t){seen[t.text.slice(0,60).toLowerCase()]=true;});
@@ -829,29 +892,25 @@ function applyUpload() {
       var k=t.text.slice(0,60).toLowerCase();
       if(!seen[k]){TC.push(t);seen[k]=true;added++;}else{skipped++;}
     });
-    /* Update KPIs */
-    var total=TC.length,neg=TC.filter(function(t){return t.q1<=2;}).length,pos=TC.filter(function(t){return t.q1>=3;}).length;
-    var nP=(total?(neg/total*100).toFixed(1):'0.0'),pP=(total?(pos/total*100).toFixed(1):'0.0');
-    var kv=document.querySelectorAll('.kv');
-    if(kv[0])kv[0].textContent=total.toLocaleString();
-    if(kv[1]){kv[1].textContent=pP+'%';kv[1].style.color=pP>=60?'#16A34A':pP>=50?'#D97706':'#DC2626';}
-    if(kv[2]){kv[2].textContent=nP+'%';kv[2].style.color=nP>22?'#DC2626':nP>=18?'#D97706':'#16A34A';}
-    if(kv[3])kv[3].textContent=total.toLocaleString();
+    /* Recalculate and update ALL dashboard elements */
+    updateDashboard();
     if(typeof renderTC==='function')renderTC();
-    /* Success */
+    /* Success banner */
     var s=document.getElementById('uploadSuccess');
     if(s){
       s.style.display='block';s.style.background='#D1FAE5';s.style.color='#065F46';
-      s.innerHTML='\u2714 <strong>'+added+' new rows added</strong>'+(skipped?' ('+skipped+' duplicates skipped)':'')+'. Switching to dashboard...';
+      s.innerHTML='\u2714 <strong>'+added+' rows merged</strong> into dashboard'+(skipped?' &bull; '+skipped+' duplicates skipped':'')+
+        '.<br>KPIs, pillar cards, date range and transcripts all updated. Switching to dashboard...';
     }
     var btn=document.getElementById('applyUploadBtn');
-    if(btn){btn.textContent='\u2714 Applied! ('+added+' rows)';btn.style.background='#16A34A';}
-    setTimeout(function(){if(typeof showTab==='function')showTab('dashboard');},1500);
-  } catch(err) {
-    alert('Error applying data: '+err.message+'\n\nOpen browser console (F12) for details.');
-    console.error('applyUpload error:',err);
+    if(btn){btn.textContent='\u2714 Applied ('+added+' rows)';btn.style.background='#16A34A';}
+    setTimeout(function(){if(typeof showTab==='function')showTab('dashboard');},1800);
+  } catch(err){
+    alert('Error: '+err.message+'\n\nPress F12 and check Console for details.');
+    console.error('applyUpload:',err);
   }
 }
+
 
 function resetUpload() {
   parsedFileData = [];
