@@ -149,8 +149,11 @@ class DriveClient:
         log.info(f"  Downloaded master: {label} ({len(df):,} rows)"); return df
 
     def delete_file(self,file_id):
-        self.service.files().delete(fileId=file_id,supportsAllDrives=True).execute()
-        log.info(f"  Deleted old master (id:{file_id})")
+        try:
+            self.service.files().delete(fileId=file_id,supportsAllDrives=True).execute()
+            log.info(f"  Deleted old master (id:{file_id})")
+        except Exception as e:
+            log.warning(f"  Could not delete old master (id:{file_id}) - skipping: {e}")
 
     def upload_file(self,local_path,folder_id,mime):
         name=Path(local_path).name
@@ -750,7 +753,9 @@ class FeedbackAgentPipeline:
                 cdf.to_csv(snap_path,index=False)
                 log.info("STEP 6  Uploading to Drive (append-safe)...")
                 link=self.drive.upload_file(xp,Config.OUTPUT_FOLDER_ID,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                if master_id: self.drive.delete_file(master_id)
+                if master_id:
+                    try: self.drive.delete_file(master_id)
+                    except Exception as _de: log.warning(f"  Delete skipped: {_de}")
                 self.drive.upload_file(master_path,Config.OUTPUT_FOLDER_ID,"text/csv")
                 self.drive.upload_file(snap_path,Config.OUTPUT_FOLDER_ID,"text/csv")
                 log.info(f"  Master updated: {len(combined):,} total rows")
