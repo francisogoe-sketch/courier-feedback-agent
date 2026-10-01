@@ -775,6 +775,21 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
+function getMapping() {
+  var safe = function(id, def) {
+    var el = document.getElementById(id);
+    return el ? el.value : def;
+  };
+  return {
+    date:       safe('mapDate',       'Date'),
+    market:     safe('mapMarket',     'Market'),
+    text:       safe('mapText',       'Q3 Text'),
+    theme:      safe('mapTheme',      'Theme'),
+    sentiment:  safe('mapSentiment',  'Csat Sentiment'),
+    resolution: safe('mapResolution', 'Resolved')
+  };
+}
+
 function applyUpload() {
   try {
     if (!parsedFileData || !parsedFileData.length) {
