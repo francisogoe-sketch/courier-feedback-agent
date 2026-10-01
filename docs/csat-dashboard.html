@@ -99,14 +99,7 @@ csat_negative = 1 if Q1 in {1,2}</div><div class="gt">Positive CSAT %</div><div 
   <!-- DIRECT UPLOAD CARD -->
   <div class="upd-card" id="uploadCard">
     <h3>&#x1F4C2;&nbsp; Direct Upload — Update Dashboard from CSV File</h3>
-    <p>Upload a CSV file directly from your computer. The dashboard updates instantly — no pipeline, no Drive, no waiting.</p>
-
-    <!-- ACCESS GATE — only shows upload if token is saved -->
-    <div id="uploadGate" style="background:#FEF3C7;border-left:4px solid #D97706;border-radius:0 8px 8px 0;padding:12px 14px;font-size:.76rem;color:#92400E">
-      &#x1F512; <strong>Restricted:</strong> This feature requires your saved GitHub token (Step 2 below).
-      Save your token first, then this section will unlock automatically.
-    </div>
-    <div id="uploadContent" style="display:none">
+    <p>Upload a CSV file directly from your computer. The dashboard updates instantly in your browser — no pipeline, no Drive, no waiting.</p>
 
     <!-- DROP ZONE -->
     <div class="upload-zone" id="uploadZone" onclick="document.getElementById('csvFileInput').click()"
@@ -133,10 +126,11 @@ csat_negative = 1 if Q1 in {1,2}</div><div class="gt">Positive CSAT %</div><div 
         <div><label>Resolution / Q2</label><select id="mapResolution"></select></div>
       </div>
 
-      <!-- MERGE ONLY — no replace option -->
-      <input type="hidden" name="mergeMode" value="add">
-      <div style="font-size:.72rem;color:var(--lt);background:#EFF6FF;border-left:3px solid #3B82F6;padding:6px 10px;border-radius:0 5px 5px 0;margin:8px 0">
-        &#x2139; <strong>Merge mode:</strong> Uploaded rows will be added to existing data. Duplicates are filtered by matching date + market + Q3 text.
+      <!-- MERGE OPTIONS -->
+      <div style="font-size:.77rem;font-weight:700;color:var(--dk);margin-bottom:6px">&#x1F504; Data mode</div>
+      <div class="merge-opts">
+        <label class="merge-opt"><input type="radio" name="mergeMode" value="replace" checked> Replace existing data</label>
+        <label class="merge-opt"><input type="radio" name="mergeMode" value="add"> Add to existing data</label>
       </div>
 
       <!-- PREVIEW -->
@@ -627,69 +621,70 @@ function handleFileSelect(e) {
   if (f) processFile(f);
 }
 
-/* Required columns — at least one alias from each group must exist */
-var REQUIRED_GROUPS = {
-  'Date':       ['date','submitted_at','created_time_local','submitted','time','timestamp'],
-  'Response':   ['response','q3_text','q3text','text','feedback','comment','transcript','verbatim'],
-  'Sentiment':  ['sentiment','csat_sentiment','q1_rating','q1','rating','score','sentiment_theme'],
-  'Theme':      ['theme','l2','pillar','pillar_name','category','super_category','super-category']
-};
-
 function processFile(file) {
   if (!file.name.toLowerCase().endsWith('.csv')) {
-    showUploadError('Invalid file type. Please upload a .csv file only.');
+    uploadErr('Please upload a .csv file only.');
     return;
   }
-  if (file.size > 20 * 1024 * 1024) {
-    showUploadError('File too large (max 20 MB). Please split the file and upload in parts.');
+  if (file.size > 20*1024*1024) {
+    uploadErr('File too large (max 20MB).');
     return;
   }
+  clearUploadErr();
   var reader = new FileReader();
   reader.onload = function(e) {
-    var text = e.target.result;
-    /* Validate format before parsing */
-    var firstLine = text.split('\n')[0];
-    var headers   = parseCSVLine(firstLine).map(function(h) { return h.toLowerCase().trim(); });
-    var missing   = [];
-    Object.keys(REQUIRED_GROUPS).forEach(function(grp) {
-      var aliases = REQUIRED_GROUPS[grp];
-      var found   = aliases.some(function(alias) {
-        return headers.some(function(h) { return h.indexOf(alias) >= 0; });
-      });
-      if (!found) missing.push(grp);
-    });
-    if (missing.length > 0) {
-      showUploadError(
-        'File rejected \u2014 missing required columns: <strong>' + missing.join(', ') + '</strong>.<br><br>' +
-        'Your CSV must contain columns for: <strong>Date, Response/Q3 Text, Sentiment/Rating, Theme/Pillar</strong>.<br>' +
-        'Detected columns: <em>' + headers.slice(0,10).join(', ') + (headers.length > 10 ? '...' : '') + '</em>'
-      );
+    var raw   = e.target.result;
+    var lines = raw.split('\n').filter(function(l){ return l.trim(); });
+    if (lines.length < 2) { uploadErr('File is empty or has no data rows.'); return; }
+    /* Smart header detection — scan first 3 rows */
+    var hi = smartHeader(lines);
+    if (hi < 0) {
+      uploadErr('Could not find required columns.<br><br>' +
+        'Your CSV must have: <strong>Date, Q3 Text/Response, Theme/Pillar, Sentiment/Rating</strong>.<br>' +
+        'Columns found in row 1: <em>' + parseCSVLine(lines[0]).slice(0,6).join(' | ') + '</em>');
       return;
     }
-    parseCSV(text, file.name, file.size);
+    if (hi > 0) {
+      var tip = document.createElement('div');
+      tip.style.cssText='background:#D1FAE5;border-radius:5px;padding:5px 10px;font-size:.7rem;color:#065F46;margin-bottom:6px';
+      tip.textContent='✔ Skipped '+hi+' title row(s) — headers found at row '+(hi+1)+'.';
+      var uz=document.getElementById('uploadZone');
+      if(uz) uz.parentNode.insertBefore(tip,uz.nextSibling);
+    }
+    parseCSV(lines.slice(hi).join('\n'), file.name, file.size);
   };
-  reader.onerror = function() {
-    showUploadError('Could not read the file. Please try again.');
-  };
-  reader.readAsText(file, 'UTF-8');
+  reader.onerror=function(){ uploadErr('Could not read file. Please try again.'); };
+  reader.readAsText(file,'UTF-8');
 }
 
-function showUploadError(msg) {
-  var zone = document.getElementById('uploadZone');
-  zone.style.borderColor = '#DC2626';
-  zone.style.background  = '#FEF2F2';
-  var existing = document.getElementById('uploadErrorMsg');
-  if (existing) existing.remove();
-  var div = document.createElement('div');
-  div.id        = 'uploadErrorMsg';
-  div.innerHTML = '<div style="background:#FEF2F2;border:1px solid #DC2626;border-radius:6px;padding:10px 14px;margin-top:8px;font-size:.74rem;color:#991B1B">&#x26A0; ' + msg + '</div>';
-  zone.parentNode.insertBefore(div, zone.nextSibling);
-  setTimeout(function() {
-    zone.style.borderColor = '';
-    zone.style.background  = '';
-    if (div.parentNode) div.parentNode.removeChild(div);
-  }, 6000);
+function smartHeader(lines) {
+  var G={date:['date','submitted','time','created','timestamp','week'],response:['response','q3','text','feedback','transcript','comment','verbatim'],sentiment:['sentiment','csat','q1','rating','score'],theme:['theme','pillar','category','l2','super','root']};
+  for(var i=0;i<Math.min(3,lines.length);i++){
+    var c=parseCSVLine(lines[i]).map(function(x){return x.toLowerCase().trim();});
+    var v=c.filter(function(x){return x.length>0&&x.length<80;});
+    if(v.length<3) continue;
+    var h=Object.keys(G).filter(function(g){return v.some(function(col){return G[g].some(function(a){return col.indexOf(a)>=0;});});}).length;
+    if(h>=2) return i;
+  }
+  return -1;
 }
+
+function uploadErr(msg) {
+  clearUploadErr();
+  var uz=document.getElementById('uploadZone');
+  if(!uz) return;
+  uz.style.borderColor='#DC2626'; uz.style.background='#FEF2F2';
+  var d=document.createElement('div'); d.id='__uerr';
+  d.innerHTML='<div style="background:#FEF2F2;border:1px solid #DC2626;border-radius:6px;padding:10px 14px;margin-top:8px;font-size:.74rem;color:#991B1B">&#x26A0; '+msg+'</div>';
+  uz.parentNode.insertBefore(d,uz.nextSibling);
+  setTimeout(clearUploadErr,8000);
+}
+function clearUploadErr(){
+  var d=document.getElementById('__uerr'); if(d)d.remove();
+  var uz=document.getElementById('uploadZone');
+  if(uz){uz.style.borderColor='';uz.style.background='';}
+}
+
 
 function parseCSV(text, filename, filesize) {
   var lines = text.split('\n').filter(function(l) { return l.trim(); });
@@ -736,40 +731,20 @@ function parseCSVLine(line) {
 }
 
 function autoMapColumns(cols) {
-  var lc = cols.map(function(c) { return c.toLowerCase(); });
-  function best(keywords) {
-    for (var k = 0; k < keywords.length; k++) {
-      for (var i = 0; i < lc.length; i++) {
-        if (lc[i].indexOf(keywords[k]) >= 0) return cols[i];
-      }
-    }
-    return cols[0];
-  }
-  var maps = {
-    mapDate:       best(['date','submitted','time','created']),
-    mapMarket:     best(['market','region','country','mkt']),
-    mapText:       best(['text','response','q3','feedback','comment','transcript']),
-    mapTheme:      best(['theme','pillar','category','topic','l2','l1']),
-    mapSentiment:  best(['sentiment','q1','rating','score','csat']),
-    mapResolution: best(['resol','q2','resolved','outcome'])
+  var lc=cols.map(function(c){return c.toLowerCase().trim();});
+  function best(kws){for(var k=0;k<kws.length;k++)for(var i=0;i<lc.length;i++)if(lc[i].indexOf(kws[k])>=0)return cols[i];return cols[0];}
+  var maps={
+    mapDate:      best(['date','submitted_at','submitted','created','time','timestamp']),
+    mapMarket:    best(['market','region','country','mkt']),
+    mapText:      best(['q3 text','q3text','q3_text','q3','response','text','feedback','transcript','verbatim','comment']),
+    mapTheme:     best(['pillar name','pillar_name','theme','l2','pillar','category','super_category','super category','root cause']),
+    mapSentiment: best(['csat sentiment','csat_sentiment','sentiment_theme','sentiment','q1 rating','q1_rating','q1','csat','rating','score']),
+    mapResolution:best(['resolved','resolution','resol','q2','outcome'])
   };
-  Object.keys(maps).forEach(function(selId) {
-    var sel = document.getElementById(selId);
-    sel.innerHTML = cols.map(function(c) {
-      return '<option value="' + c + '"' + (c === maps[selId] ? ' selected' : '') + '>' + c + '</option>';
-    }).join('');
+  Object.keys(maps).forEach(function(selId){
+    var sel=document.getElementById(selId); if(!sel)return;
+    sel.innerHTML=cols.map(function(c){return '<option value="'+c+'"'+(c===maps[selId]?' selected':'')+'>'+c+'</option>';}).join('');
   });
-}
-
-function getMapping() {
-  return {
-    date:       document.getElementById('mapDate').value,
-    market:     document.getElementById('mapMarket').value,
-    text:       document.getElementById('mapText').value,
-    theme:      document.getElementById('mapTheme').value,
-    sentiment:  document.getElementById('mapSentiment').value,
-    resolution: document.getElementById('mapResolution').value
-  };
 }
 
 function renderPreview() {
@@ -792,16 +767,7 @@ function calcUploadMetrics() {
   var map = getMapping();
   var total = parsedFileData.length;
   var neg = 0, pos = 0, resolved = 0;
-  parsedFileData.forEach(function(row) {
-    var sent = String(row[map.sentiment] || '').toLowerCase();
-    var res  = String(row[map.resolution] || '').toLowerCase();
-    /* Detect negative: rating 1-2, or "negative" keyword */
-    if (sent === '1' || sent === '2' || sent.indexOf('neg') >= 0) neg++;
-    /* Detect positive: rating 3-5, or "positive" keyword */
-    if (sent === '3' || sent === '4' || sent === '5' || sent.indexOf('pos') >= 0) pos++;
-    /* Detect resolved */
-    if (res === 'yes' || res === '1' || res === 'true' || res.indexOf('yes') >= 0 || res === '\u05db\u05df') resolved++;
-  });
+  parsedFileData.forEach(function(row){var s=String(row[map.sentiment]||'').trim().toLowerCase(),r=String(row[map.resolution]||'').trim().toLowerCase(),n=parseInt(s);if(!isNaN(n)){if(n<=2)neg++;else pos++;}else{if(s.indexOf('neg')>=0)neg++;else if(s.indexOf('pos')>=0||s.indexOf('neu')>=0)pos++;}if(r==='yes'||r==='1'||r==='true'||r==='\u05db\u05df')resolved++;});
   var negPct = total ? (neg/total*100).toFixed(1) : '0.0';
   var posPct = total ? (pos/total*100).toFixed(1) : '0.0';
   var resPct = total ? (resolved/total*100).toFixed(1) : '0.0';
@@ -821,40 +787,12 @@ document.addEventListener('DOMContentLoaded', function() {
     var el = document.getElementById(id);
     if (el) { el.addEventListener('change', function() { renderPreview(); calcUploadMetrics(); }); }
   });
-  /* Check access gate — show upload only if token is saved */
-  checkUploadAccess();
 });
-
-function checkUploadAccess() {
-  var token   = localStorage.getItem('gh_dashboard_token');
-  var gate    = document.getElementById('uploadGate');
-  var content = document.getElementById('uploadContent');
-  if (!gate || !content) return;
-  if (token && token.startsWith('ghp_')) {
-    gate.style.display    = 'none';
-    content.style.display = 'block';
-  } else {
-    gate.style.display    = 'block';
-    content.style.display = 'none';
-  }
-}
-
-/* Also re-check access when token is saved */
-var _origSaveToken = window.saveToken || function(){};
-window.saveToken = function() {
-  _origSaveToken();
-  setTimeout(checkUploadAccess, 200);
-};
-var _origClearToken = window.clearToken || function(){};
-window.clearToken = function() {
-  _origClearToken();
-  checkUploadAccess();
-};
 
 function applyUpload() {
   if (!parsedFileData.length) { alert('No data to apply. Please select a CSV file first.'); return; }
   var map  = getMapping();
-  var mode = 'add'; /* always merge — replace mode removed */
+  var mode = document.querySelector('input[name="mergeMode"]:checked').value;
 
   /* Build transcript rows from uploaded data */
   var newTC = parsedFileData.map(function(row, i) {
@@ -877,23 +815,11 @@ function applyUpload() {
     };
   });
 
-  /* Merge only — deduplicate by date+mkt+text key */
-  var existingKeys = {};
-  TC.forEach(function(t) {
-    var key = (t.date + '|' + t.mkt + '|' + t.text.slice(0,50)).toLowerCase();
-    existingKeys[key] = true;
-  });
-  var added = 0;
-  newTC.forEach(function(t) {
-    var key = (t.date + '|' + t.mkt + '|' + t.text.slice(0,50)).toLowerCase();
-    if (!existingKeys[key]) { TC.push(t); existingKeys[key] = true; added++; }
-  });
-  if (added === 0) {
-    document.getElementById('uploadSuccess').style.display = 'block';
-    document.getElementById('uploadSuccess').innerHTML = '\u26A0\uFE0F <strong>No new rows added</strong> \u2014 all ' + newTC.length + ' rows already exist in the dashboard (duplicate check passed).';
-    document.getElementById('uploadSuccess').style.background = '#FEF3C7';
-    document.getElementById('uploadSuccess').style.color = '#92400E';
-    return;
+  /* Merge or replace */
+  if (mode === 'add') {
+    TC = TC.concat(newTC);
+  } else {
+    TC = newTC;
   }
 
   /* Recalculate top-level metrics */
@@ -917,9 +843,6 @@ function applyUpload() {
 
   /* Show success */
   document.getElementById('uploadSuccess').style.display = 'block';
-  document.getElementById('uploadSuccess').style.background = '#D1FAE5';
-  document.getElementById('uploadSuccess').style.color = '#065F46';
-  document.getElementById('uploadSuccess').innerHTML = '\u2714 <strong>' + added + ' new rows added</strong> to the dashboard. ' + (newTC.length - added) + ' duplicate rows were skipped. Switch to the <strong>CSAT Dashboard</strong> tab to see your updated metrics.<br><span style="font-size:.69rem;color:#6B7280;margin-top:3px;display:block">This update exists in your browser session only. Refresh the page to revert to original data.</span>';
   document.getElementById('applyUploadBtn').textContent = '\u2714 Applied!';
   document.getElementById('applyUploadBtn').style.background = '#16A34A';
 
@@ -940,4 +863,42 @@ function resetUpload() {
   document.getElementById('applyUploadBtn').style.background = '';
 }
 
-</script></body></html>
+</script></body></html>/* Smart CSV header detection — tries rows 0, 1, 2 */
+var ALIASES = {
+  date:      ['date','submitted','time','created','timestamp','week_start','week start'],
+  response:  ['response','q3','text','feedback','comment','transcript','verbatim'],
+  sentiment: ['sentiment','csat','q1','rating','score'],
+  theme:     ['theme','pillar','category','l2','super']
+};
+function colMatch(cols,grp){return cols.some(function(h){return ALIASES[grp].some(function(a){return h.indexOf(a)>=0;});});}
+function isHeader(line){var c=parseCSVLine(line).map(function(x){return x.toLowerCase().trim();});var ne=c.filter(function(x){return x.length>0&&x.length<60;});if(ne.length<3)return false;return Object.keys(ALIASES).filter(function(g){return colMatch(ne,g);}).length>=2;}
+
+function processFile(file) {
+  if (!file.name.toLowerCase().endsWith('.csv')) { showUploadError('Please upload a .csv file only.'); return; }
+  if (file.size > 20*1024*1024) { showUploadError('File too large (max 20MB).'); return; }
+  var prev=document.getElementById('uploadErrorMsg'); if(prev)prev.remove();
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var text=e.target.result;
+    var lines=text.split('\n').filter(function(l){return l.trim();});
+    if(lines.length<2){showUploadError('File is empty or has only one data row.');return;}
+    /* Find header row — try rows 0,1,2 */
+    var hi=-1;
+    for(var i=0;i<Math.min(3,lines.length);i++){if(isHeader(lines[i])){hi=i;break;}}
+    if(hi<0){
+      showUploadError('Could not find required columns.<br><br>Your CSV must have columns for: <strong>Date, Response/Q3 Text, Sentiment/Rating, Theme/Pillar</strong>.<br>First row found: <em>'+parseCSVLine(lines[0]).slice(0,6).join(', ')+'</em>');
+      return;
+    }
+    if(hi>0){
+      var note=document.createElement('div');
+      note.style.cssText='background:#D1FAE5;border-radius:5px;padding:5px 10px;font-size:.7rem;color:#065F46;margin-bottom:6px';
+      note.textContent='\u2714 Skipped '+hi+' title row(s). Headers found at row '+(hi+1)+'.';
+      var uz=document.getElementById('uploadZone');if(uz)uz.parentNode.insertBefore(note,uz.nextSibling);
+    }
+    parseCSV(lines.slice(hi).join('\n'),file.name,file.size);
+  };
+  reader.onerror=function(){showUploadError('Could not read the file. Please try again.');};
+  reader.readAsText(file,'UTF-8');
+}
+
+
