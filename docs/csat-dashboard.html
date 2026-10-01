@@ -622,69 +622,55 @@ function handleFileSelect(e) {
 }
 
 function processFile(file) {
-  if (!file.name.toLowerCase().endsWith('.csv')) {
-    uploadErr('Please upload a .csv file only.');
-    return;
-  }
-  if (file.size > 20*1024*1024) {
-    uploadErr('File too large (max 20MB).');
-    return;
-  }
+  if (!file.name.toLowerCase().endsWith('.csv')){uploadErr('Please upload a .csv file only.');return;}
+  if (file.size>20*1024*1024){uploadErr('File too large (max 20MB).');return;}
   clearUploadErr();
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var raw   = e.target.result;
-    var lines = raw.split('\n').filter(function(l){ return l.trim(); });
-    if (lines.length < 2) { uploadErr('File is empty or has no data rows.'); return; }
-    /* Smart header detection — scan first 3 rows */
-    var hi = smartHeader(lines);
-    if (hi < 0) {
-      uploadErr('Could not find required columns.<br><br>' +
-        'Your CSV must have: <strong>Date, Q3 Text/Response, Theme/Pillar, Sentiment/Rating</strong>.<br>' +
-        'Columns found in row 1: <em>' + parseCSVLine(lines[0]).slice(0,6).join(' | ') + '</em>');
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var lines=e.target.result.split('\n').filter(function(l){return l.trim();});
+    if(lines.length<2){uploadErr('File is empty or has only one row.');return;}
+    var hi=smartHeader(lines);
+    if(hi<0){
+      uploadErr('Could not find required columns.<br><br>Your CSV must have: <strong>Date, Q3 Text/Response, Theme/Pillar, Sentiment/Rating</strong>.<br>Row 1 detected: <em>'+parseCSVLine(lines[0]).slice(0,6).join(' | ')+'</em>');
       return;
     }
-    if (hi > 0) {
-      var tip = document.createElement('div');
+    if(hi>0){
+      var tip=document.createElement('div');
       tip.style.cssText='background:#D1FAE5;border-radius:5px;padding:5px 10px;font-size:.7rem;color:#065F46;margin-bottom:6px';
-      tip.textContent='✔ Skipped '+hi+' title row(s) — headers found at row '+(hi+1)+'.';
-      var uz=document.getElementById('uploadZone');
-      if(uz) uz.parentNode.insertBefore(tip,uz.nextSibling);
+      tip.textContent='✔ Skipped '+hi+' title row(s). Headers at row '+(hi+1)+'.';
+      var uz=document.getElementById('uploadZone');if(uz)uz.parentNode.insertBefore(tip,uz.nextSibling);
     }
-    parseCSV(lines.slice(hi).join('\n'), file.name, file.size);
+    parseCSV(lines.slice(hi).join('\n'),file.name,file.size);
   };
-  reader.onerror=function(){ uploadErr('Could not read file. Please try again.'); };
+  reader.onerror=function(){uploadErr('Could not read file. Please try again.');};
   reader.readAsText(file,'UTF-8');
 }
-
-function smartHeader(lines) {
+function smartHeader(lines){
   var G={date:['date','submitted','time','created','timestamp','week'],response:['response','q3','text','feedback','transcript','comment','verbatim'],sentiment:['sentiment','csat','q1','rating','score'],theme:['theme','pillar','category','l2','super','root']};
   for(var i=0;i<Math.min(3,lines.length);i++){
     var c=parseCSVLine(lines[i]).map(function(x){return x.toLowerCase().trim();});
     var v=c.filter(function(x){return x.length>0&&x.length<80;});
-    if(v.length<3) continue;
+    if(v.length<3)continue;
     var h=Object.keys(G).filter(function(g){return v.some(function(col){return G[g].some(function(a){return col.indexOf(a)>=0;});});}).length;
-    if(h>=2) return i;
+    if(h>=2)return i;
   }
   return -1;
 }
-
-function uploadErr(msg) {
+function uploadErr(msg){
   clearUploadErr();
   var uz=document.getElementById('uploadZone');
-  if(!uz) return;
-  uz.style.borderColor='#DC2626'; uz.style.background='#FEF2F2';
-  var d=document.createElement('div'); d.id='__uerr';
+  if(!uz)return;
+  uz.style.borderColor='#DC2626';uz.style.background='#FEF2F2';
+  var d=document.createElement('div');d.id='__uerr';
   d.innerHTML='<div style="background:#FEF2F2;border:1px solid #DC2626;border-radius:6px;padding:10px 14px;margin-top:8px;font-size:.74rem;color:#991B1B">&#x26A0; '+msg+'</div>';
   uz.parentNode.insertBefore(d,uz.nextSibling);
   setTimeout(clearUploadErr,8000);
 }
 function clearUploadErr(){
-  var d=document.getElementById('__uerr'); if(d)d.remove();
+  var d=document.getElementById('__uerr');if(d)d.remove();
   var uz=document.getElementById('uploadZone');
   if(uz){uz.style.borderColor='';uz.style.background='';}
 }
-
 
 function parseCSV(text, filename, filesize) {
   var lines = text.split('\n').filter(function(l) { return l.trim(); });
@@ -742,7 +728,7 @@ function autoMapColumns(cols) {
     mapResolution:best(['resolved','resolution','resol','q2','outcome'])
   };
   Object.keys(maps).forEach(function(selId){
-    var sel=document.getElementById(selId); if(!sel)return;
+    var sel=document.getElementById(selId);if(!sel)return;
     sel.innerHTML=cols.map(function(c){return '<option value="'+c+'"'+(c===maps[selId]?' selected':'')+'>'+c+'</option>';}).join('');
   });
 }
@@ -790,64 +776,66 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function applyUpload() {
-  if (!parsedFileData.length) { alert('No data to apply. Please select a CSV file first.'); return; }
-  var map  = getMapping();
-  var mode = document.querySelector('input[name="mergeMode"]:checked').value;
-
-  /* Build transcript rows from uploaded data */
-  var newTC = parsedFileData.map(function(row, i) {
-    var sent = String(row[map.sentiment] || '').toLowerCase();
-    var q1   = parseInt(sent) || (sent.indexOf('pos') >= 0 ? 4 : sent.indexOf('neg') >= 0 ? 1 : 3);
-    var res  = String(row[map.resolution] || '').toLowerCase();
-    var q2   = (res === 'yes' || res === '1' || res.indexOf('yes') >= 0 || res === '\u05db\u05df') ? 'Yes' : 'No';
-    var dateStr = String(row[map.date] || '');
-    var shortDate = dateStr.slice(0, 10);
-    return {
-      id:       'U' + String(i+1).padStart(3,'0'),
-      date:     shortDate,
-      mkt:      String(row[map.market] || 'Unknown').slice(0,10),
-      platform: 'Uploaded',
-      q1:       q1,
-      q2:       q2,
-      pillar:   String(row[map.theme] || 'General / Minimal Feedback'),
-      theme:    String(row[map.theme] || 'Uploaded'),
-      text:     String(row[map.text]  || '')
-    };
-  });
-
-  /* Merge or replace */
-  if (mode === 'add') {
-    TC = TC.concat(newTC);
-  } else {
-    TC = newTC;
+  try {
+    if (!parsedFileData || !parsedFileData.length) {
+      alert('No data loaded. Please select a CSV file first.');
+      return;
+    }
+    var map = getMapping();
+    /* Build rows from CSV */
+    var newTC = [];
+    parsedFileData.forEach(function(row, i) {
+      var sRaw=String(row[map.sentiment]||'').trim(),sL=sRaw.toLowerCase(),sN=parseInt(sRaw),q1;
+      if(!isNaN(sN)&&sN>=1&&sN<=5){q1=sN;}
+      else if(sL.indexOf('pos')>=0){q1=4;}
+      else if(sL.indexOf('neg')>=0){q1=2;}
+      else{q1=3;}
+      var rRaw=String(row[map.resolution]||'').trim().toLowerCase();
+      var q2=(rRaw==='yes'||rRaw==='1'||rRaw==='true'||rRaw==='\u05db\u05df')?'Yes':'No';
+      var txt=String(row[map.text]||'').trim();
+      if(!txt)return; /* skip empty rows */
+      newTC.push({
+        id:'U'+String(i+1).padStart(4,'0'),
+        date:String(row[map.date]||'').slice(0,10),
+        mkt:String(row[map.market]||'Unknown').slice(0,20),
+        platform:String(row['Platform']||row['platform']||'Uploaded'),
+        q1:q1, q2:q2,
+        pillar:String(row[map.theme]||'General / Minimal Feedback'),
+        theme:String(row[map.theme]||'Uploaded'),
+        text:txt
+      });
+    });
+    if(!newTC.length){alert('No valid rows found. Make sure the Q3 Text column has content.');return;}
+    /* Merge with dedup */
+    var seen={};
+    TC.forEach(function(t){seen[t.text.slice(0,60).toLowerCase()]=true;});
+    var added=0,skipped=0;
+    newTC.forEach(function(t){
+      var k=t.text.slice(0,60).toLowerCase();
+      if(!seen[k]){TC.push(t);seen[k]=true;added++;}else{skipped++;}
+    });
+    /* Update KPIs */
+    var total=TC.length,neg=TC.filter(function(t){return t.q1<=2;}).length,pos=TC.filter(function(t){return t.q1>=3;}).length;
+    var nP=(total?(neg/total*100).toFixed(1):'0.0'),pP=(total?(pos/total*100).toFixed(1):'0.0');
+    var kv=document.querySelectorAll('.kv');
+    if(kv[0])kv[0].textContent=total.toLocaleString();
+    if(kv[1]){kv[1].textContent=pP+'%';kv[1].style.color=pP>=60?'#16A34A':pP>=50?'#D97706':'#DC2626';}
+    if(kv[2]){kv[2].textContent=nP+'%';kv[2].style.color=nP>22?'#DC2626':nP>=18?'#D97706':'#16A34A';}
+    if(kv[3])kv[3].textContent=total.toLocaleString();
+    if(typeof renderTC==='function')renderTC();
+    /* Success */
+    var s=document.getElementById('uploadSuccess');
+    if(s){
+      s.style.display='block';s.style.background='#D1FAE5';s.style.color='#065F46';
+      s.innerHTML='\u2714 <strong>'+added+' new rows added</strong>'+(skipped?' ('+skipped+' duplicates skipped)':'')+'. Switching to dashboard...';
+    }
+    var btn=document.getElementById('applyUploadBtn');
+    if(btn){btn.textContent='\u2714 Applied! ('+added+' rows)';btn.style.background='#16A34A';}
+    setTimeout(function(){if(typeof showTab==='function')showTab('dashboard');},1500);
+  } catch(err) {
+    alert('Error applying data: '+err.message+'\n\nOpen browser console (F12) for details.');
+    console.error('applyUpload error:',err);
   }
-
-  /* Recalculate top-level metrics */
-  var total  = TC.length;
-  var negCnt = TC.filter(function(t) { return t.q1 <= 2; }).length;
-  var posCnt = TC.filter(function(t) { return t.q1 >= 3; }).length;
-  var resCnt = TC.filter(function(t) { return t.q2 === 'Yes'; }).length;
-  var negPct = total ? (negCnt/total*100).toFixed(1) : '0.0';
-  var posPct = total ? (posCnt/total*100).toFixed(1) : '0.0';
-  var resPct = total ? (resCnt/total*100).toFixed(1) : '0.0';
-
-  /* Update KPI tiles */
-  var kvEls = document.querySelectorAll('.kv');
-  if (kvEls[0]) kvEls[0].textContent = total.toLocaleString();
-  if (kvEls[1]) { kvEls[1].textContent = posPct + '%'; kvEls[1].style.color = posPct>=60?'#16A34A':posPct>=50?'#D97706':'#DC2626'; }
-  if (kvEls[2]) { kvEls[2].textContent = negPct + '%'; kvEls[2].style.color = negPct>22?'#DC2626':negPct>=18?'#D97706':'#16A34A'; }
-  if (kvEls[3]) kvEls[3].textContent = total.toLocaleString();
-
-  /* Refresh transcript table */
-  renderTC();
-
-  /* Show success */
-  document.getElementById('uploadSuccess').style.display = 'block';
-  document.getElementById('applyUploadBtn').textContent = '\u2714 Applied!';
-  document.getElementById('applyUploadBtn').style.background = '#16A34A';
-
-  /* Switch to dashboard tab after 1.5s */
-  setTimeout(function() { showTab('dashboard'); }, 1500);
 }
 
 function resetUpload() {
@@ -863,42 +851,4 @@ function resetUpload() {
   document.getElementById('applyUploadBtn').style.background = '';
 }
 
-</script></body></html>/* Smart CSV header detection — tries rows 0, 1, 2 */
-var ALIASES = {
-  date:      ['date','submitted','time','created','timestamp','week_start','week start'],
-  response:  ['response','q3','text','feedback','comment','transcript','verbatim'],
-  sentiment: ['sentiment','csat','q1','rating','score'],
-  theme:     ['theme','pillar','category','l2','super']
-};
-function colMatch(cols,grp){return cols.some(function(h){return ALIASES[grp].some(function(a){return h.indexOf(a)>=0;});});}
-function isHeader(line){var c=parseCSVLine(line).map(function(x){return x.toLowerCase().trim();});var ne=c.filter(function(x){return x.length>0&&x.length<60;});if(ne.length<3)return false;return Object.keys(ALIASES).filter(function(g){return colMatch(ne,g);}).length>=2;}
-
-function processFile(file) {
-  if (!file.name.toLowerCase().endsWith('.csv')) { showUploadError('Please upload a .csv file only.'); return; }
-  if (file.size > 20*1024*1024) { showUploadError('File too large (max 20MB).'); return; }
-  var prev=document.getElementById('uploadErrorMsg'); if(prev)prev.remove();
-  var reader=new FileReader();
-  reader.onload=function(e){
-    var text=e.target.result;
-    var lines=text.split('\n').filter(function(l){return l.trim();});
-    if(lines.length<2){showUploadError('File is empty or has only one data row.');return;}
-    /* Find header row — try rows 0,1,2 */
-    var hi=-1;
-    for(var i=0;i<Math.min(3,lines.length);i++){if(isHeader(lines[i])){hi=i;break;}}
-    if(hi<0){
-      showUploadError('Could not find required columns.<br><br>Your CSV must have columns for: <strong>Date, Response/Q3 Text, Sentiment/Rating, Theme/Pillar</strong>.<br>First row found: <em>'+parseCSVLine(lines[0]).slice(0,6).join(', ')+'</em>');
-      return;
-    }
-    if(hi>0){
-      var note=document.createElement('div');
-      note.style.cssText='background:#D1FAE5;border-radius:5px;padding:5px 10px;font-size:.7rem;color:#065F46;margin-bottom:6px';
-      note.textContent='\u2714 Skipped '+hi+' title row(s). Headers found at row '+(hi+1)+'.';
-      var uz=document.getElementById('uploadZone');if(uz)uz.parentNode.insertBefore(note,uz.nextSibling);
-    }
-    parseCSV(lines.slice(hi).join('\n'),file.name,file.size);
-  };
-  reader.onerror=function(){showUploadError('Could not read the file. Please try again.');};
-  reader.readAsText(file,'UTF-8');
-}
-
-
+</script></body></html>
