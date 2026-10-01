@@ -36,6 +36,30 @@
          font-family:monospace;line-height:1.8;min-height:60px;margin-top:10px;display:none}
 .run-log.show{display:block}
 .log-line{margin:0}.log-ok{color:#16A34A}.log-warn{color:#D97706}.log-info{color:#60A5FA}
+
+.upload-zone{border:2px dashed var(--or);border-radius:10px;padding:28px 20px;text-align:center;
+             cursor:pointer;transition:all .2s;background:#FFF7ED;margin-bottom:12px}
+.upload-zone:hover,.upload-zone.drag{background:#FEF3C7;border-color:#D97706}
+.upload-zone.done{background:#D1FAE5;border-color:#16A34A}
+.upload-zone .uz-icon{font-size:2rem;margin-bottom:6px}
+.upload-zone .uz-title{font-size:.88rem;font-weight:700;color:var(--dk);margin-bottom:4px}
+.upload-zone .uz-sub{font-size:.72rem;color:var(--lt)}
+.upload-zone input[type=file]{display:none}
+.col-map{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;font-size:.73rem}
+.col-map select{border:1px solid var(--br);border-radius:4px;padding:4px 8px;font-size:.72rem;
+                color:var(--tx);background:#fff;cursor:pointer;width:100%}
+.col-map label{font-weight:700;color:var(--dk);font-size:.71rem;margin-bottom:2px;display:block}
+.preview-table{width:100%;border-collapse:collapse;font-size:.72rem;max-height:180px;overflow-y:auto;display:block}
+.preview-table thead th{background:var(--dk);color:#fff;padding:5px 8px;text-align:left;font-size:.62rem;
+                         font-weight:700;text-transform:uppercase;position:sticky;top:0}
+.preview-table tbody tr{border-bottom:1px solid var(--br)}.preview-table tbody tr:hover{background:#FFF7ED}
+.preview-table tbody td{padding:4px 8px;font-size:.71rem}
+.metric-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.ms-card{background:#F9FAFB;border-radius:6px;padding:10px;text-align:center;border-left:3px solid var(--or)}
+.ms-val{font-size:1.1rem;font-weight:900;color:var(--dk)}.ms-lbl{font-size:.62rem;color:var(--lt);margin-top:2px}
+.merge-opts{display:flex;gap:10px;margin:10px 0;flex-wrap:wrap}
+.merge-opt{display:flex;align-items:center;gap:6px;font-size:.75rem;cursor:pointer}
+.merge-opt input{cursor:pointer}
 </style></head><body>
 <div class="hdr"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px"><div><h1>&#x1F6B4;&nbsp; T1 SB CSAT - COURIER FEEDBACK INTELLIGENCE</h1><div class="hm">W40_2026 &nbsp;|&nbsp; Sep 14-Sep 27 2026 &nbsp;|&nbsp; 20,788 total responses &nbsp;|&nbsp; Q1 valid: 7,262</div></div><div class="abg">Auto-updated every Monday 1 PM UTC</div></div><div class="cav">&#x26A0; Data from CSAT surveys triggered when a courier closes a live chat. Q1=Rating (1-5) | Q2=Resolution (Yes/No) | Q3=Free-text. Not all courier feedback captured here.</div></div>
 
@@ -70,6 +94,81 @@ csat_negative = 1 if Q1 in {1,2}</div><div class="gt">Positive CSAT %</div><div 
 
 <div class="tab-panel" id="panel_update">
 <div class="main">
+
+
+  <!-- DIRECT UPLOAD CARD -->
+  <div class="upd-card" id="uploadCard">
+    <h3>&#x1F4C2;&nbsp; Direct Upload — Update Dashboard from CSV File</h3>
+    <p>Upload a CSV file directly from your computer. The dashboard updates instantly — no pipeline, no Drive, no waiting.</p>
+
+    <!-- ACCESS GATE — only shows upload if token is saved -->
+    <div id="uploadGate" style="background:#FEF3C7;border-left:4px solid #D97706;border-radius:0 8px 8px 0;padding:12px 14px;font-size:.76rem;color:#92400E">
+      &#x1F512; <strong>Restricted:</strong> This feature requires your saved GitHub token (Step 2 below).
+      Save your token first, then this section will unlock automatically.
+    </div>
+    <div id="uploadContent" style="display:none">
+
+    <!-- DROP ZONE -->
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('csvFileInput').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="handleDrop(event)">
+      <input type="file" id="csvFileInput" accept=".csv" onchange="handleFileSelect(event)">
+      <div class="uz-icon">&#x1F4C4;</div>
+      <div class="uz-title" id="uzTitle">Drop CSV here or click to browse</div>
+      <div class="uz-sub" id="uzSub">Supports: courier_feedback_classified.csv or any CSV with response data</div>
+    </div>
+
+    <!-- COLUMN MAPPING (shown after file selected) -->
+    <div id="colMapSection" style="display:none">
+      <div style="font-size:.77rem;font-weight:700;color:var(--dk);margin-bottom:6px">
+        &#x1F9E9; Map your columns <span style="font-weight:400;color:var(--lt);font-size:.7rem">(auto-detected — adjust if needed)</span>
+      </div>
+      <div class="col-map">
+        <div><label>Date / Submitted</label><select id="mapDate"></select></div>
+        <div><label>Market / Region</label><select id="mapMarket"></select></div>
+        <div><label>Q3 Text / Response</label><select id="mapText"></select></div>
+        <div><label>Theme / Pillar</label><select id="mapTheme"></select></div>
+        <div><label>Sentiment / Q1 Rating</label><select id="mapSentiment"></select></div>
+        <div><label>Resolution / Q2</label><select id="mapResolution"></select></div>
+      </div>
+
+      <!-- MERGE ONLY — no replace option -->
+      <input type="hidden" name="mergeMode" value="add">
+      <div style="font-size:.72rem;color:var(--lt);background:#EFF6FF;border-left:3px solid #3B82F6;padding:6px 10px;border-radius:0 5px 5px 0;margin:8px 0">
+        &#x2139; <strong>Merge mode:</strong> Uploaded rows will be added to existing data. Duplicates are filtered by matching date + market + Q3 text.
+      </div>
+
+      <!-- PREVIEW -->
+      <div style="font-size:.77rem;font-weight:700;color:var(--dk);margin-bottom:6px">
+        &#x1F4CB; Preview <span id="previewCount" style="font-weight:400;color:var(--lt);font-size:.7rem"></span>
+      </div>
+      <div style="overflow-x:auto;border-radius:6px;border:1px solid var(--br);margin-bottom:10px">
+        <table class="preview-table"><thead id="previewHead"></thead><tbody id="previewBody"></tbody></table>
+      </div>
+
+      <!-- CALCULATED METRICS FROM UPLOAD -->
+      <div style="font-size:.77rem;font-weight:700;color:var(--dk);margin-bottom:6px">&#x1F4CA; Calculated metrics from uploaded data</div>
+      <div class="metric-summary" id="uploadMetrics"></div>
+
+      <!-- APPLY BUTTON -->
+      <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+        <button class="upd-btn" id="applyUploadBtn" onclick="applyUpload()">
+          &#x2705; Apply to Dashboard
+        </button>
+        <button class="upd-btn" style="background:#6B7280" onclick="resetUpload()">
+          &#x274C; Cancel
+        </button>
+      </div>
+    </div>
+
+    <!-- SUCCESS MESSAGE -->
+    <div id="uploadSuccess" style="display:none;background:#D1FAE5;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:.76rem;color:#065F46">
+      &#x2714; <strong>Dashboard updated!</strong> The data has been applied.
+      Switch to the <strong>CSAT Dashboard</strong> tab to see your updated metrics.
+      <br><span style="font-size:.69rem;color:#6B7280;margin-top:3px;display:block">Note: This update exists only in your browser session. Refresh the page to revert to original data.</span>
+    </div>
+  </div>
 
   <!-- TOKEN SETUP CARD -->
   <div class="upd-card">
@@ -508,5 +607,337 @@ document.addEventListener('DOMContentLoaded', function() {
   if (saved) setTokenStatus('green', 'Token saved \u2022 ready to use');
   else setTokenStatus('grey', 'No token saved yet \u2014 enter one above');
 });
+
+
+
+/* ── DIRECT CSV UPLOAD ─────────────────────────────────────── */
+var uploadedRows   = [];
+var uploadedCols   = [];
+var parsedFileData = [];
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag');
+  var files = e.dataTransfer.files;
+  if (files.length) processFile(files[0]);
+}
+
+function handleFileSelect(e) {
+  var f = e.target.files[0];
+  if (f) processFile(f);
+}
+
+/* Required columns — at least one alias from each group must exist */
+var REQUIRED_GROUPS = {
+  'Date':       ['date','submitted_at','created_time_local','submitted','time','timestamp'],
+  'Response':   ['response','q3_text','q3text','text','feedback','comment','transcript','verbatim'],
+  'Sentiment':  ['sentiment','csat_sentiment','q1_rating','q1','rating','score','sentiment_theme'],
+  'Theme':      ['theme','l2','pillar','pillar_name','category','super_category','super-category']
+};
+
+function processFile(file) {
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    showUploadError('Invalid file type. Please upload a .csv file only.');
+    return;
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    showUploadError('File too large (max 20 MB). Please split the file and upload in parts.');
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var text = e.target.result;
+    /* Validate format before parsing */
+    var firstLine = text.split('\n')[0];
+    var headers   = parseCSVLine(firstLine).map(function(h) { return h.toLowerCase().trim(); });
+    var missing   = [];
+    Object.keys(REQUIRED_GROUPS).forEach(function(grp) {
+      var aliases = REQUIRED_GROUPS[grp];
+      var found   = aliases.some(function(alias) {
+        return headers.some(function(h) { return h.indexOf(alias) >= 0; });
+      });
+      if (!found) missing.push(grp);
+    });
+    if (missing.length > 0) {
+      showUploadError(
+        'File rejected \u2014 missing required columns: <strong>' + missing.join(', ') + '</strong>.<br><br>' +
+        'Your CSV must contain columns for: <strong>Date, Response/Q3 Text, Sentiment/Rating, Theme/Pillar</strong>.<br>' +
+        'Detected columns: <em>' + headers.slice(0,10).join(', ') + (headers.length > 10 ? '...' : '') + '</em>'
+      );
+      return;
+    }
+    parseCSV(text, file.name, file.size);
+  };
+  reader.onerror = function() {
+    showUploadError('Could not read the file. Please try again.');
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function showUploadError(msg) {
+  var zone = document.getElementById('uploadZone');
+  zone.style.borderColor = '#DC2626';
+  zone.style.background  = '#FEF2F2';
+  var existing = document.getElementById('uploadErrorMsg');
+  if (existing) existing.remove();
+  var div = document.createElement('div');
+  div.id        = 'uploadErrorMsg';
+  div.innerHTML = '<div style="background:#FEF2F2;border:1px solid #DC2626;border-radius:6px;padding:10px 14px;margin-top:8px;font-size:.74rem;color:#991B1B">&#x26A0; ' + msg + '</div>';
+  zone.parentNode.insertBefore(div, zone.nextSibling);
+  setTimeout(function() {
+    zone.style.borderColor = '';
+    zone.style.background  = '';
+    if (div.parentNode) div.parentNode.removeChild(div);
+  }, 6000);
+}
+
+function parseCSV(text, filename, filesize) {
+  var lines = text.split('\n').filter(function(l) { return l.trim(); });
+  if (lines.length < 2) { alert('CSV appears to be empty or has no data rows.'); return; }
+
+  /* Parse header */
+  var header = parseCSVLine(lines[0]);
+  uploadedCols = header;
+
+  /* Parse all rows */
+  parsedFileData = [];
+  for (var i = 1; i < lines.length; i++) {
+    var vals = parseCSVLine(lines[i]);
+    if (vals.length === 0) continue;
+    var row = {};
+    header.forEach(function(h, idx) { row[h] = vals[idx] || ''; });
+    parsedFileData.push(row);
+  }
+
+  /* Auto-detect column mappings */
+  autoMapColumns(header);
+
+  /* Show UI */
+  document.getElementById('uploadZone').classList.add('done');
+  document.getElementById('uzTitle').textContent = '\u2714 ' + filename + ' (' + parsedFileData.length + ' rows)';
+  document.getElementById('uzSub').textContent = (filesize/1024).toFixed(1) + ' KB \u2022 ' + header.length + ' columns detected';
+  document.getElementById('colMapSection').style.display = 'block';
+  document.getElementById('uploadSuccess').style.display = 'none';
+
+  renderPreview();
+  calcUploadMetrics();
+}
+
+function parseCSVLine(line) {
+  var result = [], cur = '', inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function autoMapColumns(cols) {
+  var lc = cols.map(function(c) { return c.toLowerCase(); });
+  function best(keywords) {
+    for (var k = 0; k < keywords.length; k++) {
+      for (var i = 0; i < lc.length; i++) {
+        if (lc[i].indexOf(keywords[k]) >= 0) return cols[i];
+      }
+    }
+    return cols[0];
+  }
+  var maps = {
+    mapDate:       best(['date','submitted','time','created']),
+    mapMarket:     best(['market','region','country','mkt']),
+    mapText:       best(['text','response','q3','feedback','comment','transcript']),
+    mapTheme:      best(['theme','pillar','category','topic','l2','l1']),
+    mapSentiment:  best(['sentiment','q1','rating','score','csat']),
+    mapResolution: best(['resol','q2','resolved','outcome'])
+  };
+  Object.keys(maps).forEach(function(selId) {
+    var sel = document.getElementById(selId);
+    sel.innerHTML = cols.map(function(c) {
+      return '<option value="' + c + '"' + (c === maps[selId] ? ' selected' : '') + '>' + c + '</option>';
+    }).join('');
+  });
+}
+
+function getMapping() {
+  return {
+    date:       document.getElementById('mapDate').value,
+    market:     document.getElementById('mapMarket').value,
+    text:       document.getElementById('mapText').value,
+    theme:      document.getElementById('mapTheme').value,
+    sentiment:  document.getElementById('mapSentiment').value,
+    resolution: document.getElementById('mapResolution').value
+  };
+}
+
+function renderPreview() {
+  var map = getMapping();
+  var cols = [map.date, map.market, map.text, map.theme, map.sentiment, map.resolution];
+  var displayCols = ['Date','Market','Q3 Text','Theme','Sentiment','Resolution'];
+  var preview = parsedFileData.slice(0, 5);
+  document.getElementById('previewCount').textContent = '(showing 5 of ' + parsedFileData.length + ' rows)';
+  document.getElementById('previewHead').innerHTML =
+    '<tr>' + displayCols.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr>';
+  document.getElementById('previewBody').innerHTML = preview.map(function(row) {
+    return '<tr>' + cols.map(function(c) {
+      var v = String(row[c] || '');
+      return '<td>' + (v.length > 40 ? v.slice(0,40) + '...' : v) + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+}
+
+function calcUploadMetrics() {
+  var map = getMapping();
+  var total = parsedFileData.length;
+  var neg = 0, pos = 0, resolved = 0;
+  parsedFileData.forEach(function(row) {
+    var sent = String(row[map.sentiment] || '').toLowerCase();
+    var res  = String(row[map.resolution] || '').toLowerCase();
+    /* Detect negative: rating 1-2, or "negative" keyword */
+    if (sent === '1' || sent === '2' || sent.indexOf('neg') >= 0) neg++;
+    /* Detect positive: rating 3-5, or "positive" keyword */
+    if (sent === '3' || sent === '4' || sent === '5' || sent.indexOf('pos') >= 0) pos++;
+    /* Detect resolved */
+    if (res === 'yes' || res === '1' || res === 'true' || res.indexOf('yes') >= 0 || res === '\u05db\u05df') resolved++;
+  });
+  var negPct = total ? (neg/total*100).toFixed(1) : '0.0';
+  var posPct = total ? (pos/total*100).toFixed(1) : '0.0';
+  var resPct = total ? (resolved/total*100).toFixed(1) : '0.0';
+  var negCol = negPct >= 22 ? '#DC2626' : negPct >= 18 ? '#D97706' : '#16A34A';
+  var posCol = posPct >= 60 ? '#16A34A' : posPct >= 50 ? '#D97706' : '#DC2626';
+  var resCol = resPct >= 70 ? '#16A34A' : resPct >= 50 ? '#D97706' : '#DC2626';
+  document.getElementById('uploadMetrics').innerHTML =
+    '<div class="ms-card"><div class="ms-val" style="color:var(--or)">' + total.toLocaleString() + '</div><div class="ms-lbl">Total Rows</div></div>' +
+    '<div class="ms-card"><div class="ms-val" style="color:' + negCol + '">' + negPct + '%</div><div class="ms-lbl">Negative Rate</div></div>' +
+    '<div class="ms-card"><div class="ms-val" style="color:' + posCol + '">' + posPct + '%</div><div class="ms-lbl">Positive Rate</div></div>' +
+    '<div class="ms-card"><div class="ms-val" style="color:' + resCol + '">' + resPct + '%</div><div class="ms-lbl">Resolution Rate</div></div>';
+}
+
+/* Re-render preview when column mapping changes */
+document.addEventListener('DOMContentLoaded', function() {
+  ['mapDate','mapMarket','mapText','mapTheme','mapSentiment','mapResolution'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.addEventListener('change', function() { renderPreview(); calcUploadMetrics(); }); }
+  });
+  /* Check access gate — show upload only if token is saved */
+  checkUploadAccess();
+});
+
+function checkUploadAccess() {
+  var token   = localStorage.getItem('gh_dashboard_token');
+  var gate    = document.getElementById('uploadGate');
+  var content = document.getElementById('uploadContent');
+  if (!gate || !content) return;
+  if (token && token.startsWith('ghp_')) {
+    gate.style.display    = 'none';
+    content.style.display = 'block';
+  } else {
+    gate.style.display    = 'block';
+    content.style.display = 'none';
+  }
+}
+
+/* Also re-check access when token is saved */
+var _origSaveToken = window.saveToken || function(){};
+window.saveToken = function() {
+  _origSaveToken();
+  setTimeout(checkUploadAccess, 200);
+};
+var _origClearToken = window.clearToken || function(){};
+window.clearToken = function() {
+  _origClearToken();
+  checkUploadAccess();
+};
+
+function applyUpload() {
+  if (!parsedFileData.length) { alert('No data to apply. Please select a CSV file first.'); return; }
+  var map  = getMapping();
+  var mode = 'add'; /* always merge — replace mode removed */
+
+  /* Build transcript rows from uploaded data */
+  var newTC = parsedFileData.map(function(row, i) {
+    var sent = String(row[map.sentiment] || '').toLowerCase();
+    var q1   = parseInt(sent) || (sent.indexOf('pos') >= 0 ? 4 : sent.indexOf('neg') >= 0 ? 1 : 3);
+    var res  = String(row[map.resolution] || '').toLowerCase();
+    var q2   = (res === 'yes' || res === '1' || res.indexOf('yes') >= 0 || res === '\u05db\u05df') ? 'Yes' : 'No';
+    var dateStr = String(row[map.date] || '');
+    var shortDate = dateStr.slice(0, 10);
+    return {
+      id:       'U' + String(i+1).padStart(3,'0'),
+      date:     shortDate,
+      mkt:      String(row[map.market] || 'Unknown').slice(0,10),
+      platform: 'Uploaded',
+      q1:       q1,
+      q2:       q2,
+      pillar:   String(row[map.theme] || 'General / Minimal Feedback'),
+      theme:    String(row[map.theme] || 'Uploaded'),
+      text:     String(row[map.text]  || '')
+    };
+  });
+
+  /* Merge only — deduplicate by date+mkt+text key */
+  var existingKeys = {};
+  TC.forEach(function(t) {
+    var key = (t.date + '|' + t.mkt + '|' + t.text.slice(0,50)).toLowerCase();
+    existingKeys[key] = true;
+  });
+  var added = 0;
+  newTC.forEach(function(t) {
+    var key = (t.date + '|' + t.mkt + '|' + t.text.slice(0,50)).toLowerCase();
+    if (!existingKeys[key]) { TC.push(t); existingKeys[key] = true; added++; }
+  });
+  if (added === 0) {
+    document.getElementById('uploadSuccess').style.display = 'block';
+    document.getElementById('uploadSuccess').innerHTML = '\u26A0\uFE0F <strong>No new rows added</strong> \u2014 all ' + newTC.length + ' rows already exist in the dashboard (duplicate check passed).';
+    document.getElementById('uploadSuccess').style.background = '#FEF3C7';
+    document.getElementById('uploadSuccess').style.color = '#92400E';
+    return;
+  }
+
+  /* Recalculate top-level metrics */
+  var total  = TC.length;
+  var negCnt = TC.filter(function(t) { return t.q1 <= 2; }).length;
+  var posCnt = TC.filter(function(t) { return t.q1 >= 3; }).length;
+  var resCnt = TC.filter(function(t) { return t.q2 === 'Yes'; }).length;
+  var negPct = total ? (negCnt/total*100).toFixed(1) : '0.0';
+  var posPct = total ? (posCnt/total*100).toFixed(1) : '0.0';
+  var resPct = total ? (resCnt/total*100).toFixed(1) : '0.0';
+
+  /* Update KPI tiles */
+  var kvEls = document.querySelectorAll('.kv');
+  if (kvEls[0]) kvEls[0].textContent = total.toLocaleString();
+  if (kvEls[1]) { kvEls[1].textContent = posPct + '%'; kvEls[1].style.color = posPct>=60?'#16A34A':posPct>=50?'#D97706':'#DC2626'; }
+  if (kvEls[2]) { kvEls[2].textContent = negPct + '%'; kvEls[2].style.color = negPct>22?'#DC2626':negPct>=18?'#D97706':'#16A34A'; }
+  if (kvEls[3]) kvEls[3].textContent = total.toLocaleString();
+
+  /* Refresh transcript table */
+  renderTC();
+
+  /* Show success */
+  document.getElementById('uploadSuccess').style.display = 'block';
+  document.getElementById('uploadSuccess').style.background = '#D1FAE5';
+  document.getElementById('uploadSuccess').style.color = '#065F46';
+  document.getElementById('uploadSuccess').innerHTML = '\u2714 <strong>' + added + ' new rows added</strong> to the dashboard. ' + (newTC.length - added) + ' duplicate rows were skipped. Switch to the <strong>CSAT Dashboard</strong> tab to see your updated metrics.<br><span style="font-size:.69rem;color:#6B7280;margin-top:3px;display:block">This update exists in your browser session only. Refresh the page to revert to original data.</span>';
+  document.getElementById('applyUploadBtn').textContent = '\u2714 Applied!';
+  document.getElementById('applyUploadBtn').style.background = '#16A34A';
+
+  /* Switch to dashboard tab after 1.5s */
+  setTimeout(function() { showTab('dashboard'); }, 1500);
+}
+
+function resetUpload() {
+  parsedFileData = [];
+  uploadedCols   = [];
+  document.getElementById('uploadZone').classList.remove('done','drag');
+  document.getElementById('uzTitle').textContent = 'Drop CSV here or click to browse';
+  document.getElementById('uzSub').textContent = 'Supports: courier_feedback_classified.csv or any CSV with response data';
+  document.getElementById('colMapSection').style.display = 'none';
+  document.getElementById('uploadSuccess').style.display = 'none';
+  document.getElementById('csvFileInput').value = '';
+  document.getElementById('applyUploadBtn').textContent = '\u2705 Apply to Dashboard';
+  document.getElementById('applyUploadBtn').style.background = '';
+}
 
 </script></body></html>
