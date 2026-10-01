@@ -1,7 +1,9 @@
 name: Courier Feedback Agent
 on:
   schedule:
-    - cron: '0 13 * * 1'
+    - cron: '0 13 * * 1'   # Monday 1 PM UTC
+    - cron: '0 17 * * 1'   # Monday 5 PM UTC
+    - cron: '0 10 * * 2'   # Tuesday 10 AM UTC
   workflow_dispatch:
     inputs:
       dry_run:
