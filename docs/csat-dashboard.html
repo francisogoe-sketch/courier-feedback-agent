@@ -61,14 +61,14 @@
 .merge-opt{display:flex;align-items:center;gap:6px;font-size:.75rem;cursor:pointer}
 .merge-opt input{cursor:pointer}
 </style></head><body>
-<div class="hdr"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px"><div><h1>&#x1F6B4;&nbsp; T1 SB CSAT - COURIER FEEDBACK INTELLIGENCE</h1><div class="hm">W40_2026 &nbsp;|&nbsp; Sep 14-Sep 27 2026 &nbsp;|&nbsp; 20,788 total responses &nbsp;|&nbsp; Q1 valid: 7,262</div></div><div class="abg">Auto-updated every Monday 1 PM UTC</div></div><div class="cav">&#x26A0; Data from CSAT surveys triggered when a courier closes a live chat. Q1=Rating (1-5) | Q2=Resolution (Yes/No) | Q3=Free-text. Not all courier feedback captured here.</div></div>
+<div class="hdr"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px"><div><h1>&#x1F6B4;&nbsp; T1 SB CSAT - COURIER FEEDBACK INTELLIGENCE</h1><div class="hm">W40_2026 &nbsp;|&nbsp; Jun 17 - Sep 20 2026 &nbsp;|&nbsp; 103,639 total responses &nbsp;|&nbsp; Q1 valid: 103,639</div></div><div class="abg">Auto-updated every Monday 1 PM UTC</div></div><div class="cav">&#x26A0; Data from CSAT surveys triggered when a courier closes a live chat. Q1=Rating (1-5) | Q2=Resolution (Yes/No) | Q3=Free-text. Not all courier feedback captured here.</div></div>
 
 <div class="tab-bar">
   <div class="tab active" id="tab_dashboard" onclick="showTab('dashboard')">&#x1F4CA;&nbsp; CSAT Dashboard</div>
   <div class="tab" id="tab_update" onclick="showTab('update')">&#x1F504;&nbsp; Manual Update</div>
 </div>
 <div class="tab-panel active" id="panel_dashboard">
-<div class="krow"><div class="kc"><div class="kl">Q1 Valid Responses</div><div class="kv" style="color:var(--or)">7,262</div><div class="ks">Sep 14-Sep 27 2026</div><div class="kf" title="COUNT WHERE q1_rating IN (1,2,3,4,5)">&#x2139; formula</div></div><div class="kc"><div class="kl">Positive CSAT - Q1 Ratings 3-4-5</div><div class="kv" style="color:#D97706">51.1%</div><div class="ks">3,709 responses</div><div class="kf" title="SUM(csat_positive) / SUM(csat_valid) x 100 | >=60% Green | 50-60% Amber | less 50% Red">&#x2139; formula</div></div><div class="kc"><div class="kl">Negative CSAT - Q1 Ratings 1-2</div><div class="kv" style="color:#DC2626">48.9%</div><div class="ks">3,553 responses | more 22% = action</div><div class="kf" title="SUM(csat_negative) / SUM(csat_valid) x 100 | less 18% Green | 18-22% Amber | more 22% Red">&#x2139; formula</div></div><div class="kc"><div class="kl">X - Active Pillar Responses</div><div class="kv" style="color:var(--dk)">3,665</div><div class="ks">Pillars 1-4 only | P5 excluded</div><div class="kf" title="P1+P2+P3+P4 only - Pillar 5 NEVER included in X">&#x2139; formula</div></div></div>
+<div class="krow"><div class="kc"><div class="kl">Q1 Valid Responses</div><div class="kv" style="color:var(--or)">7,262</div><div class="ks">Jun 17 - Sep 20 2026</div><div class="kf" title="COUNT WHERE q1_rating IN (1,2,3,4,5)">&#x2139; formula</div></div><div class="kc"><div class="kl">Positive CSAT - Q1 Ratings 3-4-5</div><div class="kv" style="color:#D97706">51.1%</div><div class="ks">3,709 responses</div><div class="kf" title="SUM(csat_positive) / SUM(csat_valid) x 100 | >=60% Green | 50-60% Amber | less 50% Red">&#x2139; formula</div></div><div class="kc"><div class="kl">Negative CSAT - Q1 Ratings 1-2</div><div class="kv" style="color:#DC2626">48.9%</div><div class="ks">3,553 responses | more 22% = action</div><div class="kf" title="SUM(csat_negative) / SUM(csat_valid) x 100 | less 18% Green | 18-22% Amber | more 22% Red">&#x2139; formula</div></div><div class="kc"><div class="kl">X - Active Pillar Responses</div><div class="kv" style="color:var(--dk)">3,665</div><div class="ks">Pillars 1-4 only | P5 excluded</div><div class="kf" title="P1+P2+P3+P4 only - Pillar 5 NEVER included in X">&#x2139; formula</div></div></div>
 <div class="main">
 <div class="st">&#x1F3AF; Feedback by Pillar - Fixed Order<span class="sf">Click pillar header to expand | Click clusters to drill down</span></div>
 <div class="pcard"><div class="phdr" data-pid="p1" style="border-left-color:#E84855"><div style="font-size:.63rem;font-weight:800;color:#718096;min-width:14px">#1</div><div style="font-size:.88rem;font-weight:800;color:#E84855;flex:1">Support Quality</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap"><span class="pi png">&#x25BC; 53.6% neg</span><span class="pi pps">&#x25B2; 46.4% pos</span><span class="pi pcn">1,303 (35.6% of X)</span><span class="pi prt" style="background:#E84855">&#x27A4; ACT</span><span class="cbw">Weekly</span></div><span class="parr" id="p1_a">&#x25BC;</span></div><div class="pbdy" id="p1_b"><div style="font-size:.67rem;color:#718096;margin-bottom:12px;font-style:italic;border-left:3px solid #E84855;padding-left:8px">Agent rudeness, unhelpful responses, chat abandoned, not resolved</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px"><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #E84855"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[1] Neg vs Pos within this Pillar</div><div style="font-size:1.2rem;font-weight:900;color:#374151">53.6% neg vs 46.4% pos</div><div style="font-size:.63rem;color:#718096;margin-top:3px">698 negative / 605 positive of 1,303 total</div><div style="display:flex;height:20px;border-radius:4px;overflow:hidden;margin-top:5px"><div style="width:46.4%;background:#16A34A;opacity:.8;display:flex;align-items:center;justify-content:center;font-size:.62rem;color:#fff;font-weight:700">46.4%</div><div style="width:53.6%;background:#E84855;opacity:.85;display:flex;align-items:center;justify-content:center;font-size:.62rem;color:#fff;font-weight:700">53.6%</div></div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_in_pillar x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #DC2626"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[2] Pillar Neg vs Overall Negative CSAT</div><div style="font-size:1.2rem;font-weight:900;color:#DC2626">19.6%</div><div style="font-size:.63rem;color:#718096;margin-top:3px">of all 3,553 negative Q1 responses come from this pillar</div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_Q1_negative x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #D97706"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[3] Pillar Neg vs Total CSAT Feedback</div><div style="font-size:1.2rem;font-weight:900;color:#D97706">9.6%</div><div style="font-size:.63rem;color:#718096;margin-top:3px">of all 7,262 valid Q1 responses are negative for this pillar</div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_Q1_valid x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #6B7280"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:6px">[4] Market Contribution to Pillar Negative</div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#1565C0">UK</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:78.3%;background:#1565C0;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#1565C0">78.3%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#E65100">CA</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:15.8%;background:#E65100;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#E65100">15.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#2E7D32">IE</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:2.1%;background:#2E7D32;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#2E7D32">2.1%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#4A148C">DE</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:1.8%;background:#4A148C;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#4A148C">1.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#BF360C">AT</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.9%;background:#BF360C;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#BF360C">0.9%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#006064">SK</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.8%;background:#006064;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#006064">0.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#558B2F">IL</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.3%;background:#558B2F;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#558B2F">0.3%</div></div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:4px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">market_neg_in_pillar / total_neg_in_pillar x 100</div></div></div><div class="chdr" data-sub="p1_s"><span class="carr" id="p1_s_a">&#x25B6;</span> Root Cause Clusters within <strong>Support Quality</strong></div><div class="cbdy" id="p1_s"><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Rude / Dismissive Agent</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:33%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">33.1%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(231)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Chat Abandoned / No Response</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:28%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">28.4%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(198)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Issue Not Resolved</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:24%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">23.9%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(167)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Slow Response Time</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:10%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">10.3%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(72)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Incorrect Information Given</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:4%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">4.3%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(30)</div></div><div style="font-size:.63rem;color:#718096;margin-top:8px;font-style:italic">From Q3 keyword analysis. See Transcripts section for full text.</div></div></div></div><div class="pcard"><div class="phdr" data-pid="p2" style="border-left-color:#D97706"><div style="font-size:.63rem;font-weight:800;color:#718096;min-width:14px">#2</div><div style="font-size:.88rem;font-weight:800;color:#D97706;flex:1">App / Tech Issues</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap"><span class="pi png">&#x25BC; 47.9% neg</span><span class="pi pps">&#x25B2; 52.1% pos</span><span class="pi pcn">280 (7.6% of X)</span><span class="pi prt" style="background:#D97706">&#x27A4; P&T</span><span class="cbw">Weekly</span></div><span class="parr" id="p2_a">&#x25BC;</span></div><div class="pbdy" id="p2_b"><div style="font-size:.67rem;color:#718096;margin-bottom:12px;font-style:italic;border-left:3px solid #D97706;padding-left:8px">GPS errors, app crash, login issues, mark arrival/delivery failure</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px"><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #D97706"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[1] Neg vs Pos within this Pillar</div><div style="font-size:1.2rem;font-weight:900;color:#374151">47.9% neg vs 52.1% pos</div><div style="font-size:.63rem;color:#718096;margin-top:3px">134 negative / 146 positive of 280 total</div><div style="display:flex;height:20px;border-radius:4px;overflow:hidden;margin-top:5px"><div style="width:52.1%;background:#16A34A;opacity:.8;display:flex;align-items:center;justify-content:center;font-size:.62rem;color:#fff;font-weight:700">52.1%</div><div style="width:47.9%;background:#E84855;opacity:.85;display:flex;align-items:center;justify-content:center;font-size:.62rem;color:#fff;font-weight:700">47.9%</div></div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_in_pillar x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #DC2626"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[2] Pillar Neg vs Overall Negative CSAT</div><div style="font-size:1.2rem;font-weight:900;color:#DC2626">3.8%</div><div style="font-size:.63rem;color:#718096;margin-top:3px">of all 3,553 negative Q1 responses come from this pillar</div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_Q1_negative x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #D97706"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[3] Pillar Neg vs Total CSAT Feedback</div><div style="font-size:1.2rem;font-weight:900;color:#D97706">1.8%</div><div style="font-size:.63rem;color:#718096;margin-top:3px">of all 7,262 valid Q1 responses are negative for this pillar</div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_Q1_valid x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #6B7280"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:6px">[4] Market Contribution to Pillar Negative</div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#1565C0">UK</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:78.3%;background:#1565C0;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#1565C0">78.3%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#E65100">CA</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:15.8%;background:#E65100;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#E65100">15.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#2E7D32">IE</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:2.1%;background:#2E7D32;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#2E7D32">2.1%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#4A148C">DE</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:1.8%;background:#4A148C;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#4A148C">1.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#BF360C">AT</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.9%;background:#BF360C;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#BF360C">0.9%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#006064">SK</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.8%;background:#006064;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#006064">0.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#558B2F">IL</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.3%;background:#558B2F;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#558B2F">0.3%</div></div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:4px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">market_neg_in_pillar / total_neg_in_pillar x 100</div></div></div><div class="chdr" data-sub="p2_s"><span class="carr" id="p2_s_a">&#x25B6;</span> Root Cause Clusters within <strong>App / Tech Issues</strong></div><div class="cbdy" id="p2_s"><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">GPS / Navigation Failure</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:35%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">35.1%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(47)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">App Crash / Freeze</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:28%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">28.4%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(38)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Mark Arrival / Delivery Bug</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:22%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">21.6%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(29)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Login / Account Issues</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:10%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">10.4%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(14)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Other Tech Errors</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:4%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">4.5%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(6)</div></div><div style="font-size:.63rem;color:#718096;margin-top:8px;font-style:italic">From Q3 keyword analysis. See Transcripts section for full text.</div></div></div></div><div class="pcard"><div class="phdr" data-pid="p3" style="border-left-color:#0D9488"><div style="font-size:.63rem;font-weight:800;color:#718096;min-width:14px">#3</div><div style="font-size:.88rem;font-weight:800;color:#0D9488;flex:1">Partner and External Delays</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap"><span class="pi png">&#x25BC; 51.1% neg</span><span class="pi pps">&#x25B2; 48.9% pos</span><span class="pi pcn">1,375 (37.5% of X)</span><span class="pi prt" style="background:#0D9488">&#x27A4; Partner Team</span><span class="cbm">Monthly</span></div><span class="parr" id="p3_a">&#x25BC;</span></div><div class="pbdy" id="p3_b"><div style="font-size:.67rem;color:#718096;margin-bottom:12px;font-style:italic;border-left:3px solid #0D9488;padding-left:8px">Restaurant wait times, pickup delays, wrong address, order issues</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px"><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #0D9488"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[1] Neg vs Pos within this Pillar</div><div style="font-size:1.2rem;font-weight:900;color:#374151">51.1% neg vs 48.9% pos</div><div style="font-size:.63rem;color:#718096;margin-top:3px">702 negative / 673 positive of 1,375 total</div><div style="display:flex;height:20px;border-radius:4px;overflow:hidden;margin-top:5px"><div style="width:48.9%;background:#16A34A;opacity:.8;display:flex;align-items:center;justify-content:center;font-size:.62rem;color:#fff;font-weight:700">48.9%</div><div style="width:51.1%;background:#E84855;opacity:.85;display:flex;align-items:center;justify-content:center;font-size:.62rem;color:#fff;font-weight:700">51.1%</div></div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_in_pillar x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #DC2626"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[2] Pillar Neg vs Overall Negative CSAT</div><div style="font-size:1.2rem;font-weight:900;color:#DC2626">19.8%</div><div style="font-size:.63rem;color:#718096;margin-top:3px">of all 3,553 negative Q1 responses come from this pillar</div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_Q1_negative x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #D97706"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[3] Pillar Neg vs Total CSAT Feedback</div><div style="font-size:1.2rem;font-weight:900;color:#D97706">9.7%</div><div style="font-size:.63rem;color:#718096;margin-top:3px">of all 7,262 valid Q1 responses are negative for this pillar</div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_Q1_valid x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #6B7280"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:6px">[4] Market Contribution to Pillar Negative</div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#1565C0">UK</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:78.3%;background:#1565C0;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#1565C0">78.3%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#E65100">CA</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:15.8%;background:#E65100;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#E65100">15.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#2E7D32">IE</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:2.1%;background:#2E7D32;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#2E7D32">2.1%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#4A148C">DE</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:1.8%;background:#4A148C;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#4A148C">1.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#BF360C">AT</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.9%;background:#BF360C;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#BF360C">0.9%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#006064">SK</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.8%;background:#006064;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#006064">0.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#558B2F">IL</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.3%;background:#558B2F;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#558B2F">0.3%</div></div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:4px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">market_neg_in_pillar / total_neg_in_pillar x 100</div></div></div><div class="chdr" data-sub="p3_s"><span class="carr" id="p3_s_a">&#x25B6;</span> Root Cause Clusters within <strong>Partner and External Delays</strong></div><div class="cbdy" id="p3_s"><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Restaurant Wait Too Long</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:36%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">35.5%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(249)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Wrong / Missing Items</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:28%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">28.1%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(197)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Incorrect Address</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:21%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">21.1%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(148)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Order Already Cancelled</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:10%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">10.3%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(72)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Restaurant Closed</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:5%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">5.1%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(36)</div></div><div style="font-size:.63rem;color:#718096;margin-top:8px;font-style:italic">From Q3 keyword analysis. See Transcripts section for full text.</div></div></div></div><div class="pcard"><div class="phdr" data-pid="p4" style="border-left-color:#1D4ED8"><div style="font-size:.63rem;font-weight:800;color:#718096;min-width:14px">#4</div><div style="font-size:.88rem;font-weight:800;color:#1D4ED8;flex:1">Compensation</div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap"><span class="pi png">&#x25BC; 55.0% neg</span><span class="pi pps">&#x25B2; 45.0% pos</span><span class="pi pcn">707 (19.3% of X)</span><span class="pi prt" style="background:#1D4ED8">&#x27A4; Courier Pay</span><span class="cbm">Monthly</span></div><span class="parr" id="p4_a">&#x25BC;</span></div><div class="pbdy" id="p4_b"><div style="font-size:.67rem;color:#718096;margin-bottom:12px;font-style:italic;border-left:3px solid #1D4ED8;padding-left:8px">Missing payment, low delivery fee, incentives not applied, refund issues</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px"><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #1D4ED8"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[1] Neg vs Pos within this Pillar</div><div style="font-size:1.2rem;font-weight:900;color:#374151">55.0% neg vs 45.0% pos</div><div style="font-size:.63rem;color:#718096;margin-top:3px">389 negative / 318 positive of 707 total</div><div style="display:flex;height:20px;border-radius:4px;overflow:hidden;margin-top:5px"><div style="width:45.0%;background:#16A34A;opacity:.8;display:flex;align-items:center;justify-content:center;font-size:.62rem;color:#fff;font-weight:700">45.0%</div><div style="width:55.0%;background:#E84855;opacity:.85;display:flex;align-items:center;justify-content:center;font-size:.62rem;color:#fff;font-weight:700">55.0%</div></div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_in_pillar x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #DC2626"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[2] Pillar Neg vs Overall Negative CSAT</div><div style="font-size:1.2rem;font-weight:900;color:#DC2626">11.0%</div><div style="font-size:.63rem;color:#718096;margin-top:3px">of all 3,553 negative Q1 responses come from this pillar</div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_Q1_negative x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #D97706"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:4px">[3] Pillar Neg vs Total CSAT Feedback</div><div style="font-size:1.2rem;font-weight:900;color:#D97706">5.4%</div><div style="font-size:.63rem;color:#718096;margin-top:3px">of all 7,262 valid Q1 responses are negative for this pillar</div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:5px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">neg_in_pillar / total_Q1_valid x 100</div></div><div style="background:#F9FAFB;border-radius:6px;padding:11px 13px;border-left:4px solid #6B7280"><div style="font-size:.6rem;text-transform:uppercase;color:#718096;font-weight:700;letter-spacing:.4px;margin-bottom:6px">[4] Market Contribution to Pillar Negative</div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#1565C0">UK</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:78.3%;background:#1565C0;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#1565C0">78.3%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#E65100">CA</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:15.8%;background:#E65100;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#E65100">15.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#2E7D32">IE</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:2.1%;background:#2E7D32;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#2E7D32">2.1%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#4A148C">DE</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:1.8%;background:#4A148C;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#4A148C">1.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#BF360C">AT</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.9%;background:#BF360C;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#BF360C">0.9%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#006064">SK</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.8%;background:#006064;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#006064">0.8%</div></div><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div style="min-width:22px;font-weight:800;font-size:.71rem;color:#558B2F">IL</div><div style="flex:1;height:9px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:0.3%;background:#558B2F;border-radius:3px"></div></div><div style="min-width:40px;text-align:right;font-size:.7rem;font-weight:700;color:#558B2F">0.3%</div></div><div style="font-size:.59rem;font-family:monospace;color:#E8853D;margin-top:4px;background:rgba(232,133,61,.08);padding:2px 5px;border-radius:3px">market_neg_in_pillar / total_neg_in_pillar x 100</div></div></div><div class="chdr" data-sub="p4_s"><span class="carr" id="p4_s_a">&#x25B6;</span> Root Cause Clusters within <strong>Compensation</strong></div><div class="cbdy" id="p4_s"><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Payment Not Received</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:35%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">34.7%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(135)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Fee Lower Than Expected</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:28%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">28.0%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(109)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Incentive / Bonus Not Applied</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:22%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">22.4%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(87)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Challenge / Reward Issue</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:10%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">9.8%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(38)</div></div><div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F3F4F6"><div style="flex:1;font-size:.75rem;font-weight:600">Refund Not Processed</div><div style="width:100px;height:8px;background:#F3F4F6;border-radius:3px;overflow:hidden"><div style="height:100%;width:5%;background:#E84855;opacity:.75;border-radius:3px"></div></div><div style="min-width:36px;text-align:right;font-size:.7rem;font-weight:700;color:#DC2626">5.1%</div><div style="font-size:.67rem;color:#718096;min-width:38px;text-align:right">(20)</div></div><div style="font-size:.63rem;color:#718096;margin-top:8px;font-style:italic">From Q3 keyword analysis. See Transcripts section for full text.</div></div></div></div>
@@ -775,115 +775,76 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-function getMapping() {
-  var safe=function(id,def){var el=document.getElementById(id);return el?el.value:def;};
-  return {
-    date:      safe('mapDate','Date'),
-    market:    safe('mapMarket','Market'),
-    text:      safe('mapText','Q3 Text'),
-    theme:     safe('mapTheme','Theme'),
-    sentiment: safe('mapSentiment','Csat Sentiment'),
-    resolution:safe('mapResolution','Resolved')
-  };
-}
+function getMapping(){var safe=function(id,def){var el=document.getElementById(id);return el?el.value:def;};return{date:safe('mapDate','Date'),market:safe('mapMarket','Market'),text:safe('mapText','Q3 Text'),theme:safe('mapTheme','Theme'),sentiment:safe('mapSentiment','Csat Sentiment'),resolution:safe('mapResolution','Resolved')};}
+function normalizePillar(s){var p=s.toLowerCase();if(p.indexOf('support')>=0||p==='pillar 1')return 'Support Quality';if(p.indexOf('tech')>=0||p.indexOf('app')>=0||p==='pillar 2')return 'App / Tech Issues';if(p.indexOf('partner')>=0||p.indexOf('external')>=0||p.indexOf('delay')>=0||p==='pillar 3')return 'Partner and External Delays';if(p.indexOf('comp')>=0||p.indexOf('pay')>=0||p==='pillar 4')return 'Compensation';return 'General / Minimal Feedback';}
 
-function normalizePillar(s) {
-  var p=s.toLowerCase();
-  if(p.indexOf('support')>=0||p==='pillar 1'||p==='pillar1')return 'Support Quality';
-  if(p.indexOf('tech')>=0||p.indexOf('app')>=0||p==='pillar 2'||p==='pillar2')return 'App / Tech Issues';
-  if(p.indexOf('partner')>=0||p.indexOf('external')>=0||p.indexOf('delay')>=0||p==='pillar 3'||p==='pillar3')return 'Partner and External Delays';
-  if(p.indexOf('comp')>=0||p.indexOf('pay')>=0||p==='pillar 4'||p==='pillar4')return 'Compensation';
-  return 'General / Minimal Feedback';
-}
-
-function updateDashboard() {
-  var total=TC.length; if(!total)return;
-  var neg=0,pos=0,res=0;
-  TC.forEach(function(t){if(t.q1<=2)neg++;else pos++;if(t.q2==='Yes')res++;});
-  var p5k=['general / minimal / positive','general / minimal feedback','positive feedback','general','minimal'];
-  var xRows=TC.filter(function(t){return p5k.indexOf(t.pillar.toLowerCase())<0;});
-  var X=xRows.length;
+function updateDashboard(){
+  var total=TC.length;if(!total)return;
+  var neg=0,pos=0;
+  TC.forEach(function(t){if(t.q1<=2)neg++;else pos++;});
+  var p5=['general / minimal / positive','general / minimal feedback','positive feedback','general','minimal'];
+  var xR=TC.filter(function(t){return p5.indexOf(t.pillar.toLowerCase())<0;});
+  var X=xR.length;
   var nP=(neg/total*100).toFixed(1),pP=(pos/total*100).toFixed(1);
-
-  /* KPI tiles */
   var kv=document.querySelectorAll('.kv');
   if(kv[0])kv[0].textContent=total.toLocaleString();
   if(kv[1]){kv[1].textContent=pP+'%';kv[1].style.color=pP>=60?'#16A34A':pP>=50?'#D97706':'#DC2626';}
   if(kv[2]){kv[2].textContent=nP+'%';kv[2].style.color=nP>22?'#DC2626':nP>=18?'#D97706':'#16A34A';}
   if(kv[3])kv[3].textContent=X.toLocaleString();
-
-  /* Date range */
   var dates=TC.map(function(t){return t.date;}).filter(function(d){return d&&d.length===10;}).sort();
-  var dMin=dates.length?dates[0]:'',dMax=dates.length?dates[dates.length-1]:'';
-
-  /* Header subtitle */
-  var hm=document.querySelector('.hm');
-  if(hm&&dMin){
-    var s=hm.textContent;
-    s=s.replace(/\d+,?\d* total responses/,total.toLocaleString()+' total responses');
-    s=s.replace(/Q1 valid:.*$/,'Q1 valid: '+total.toLocaleString());
-    hm.textContent=s;
+  if(dates.length){
+    var ks=document.querySelectorAll('.ks');
+    if(ks[0])ks[0].textContent=dates[0]+' to '+dates[dates.length-1];
+    if(ks[1])ks[1].textContent=pos.toLocaleString()+' responses';
+    if(ks[2])ks[2].textContent=neg.toLocaleString()+' responses | >22% = action';
+    if(ks[3])ks[3].textContent='Pillars 1-4 | '+X.toLocaleString()+' active';
   }
-  /* KPI date subtitle */
-  var ks=document.querySelectorAll('.ks');
-  if(ks[0]&&dMin)ks[0].textContent=dMin+' to '+dMax;
-  if(ks[1])ks[1].textContent=pos.toLocaleString()+' responses';
-  if(ks[2])ks[2].textContent=neg.toLocaleString()+' responses | >22% = action';
-  if(ks[3])ks[3].textContent='Pillars 1-4 | '+X.toLocaleString()+' active responses';
-
-  /* Per-pillar stats */
   var PILLARS=['Support Quality','App / Tech Issues','Partner and External Delays','Compensation'];
-  var PS={};
-  PILLARS.forEach(function(p){
-    var rows=xRows.filter(function(t){return t.pillar===p;});
+  PILLARS.forEach(function(pName,idx){
+    var rows=xR.filter(function(t){return t.pillar===pName;});
+    var pt=rows.length;if(!pt)return;
     var pn=rows.filter(function(t){return t.q1<=2;}).length;
     var pp=rows.filter(function(t){return t.q1>=3;}).length;
-    var pt=rows.length;
-    PS[p]={t:pt,n:pn,p:pp,np:pt?(pn/pt*100).toFixed(1):'0',pp2:pt?(pp/pt*100).toFixed(1):'0',xp:X?(pt/X*100).toFixed(1):'0'};
-  });
-
-  /* Update pillar pills in headers */
-  document.querySelectorAll('.phdr').forEach(function(hdr){
-    /* Find which pillar this is */
-    var nameEl=hdr.querySelector('div[style*="font-size:.88rem"]')||hdr.querySelector('div[style*="font-weight:800"]');
-    if(!nameEl)return;
-    var pName=nameEl.textContent.trim().replace(/^#\d\s*/,'');
-    var st=PS[pName]; if(!st)return;
-    var nc=st.np>22?'#DC2626':st.np>=18?'#D97706':'#16A34A';
-    hdr.querySelectorAll('.pi').forEach(function(pill){
-      var t=pill.textContent;
-      if(t.indexOf('neg')>=0){pill.style.background=nc+'22';pill.style.color=nc;pill.textContent='\u25bc '+st.np+'% neg';}
-      else if(t.indexOf('pos')>=0){pill.textContent='\u25b2 '+st.pp2+'% pos';}
-      else if(t.indexOf('of X')>=0){pill.textContent=st.t.toLocaleString()+' ('+st.xp+'% of X)';}
-    });
+    var nPct=(pn/pt*100).toFixed(1),pPct=(pp/pt*100).toFixed(1),xPct=(pt/X*100).toFixed(1);
+    var nc=nPct>22?'#DC2626':nPct>=18?'#D97706':'#16A34A';
+    var pid='p'+(idx+1);
+    var ne=document.getElementById(pid+'_neg');var pe=document.getElementById(pid+'_pos');var ce=document.getElementById(pid+'_cnt');
+    if(ne){ne.textContent='\u25bc '+nPct+'% neg';ne.style.background=nc+'22';ne.style.color=nc;}
+    if(pe)pe.textContent='\u25b2 '+pPct+'% pos';
+    if(ce)ce.textContent=pt.toLocaleString()+' ('+xPct+'% of X)';
   });
 }
-
 function applyUpload() {
   try {
-    if(!parsedFileData||!parsedFileData.length){alert('No data loaded. Select a CSV file first.');return;}
-    var map=getMapping();
-    var newTC=[];
-    parsedFileData.forEach(function(row,i){
-      var sR=String(row[map.sentiment]||'').trim(),sL=sR.toLowerCase(),sN=parseInt(sR),q1;
+    if (!parsedFileData || !parsedFileData.length) {
+      alert('No data loaded. Please select a CSV file first.');
+      return;
+    }
+    var map = getMapping();
+    /* Build rows from CSV */
+    var newTC = [];
+    parsedFileData.forEach(function(row, i) {
+      var sRaw=String(row[map.sentiment]||'').trim(),sL=sRaw.toLowerCase(),sN=parseInt(sRaw),q1;
       if(!isNaN(sN)&&sN>=1&&sN<=5){q1=sN;}
       else if(sL.indexOf('pos')>=0){q1=4;}
       else if(sL.indexOf('neg')>=0){q1=2;}
       else{q1=3;}
-      var rR=String(row[map.resolution]||'').trim().toLowerCase();
-      var q2=(rR==='yes'||rR==='1'||rR==='true'||rR==='\u05db\u05df')?'Yes':'No';
+      var rRaw=String(row[map.resolution]||'').trim().toLowerCase();
+      var q2=(rRaw==='yes'||rRaw==='1'||rRaw==='true'||rRaw==='\u05db\u05df')?'Yes':'No';
       var txt=String(row[map.text]||'').trim();
-      if(!txt)return;
-      var pRaw=String(row[map.theme]||'').trim();
+      if(!txt)return; /* skip empty rows */
       newTC.push({
         id:'U'+String(i+1).padStart(4,'0'),
         date:String(row[map.date]||'').slice(0,10),
         mkt:String(row[map.market]||'Unknown').slice(0,20),
         platform:String(row['Platform']||row['platform']||'Uploaded'),
-        q1:q1,q2:q2,pillar:normalizePillar(pRaw),theme:pRaw,text:txt
+        q1:q1, q2:q2,
+        pillar:String(row[map.theme]||'General / Minimal Feedback'),
+        theme:String(row[map.theme]||'Uploaded'),
+        text:txt
       });
     });
-    if(!newTC.length){alert('No valid rows found after parsing. Check Q3 Text column has content.');return;}
+    if(!newTC.length){alert('No valid rows found. Make sure the Q3 Text column has content.');return;}
     /* Merge with dedup */
     var seen={};
     TC.forEach(function(t){seen[t.text.slice(0,60).toLowerCase()]=true;});
@@ -892,25 +853,638 @@ function applyUpload() {
       var k=t.text.slice(0,60).toLowerCase();
       if(!seen[k]){TC.push(t);seen[k]=true;added++;}else{skipped++;}
     });
-    /* Recalculate and update ALL dashboard elements */
-    updateDashboard();
+    /* Update KPIs */
+    var total=TC.length,neg=TC.filter(function(t){return t.q1<=2;}).length,pos=TC.filter(function(t){return t.q1>=3;}).length;
+    var nP=(total?(neg/total*100).toFixed(1):'0.0'),pP=(total?(pos/total*100).toFixed(1):'0.0');
+    var kv=document.querySelectorAll('.kv');
+    if(kv[0])kv[0].textContent=total.toLocaleString();
+    if(kv[1]){kv[1].textContent=pP+'%';kv[1].style.color=pP>=60?'#16A34A':pP>=50?'#D97706':'#DC2626';}
+    if(kv[2]){kv[2].textContent=nP+'%';kv[2].style.color=nP>22?'#DC2626':nP>=18?'#D97706':'#16A34A';}
+    if(kv[3])kv[3].textContent=total.toLocaleString();
     if(typeof renderTC==='function')renderTC();
-    /* Success banner */
+    /* Success */
     var s=document.getElementById('uploadSuccess');
     if(s){
       s.style.display='block';s.style.background='#D1FAE5';s.style.color='#065F46';
-      s.innerHTML='\u2714 <strong>'+added+' rows merged</strong> into dashboard'+(skipped?' &bull; '+skipped+' duplicates skipped':'')+
-        '.<br>KPIs, pillar cards, date range and transcripts all updated. Switching to dashboard...';
+      s.innerHTML='\u2714 <strong>'+added+' new rows added</strong>'+(skipped?' ('+skipped+' duplicates skipped)':'')+'. Switching to dashboard...';
     }
     var btn=document.getElementById('applyUploadBtn');
-    if(btn){btn.textContent='\u2714 Applied ('+added+' rows)';btn.style.background='#16A34A';}
-    setTimeout(function(){if(typeof showTab==='function')showTab('dashboard');},1800);
-  } catch(err){
-    alert('Error: '+err.message+'\n\nPress F12 and check Console for details.');
-    console.error('applyUpload:',err);
+    if(btn){btn.textContent='\u2714 Applied! ('+added+' rows)';btn.style.background='#16A34A';}
+    setTimeout(function(){if(typeof showTab==='function')showTab('dashboard');},1500);
+  } catch(err) {
+    alert('Error applying data: '+err.message+'\n\nOpen browser console (F12) for details.');
+    console.error('applyUpload error:',err);
   }
 }
 
+function resetUpload() {
+  parsedFileData = [];
+  uploadedCols   = [];
+  document.getElementById('uploadZone').classList.remove('done','drag');
+  document.getElementById('uzTitle').textContent = 'Drop CSV here or click to browse';
+  document.getElementById('uzSub').textContent = 'Supports: courier_feedback_classified.csv or any CSV with response data';
+  document.getElementById('colMapSection').style.display = 'none';
+  document.getElementById('uploadSuccess').style.display = 'none';
+  document.getElementById('csvFileInput').value = '';
+  document.getElementById('applyUploadBtn').textContent = '\u2705 Apply to Dashboard';
+  document.getElementById('applyUploadBtn').style.background = '';
+}
+var TC=[{"id": "X0001", "date": "2026-09-20", "mkt": "AT", "platform": "Android", "q1": 3, "q2": "Yes", "pillar": "Compensation", "theme": "Compensation", "text": "McDonald's did not deliver the correct order. The customer refused delivery."}, {"id": "X0002", "date": "2026-09-18", "mkt": "AT", "platform": "Android", "q1": 1, "q2": "No", "pillar": "General / Minimal Feedback", "theme": "General / Minimal Feedback", "text": "Not good"}, {"id": "X0003", "date": "2026-09-17", "mkt": "UK", "platform": "iOS", "q1": 1, "q2": "No", "pillar": "Support Quality", "theme": "Support Quality", "text": "The support agent was very rude and closed the chat without resolving my issue. Completely unacceptable."}, {"id": "X0004", "date": "2026-09-16", "mkt": "UK", "platform": "iOS", "q1": 2, "q2": "No", "pillar": "App / Tech Issues", "theme": "App / Tech Issues", "text": "GPS was not working correctly. The app showed me at the wrong location and I could not mark arrival."}, {"id": "X0005", "date": "2026-09-15", "mkt": "UK", "platform": "Android", "q1": 1, "q2": "No", "pillar": "Partner and External Delays", "theme": "Partner and External Delays", "text": "Waited 45 minutes at the restaurant. Completely unacceptable. Lost multiple deliveries."}, {"id": "X0006", "date": "2026-09-14", "mkt": "CA", "platform": "iOS", "q1": 1, "q2": "No", "pillar": "Compensation", "theme": "Compensation", "text": "My payment for last week has not arrived. This has happened twice now."}, {"id": "X0007", "date": "2026-09-13", "mkt": "UK", "platform": "iOS", "q1": 4, "q2": "Yes", "pillar": "Support Quality", "theme": "Support Quality", "text": "The agent was very helpful and resolved my issue quickly. Great experience overall."}, {"id": "X0008", "date": "2026-09-12", "mkt": "IE", "platform": "iOS", "q1": 5, "q2": "Yes", "pillar": "App / Tech Issues", "theme": "App / Tech Issues", "text": "Had an issue with the app but support helped me fix it straight away. Very pleased with the service."}, {"id": "X0009", "date": "2026-09-11", "mkt": "DE", "platform": "Android", "q1": 2, "q2": "No", "pillar": "Partner and External Delays", "theme": "Partner and External Delays", "text": "Restaurant gave wrong order to customer. I could not fix it through the app and support was unhelpful."}, {"id": "X0010", "date": "2026-09-10", "mkt": "SK", "platform": "iOS", "q1": 5, "q2": "Yes", "pillar": "Compensation", "theme": "Compensation", "text": "My bonus was correctly applied. Agent confirmed and sent confirmation. Very happy with the outcome."}, {"id": "X0011", "date": "2026-09-09", "mkt": "UK", "platform": "Android", "q1": 1, "q2": "No", "pillar": "Support Quality", "theme": "Support Quality", "text": "Chat was abandoned. I waited 20 minutes and no one responded. The chat just closed automatically."}, {"id": "X0012", "date": "2026-09-08", "mkt": "UK", "platform": "iOS", "q1": 2, "q2": "No", "pillar": "App / Tech Issues", "theme": "App / Tech Issues", "text": "App crashed when I tried to complete the delivery. Customer was waiting and I could not do anything."}, {"id": "X0013", "date": "2026-09-07", "mkt": "CA", "platform": "Android", "q1": 1, "q2": "No", "pillar": "Partner and External Delays", "theme": "Partner and External Delays", "text": "Address was wrong on the order. No one was home and I could not reach the customer through the app."}, {"id": "X0014", "date": "2026-09-06", "mkt": "UK", "platform": "iOS", "q1": 2, "q2": "No", "pillar": "Compensation", "theme": "Compensation", "text": "Delivery fee was much lower than expected. Agent could not explain the calculation used."}, {"id": "X0015", "date": "2026-09-05", "mkt": "IL", "platform": "iOS", "q1": 1, "q2": "No", "pillar": "Support Quality", "theme": "Support Quality", "text": "The support team did not help at all. They closed my chat while I was still typing my question."}];
+var MC=[{"m": "UK", "col": "#1565C0", "neg": 49.5, "pos": 50.5, "res": 42.0, "total": 65027}, {"m": "CA", "col": "#E65100", "neg": 49.0, "pos": 51.0, "res": 46.0, "total": 19004}, {"m": "IE", "col": "#2E7D32", "neg": 46.2, "pos": 53.8, "res": 54.7, "total": 4022}, {"m": "DE", "col": "#4A148C", "neg": 50.7, "pos": 49.3, "res": 53.6, "total": 3629}, {"m": "AT", "col": "#BF360C", "neg": 44.4, "pos": 55.6, "res": 58.9, "total": 1709}, {"m": "IL", "col": "#558B2F", "neg": 48.1, "pos": 51.9, "res": 35.6, "total": 5829}, {"m": "SK", "col": "#006064", "neg": 37.5, "pos": 62.5, "res": 70.3, "total": 4419}];
+var P_STAT=[{"rank": 1, "n": "Support Quality", "c": "#E84855", "rt": "ACT", "cd": "Weekly", "cnt": 1878, "xp": 25.4, "neg_pct": 53.6, "pos_pct": 46.4, "vn": 19.6, "vc": 9.6, "res_pct": 14.6}, {"rank": 2, "n": "App / Tech Issues", "c": "#D97706", "rt": "P&T", "cd": "Weekly", "cnt": 1845, "xp": 24.9, "neg_pct": 47.9, "pos_pct": 52.1, "vn": 3.8, "vc": 1.8, "res_pct": 26.7}, {"rank": 3, "n": "Partner and External Delays", "c": "#0D9488", "rt": "Partner Team", "cd": "Monthly", "cnt": 3264, "xp": 44.1, "neg_pct": 51.1, "pos_pct": 48.9, "vn": 19.8, "vc": 9.7, "res_pct": 27.3}, {"rank": 4, "n": "Compensation", "c": "#1D4ED8", "rt": "Courier Pay", "cd": "Monthly", "cnt": 410, "xp": 5.5, "neg_pct": 55.0, "pos_pct": 45.0, "vn": 11.0, "vc": 5.4, "res_pct": 25.4}];
+var WK="W40_2026";
+var TOTAL_Q1V=103639;
+var POS_COUNT=51301;
+var NEG_COUNT=52337;
+var X_ACTIVE=7397;
+
+
+document.addEventListener('DOMContentLoaded', function() {
+
+  /* ── Pillar expand/collapse ── */
+  document.querySelectorAll('.phdr').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var pid  = this.getAttribute('data-pid');
+      var body = document.getElementById(pid + '_b');
+      var arr  = document.getElementById(pid + '_a');
+      if (!body) return;
+      var isOpen = body.classList.contains('open');
+      body.classList.toggle('open');
+      if (arr) arr.style.transform = isOpen ? '' : 'rotate(180deg)';
+    });
+  });
+
+  /* ── Cluster sub expand/collapse ── */
+  document.querySelectorAll('.chdr').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var sid = this.getAttribute('data-sub');
+      var sub = document.getElementById(sid);
+      var arr = document.getElementById(sid + '_a');
+      if (!sub) return;
+      sub.classList.toggle('open');
+      if (arr) arr.textContent = sub.classList.contains('open') ? '\u25BC' : '\u25B6';
+    });
+  });
+
+  /* ── Glossary toggle ── */
+  var gh = document.getElementById('gh');
+  if (gh) {
+    gh.addEventListener('click', function() {
+      var gb = document.getElementById('gb');
+      var ga = document.getElementById('ga');
+      if (!gb) return;
+      gb.classList.toggle('open');
+      if (ga) ga.textContent = gb.classList.contains('open') ? '\u25B2 click to collapse' : '\u25BC click to expand';
+    });
+  }
+
+  /* ── Filter change listeners ── */
+  ['fPillar','fMkt','fQ1','fQ2'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', renderTC);
+  });
+
+  /* ── Transcript expand — event delegation ── */
+  var tbody = document.getElementById('tcBody');
+  if (tbody) {
+    tbody.addEventListener('click', function(e) {
+      var tr = e.target.closest('tr.tc-r');
+      if (!tr) return;
+      var xid  = tr.getAttribute('data-xid');
+      var xrow = document.getElementById(xid);
+      if (xrow) xrow.classList.toggle('open');
+    });
+  }
+
+  /* ── Download CSV button ── */
+  var dlBtn = document.getElementById('dlBtn');
+  if (dlBtn) dlBtn.addEventListener('click', downloadCSV);
+
+  /* Initial render */
+  renderTC();
+});
+
+function getFiltered() {
+  var pv = document.getElementById('fPillar').value;
+  var mv = document.getElementById('fMkt').value;
+  var qv = document.getElementById('fQ1').value;
+  var rv = document.getElementById('fQ2').value;
+  return TC.filter(function(t) {
+    if (pv !== 'All' && t.pillar !== pv) return false;
+    if (mv !== 'All' && t.mkt    !== mv) return false;
+    if (qv === 'neg' && t.q1 > 2)        return false;
+    if (qv === 'pos' && t.q1 < 3)        return false;
+    if (rv !== 'All' && t.q2    !== rv) return false;
+    return true;
+  });
+}
+
+function renderTC() {
+  var data   = getFiltered();
+  var cntEl  = document.getElementById('tcCount');
+  if (cntEl) cntEl.textContent = data.length + ' transcript' + (data.length !== 1 ? 's' : '') + ' shown';
+  var body = document.getElementById('tcBody');
+  if (!body) return;
+  if (!data.length) {
+    body.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9CA3AF;padding:16px">No transcripts match current filters</td></tr>';
+    return;
+  }
+  var html = '';
+  data.forEach(function(t, i) {
+    var qcls  = t.q1 <= 2 ? 'qbn' : (t.q1 >= 4 ? 'qbp' : 'qbne');
+    var q2c   = t.q2 === 'Yes' ? '#16A34A' : '#DC2626';
+    var mc    = MC[t.mkt] || '#374151';
+    var short = t.text.length > 70 ? t.text.slice(0, 70) + '...' : t.text;
+    var xid   = 'tcx' + i;
+    html += '<tr class="tc-r" data-xid="' + xid + '">';
+    html += '<td style="font-weight:700;color:#718096">' + t.id + '</td>';
+    html += '<td>' + t.date + '</td>';
+    html += '<td style="font-weight:800;color:' + mc + '">' + t.mkt + '</td>';
+    html += '<td>' + t.platform + '</td>';
+    html += '<td><span class="qb ' + qcls + '">' + t.q1 + '&#9733;</span></td>';
+    html += '<td style="color:' + q2c + ';font-weight:700">' + t.q2 + '</td>';
+    html += '<td style="font-size:.7rem">' + t.pillar + '</td>';
+    html += '<td style="font-size:.7rem">' + t.theme + '</td>';
+    html += '<td style="font-size:.71rem;color:#718096">' + short + '</td>';
+    html += '</tr>';
+    html += '<tr class="tc-x" id="' + xid + '">';
+    html += '<td colspan="9">';
+    html += '<strong style="color:#1A2E44">Full Q3 Transcript:</strong><br>';
+    html += '<span style="font-size:.78rem;color:#1A2E44">' + t.text + '</span><br><br>';
+    html += '<span style="font-size:.67rem;color:#718096">';
+    html += 'ID: <b>' + t.id + '</b> &bull; ' + t.date + ' &bull; Market: <b>' + t.mkt + '</b>';
+    html += ' &bull; Platform: ' + t.platform + ' &bull; Q1: <b>' + t.q1 + '&#9733;</b>';
+    html += ' &bull; Q2: <b>' + t.q2 + '</b> &bull; Pillar: <b>' + t.pillar + '</b>';
+    html += ' &bull; Theme: ' + t.theme;
+    html += '</span></td></tr>';
+  });
+  body.innerHTML = html;
+}
+
+function downloadCSV() {
+  var data = getFiltered();
+  if (!data.length) { alert('No data to download. Try resetting filters.'); return; }
+  var cols = ['id','date','mkt','platform','q1','q2','pillar','theme','text'];
+  var hdrs = ['Survey ID','Date','Market','Platform','Q1 Rating','Q2 Resolved','Pillar','Theme','Q3 Transcript'];
+  var rows = [hdrs.join(',')];
+  data.forEach(function(t) {
+    rows.push(cols.map(function(c) {
+      var v = String(t[c] !== undefined ? t[c] : '');
+      return '"' + v.replace(/"/g, '""') + '"';
+    }).join(','));
+  });
+  var csv  = rows.join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href   = url;
+  var pv = document.getElementById('fPillar').value;
+  var mv = document.getElementById('fMkt').value;
+  var fn = 'CSAT';
+  if (pv !== 'All') fn += '_' + pv.replace(/[^a-zA-Z0-9]/g, '_');
+  if (mv !== 'All') fn += '_' + mv;
+  fn += '_' + WK + '.csv';
+  a.download = fn;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
+/* ── MANUAL UPDATE TAB LOGIC ─────────────────────────────── */
+var REPO_OWNER = 'francisogoe-sketch';
+var REPO_NAME  = 'courier-feedback-agent';
+var WORKFLOW   = 'courier_feedback_agent.yml';
+
+/* Tab switching */
+function showTab(tabId) {
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('tab_' + tabId).classList.add('active');
+  document.getElementById('panel_' + tabId).classList.add('active');
+}
+
+/* Token management — stored in localStorage, never in source */
+function saveToken() {
+  var t = document.getElementById('tokenInput').value.trim();
+  if (!t || !t.startsWith('ghp_')) {
+    setTokenStatus('red', 'Invalid token — must start with ghp_');
+    return;
+  }
+  localStorage.setItem('gh_dashboard_token', t);
+  document.getElementById('tokenInput').value = '';
+  setTokenStatus('green', 'Token saved securely in browser storage');
+}
+
+function clearToken() {
+  localStorage.removeItem('gh_dashboard_token');
+  setTokenStatus('grey', 'Token cleared');
+}
+
+function getToken() { return localStorage.getItem('gh_dashboard_token') || ''; }
+
+function setTokenStatus(col, msg) {
+  var s = document.getElementById('tokenStatus');
+  var d = document.getElementById('tokenDot');
+  var m = document.getElementById('tokenMsg');
+  if (!s || !d || !m) return;
+  s.classList.add('show');
+  d.className = 'status-dot dot-' + (col === 'red' ? 'red' : col === 'green' ? 'green' : 'grey');
+  d.style.background = col === 'red' ? '#DC2626' : col === 'green' ? '#16A34A' : '#9CA3AF';
+  m.textContent = msg;
+}
+
+/* Trigger workflow */
+function triggerUpdate() {
+  var token = getToken();
+  if (!token) {
+    setUpdateStatus('amber', 'No token saved — please enter and save your GitHub token first (Step 1)');
+    return;
+  }
+  var btn  = document.getElementById('updateBtn');
+  var icon = document.getElementById('updateBtnIcon');
+  var txt  = document.getElementById('updateBtnText');
+  btn.disabled = true;
+  icon.textContent = '\u23F3';
+  txt.textContent  = 'Triggering pipeline...';
+  addLog('info', '\u25B6 Sending trigger to GitHub Actions...');
+  setUpdateStatus('amber', 'Sending request to GitHub...');
+  fetch('https://api.github.com/repos/' + REPO_OWNER + '/' + REPO_NAME + '/actions/workflows/' + WORKFLOW + '/dispatches', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'token ' + token,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ ref: 'main' })
+  })
+  .then(function(res) {
+    if (res.status === 204) {
+      setUpdateStatus('green', 'Pipeline triggered successfully!');
+      addLog('ok', '\u2714 Workflow triggered! Pipeline is now running.');
+      addLog('info', '\u23F3 Estimated time: ~45 seconds');
+      addLog('info', '\u1F504 Refreshing status in 30 seconds...');
+      btn.className = 'upd-btn success';
+      icon.textContent = '\u2714';
+      txt.textContent  = 'Pipeline Running!';
+      setTimeout(function() { checkStatus(); }, 30000);
+      setTimeout(function() {
+        btn.disabled = false;
+        btn.className = 'upd-btn';
+        icon.textContent = '\u1F504';
+        txt.textContent  = 'Update Dashboard from Drive';
+      }, 60000);
+    } else if (res.status === 401) {
+      setUpdateStatus('red', 'Token invalid or expired — please update your token in Step 1');
+      addLog('warn', '\u2717 Authentication failed (401) — check your token');
+      resetBtn();
+    } else if (res.status === 422) {
+      setUpdateStatus('red', 'Workflow not found — check the workflow filename in the repo');
+      addLog('warn', '\u2717 Unprocessable (422) — workflow file not found');
+      resetBtn();
+    } else {
+      setUpdateStatus('red', 'Unexpected response: ' + res.status);
+      addLog('warn', '\u2717 HTTP ' + res.status);
+      resetBtn();
+    }
+  })
+  .catch(function(err) {
+    setUpdateStatus('red', 'Network error — check your internet connection');
+    addLog('warn', '\u2717 Error: ' + err.message);
+    resetBtn();
+  });
+}
+
+function resetBtn() {
+  var btn  = document.getElementById('updateBtn');
+  var icon = document.getElementById('updateBtnIcon');
+  var txt  = document.getElementById('updateBtnText');
+  btn.disabled = false;
+  btn.className = 'upd-btn';
+  icon.textContent = '\u1F504';
+  txt.textContent  = 'Update Dashboard from Drive';
+}
+
+/* Check last run status (no auth needed for public repos) */
+function checkStatus() {
+  setUpdateStatus('amber', 'Checking pipeline status...');
+  fetch('https://api.github.com/repos/' + REPO_OWNER + '/' + REPO_NAME + '/actions/runs?per_page=3', {
+    headers: { 'Accept': 'application/vnd.github.v3+json' }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (!data.workflow_runs || !data.workflow_runs.length) {
+      setPipelineStatus('grey', 'No runs found');
+      return;
+    }
+    var run = data.workflow_runs[0];
+    var status  = run.status;
+    var concl   = run.conclusion;
+    var created = new Date(run.created_at);
+    var updated = new Date(run.updated_at);
+    var elapsed = Math.round((updated - created) / 1000);
+    var timeAgo = getTimeAgo(new Date(run.created_at));
+    var col = concl === 'success' ? 'green' : concl === 'failure' ? 'red' : 'amber';
+    var icon = concl === 'success' ? '\u2714' : concl === 'failure' ? '\u2717' : status === 'in_progress' ? '\u23F3' : '\u25CB';
+    setPipelineStatus(col === 'green' ? 'green' : col === 'red' ? '#DC2626' : '#D97706',
+      icon + ' Last run: ' + (concl || status) + ' (' + timeAgo + ')');
+    document.getElementById('pipelineDetail').textContent =
+      'Run #' + run.run_number + ' \u2022 Duration: ' + elapsed + 's \u2022 Branch: ' + run.head_branch;
+    if (status === 'in_progress') {
+      setUpdateStatus('amber', 'Pipeline is currently running...');
+      addLog('info', '\u23F3 Pipeline in progress — check again in 30s');
+      setTimeout(checkStatus, 30000);
+    } else if (concl === 'success') {
+      setUpdateStatus('green', 'Last run completed successfully! Hard refresh (Ctrl+Shift+R) to see updates.');
+      addLog('ok', '\u2714 Pipeline completed successfully');
+    } else if (concl === 'failure') {
+      setUpdateStatus('red', 'Last run failed — check GitHub Actions for details');
+      addLog('warn', '\u2717 Pipeline failed');
+    }
+  })
+  .catch(function() {
+    setPipelineStatus('grey', 'Could not load status — check internet connection');
+  });
+}
+
+function setUpdateStatus(col, msg) {
+  var s = document.getElementById('updateStatus');
+  var d = document.getElementById('updateDot');
+  var m = document.getElementById('updateMsg');
+  if (!s) return;
+  s.classList.add('show');
+  d.style.background = col === 'green' ? '#16A34A' : col === 'red' ? '#DC2626' : col === 'amber' ? '#D97706' : '#9CA3AF';
+  m.textContent = msg;
+}
+
+function setPipelineStatus(col, msg) {
+  var d = document.getElementById('pipelineDot');
+  var m = document.getElementById('pipelineMsg');
+  if (d) d.style.background = col === 'green' ? '#16A34A' : col === '#DC2626' ? '#DC2626' : col;
+  if (m) m.textContent = msg;
+}
+
+function addLog(type, msg) {
+  var log = document.getElementById('runLog');
+  if (!log) return;
+  log.classList.add('show');
+  var cls = type === 'ok' ? 'log-ok' : type === 'warn' ? 'log-warn' : 'log-info';
+  var ts = new Date().toLocaleTimeString();
+  log.innerHTML += '<div class="log-line ' + cls + '">[' + ts + '] ' + msg + '</div>';
+  log.scrollTop = log.scrollHeight;
+}
+
+function getTimeAgo(date) {
+  var secs = Math.round((new Date() - date) / 1000);
+  if (secs < 60)  return secs + 's ago';
+  if (secs < 3600) return Math.round(secs/60) + 'm ago';
+  if (secs < 86400) return Math.round(secs/3600) + 'h ago';
+  return Math.round(secs/86400) + 'd ago';
+}
+
+/* Check token on load */
+document.addEventListener('DOMContentLoaded', function() {
+  var saved = localStorage.getItem('gh_dashboard_token');
+  if (saved) setTokenStatus('green', 'Token saved \u2022 ready to use');
+  else setTokenStatus('grey', 'No token saved yet \u2014 enter one above');
+});
+
+
+
+/* ── DIRECT CSV UPLOAD ─────────────────────────────────────── */
+var uploadedRows   = [];
+var uploadedCols   = [];
+var parsedFileData = [];
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag');
+  var files = e.dataTransfer.files;
+  if (files.length) processFile(files[0]);
+}
+
+function handleFileSelect(e) {
+  var f = e.target.files[0];
+  if (f) processFile(f);
+}
+
+function processFile(file) {
+  if (!file.name.toLowerCase().endsWith('.csv')){uploadErr('Please upload a .csv file only.');return;}
+  if (file.size>20*1024*1024){uploadErr('File too large (max 20MB).');return;}
+  clearUploadErr();
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var lines=e.target.result.split('\n').filter(function(l){return l.trim();});
+    if(lines.length<2){uploadErr('File is empty or has only one row.');return;}
+    var hi=smartHeader(lines);
+    if(hi<0){
+      uploadErr('Could not find required columns.<br><br>Your CSV must have: <strong>Date, Q3 Text/Response, Theme/Pillar, Sentiment/Rating</strong>.<br>Row 1 detected: <em>'+parseCSVLine(lines[0]).slice(0,6).join(' | ')+'</em>');
+      return;
+    }
+    if(hi>0){
+      var tip=document.createElement('div');
+      tip.style.cssText='background:#D1FAE5;border-radius:5px;padding:5px 10px;font-size:.7rem;color:#065F46;margin-bottom:6px';
+      tip.textContent='✔ Skipped '+hi+' title row(s). Headers at row '+(hi+1)+'.';
+      var uz=document.getElementById('uploadZone');if(uz)uz.parentNode.insertBefore(tip,uz.nextSibling);
+    }
+    parseCSV(lines.slice(hi).join('\n'),file.name,file.size);
+  };
+  reader.onerror=function(){uploadErr('Could not read file. Please try again.');};
+  reader.readAsText(file,'UTF-8');
+}
+function smartHeader(lines){
+  var G={date:['date','submitted','time','created','timestamp','week'],response:['response','q3','text','feedback','transcript','comment','verbatim'],sentiment:['sentiment','csat','q1','rating','score'],theme:['theme','pillar','category','l2','super','root']};
+  for(var i=0;i<Math.min(3,lines.length);i++){
+    var c=parseCSVLine(lines[i]).map(function(x){return x.toLowerCase().trim();});
+    var v=c.filter(function(x){return x.length>0&&x.length<80;});
+    if(v.length<3)continue;
+    var h=Object.keys(G).filter(function(g){return v.some(function(col){return G[g].some(function(a){return col.indexOf(a)>=0;});});}).length;
+    if(h>=2)return i;
+  }
+  return -1;
+}
+function uploadErr(msg){
+  clearUploadErr();
+  var uz=document.getElementById('uploadZone');
+  if(!uz)return;
+  uz.style.borderColor='#DC2626';uz.style.background='#FEF2F2';
+  var d=document.createElement('div');d.id='__uerr';
+  d.innerHTML='<div style="background:#FEF2F2;border:1px solid #DC2626;border-radius:6px;padding:10px 14px;margin-top:8px;font-size:.74rem;color:#991B1B">&#x26A0; '+msg+'</div>';
+  uz.parentNode.insertBefore(d,uz.nextSibling);
+  setTimeout(clearUploadErr,8000);
+}
+function clearUploadErr(){
+  var d=document.getElementById('__uerr');if(d)d.remove();
+  var uz=document.getElementById('uploadZone');
+  if(uz){uz.style.borderColor='';uz.style.background='';}
+}
+
+function parseCSV(text, filename, filesize) {
+  var lines = text.split('\n').filter(function(l) { return l.trim(); });
+  if (lines.length < 2) { alert('CSV appears to be empty or has no data rows.'); return; }
+
+  /* Parse header */
+  var header = parseCSVLine(lines[0]);
+  uploadedCols = header;
+
+  /* Parse all rows */
+  parsedFileData = [];
+  for (var i = 1; i < lines.length; i++) {
+    var vals = parseCSVLine(lines[i]);
+    if (vals.length === 0) continue;
+    var row = {};
+    header.forEach(function(h, idx) { row[h] = vals[idx] || ''; });
+    parsedFileData.push(row);
+  }
+
+  /* Auto-detect column mappings */
+  autoMapColumns(header);
+
+  /* Show UI */
+  document.getElementById('uploadZone').classList.add('done');
+  document.getElementById('uzTitle').textContent = '\u2714 ' + filename + ' (' + parsedFileData.length + ' rows)';
+  document.getElementById('uzSub').textContent = (filesize/1024).toFixed(1) + ' KB \u2022 ' + header.length + ' columns detected';
+  document.getElementById('colMapSection').style.display = 'block';
+  document.getElementById('uploadSuccess').style.display = 'none';
+
+  renderPreview();
+  calcUploadMetrics();
+}
+
+function parseCSVLine(line) {
+  var result = [], cur = '', inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function autoMapColumns(cols) {
+  var lc=cols.map(function(c){return c.toLowerCase().trim();});
+  function best(kws){for(var k=0;k<kws.length;k++)for(var i=0;i<lc.length;i++)if(lc[i].indexOf(kws[k])>=0)return cols[i];return cols[0];}
+  var maps={
+    mapDate:      best(['date','submitted_at','submitted','created','time','timestamp']),
+    mapMarket:    best(['market','region','country','mkt']),
+    mapText:      best(['q3 text','q3text','q3_text','q3','response','text','feedback','transcript','verbatim','comment']),
+    mapTheme:     best(['pillar name','pillar_name','theme','l2','pillar','category','super_category','super category','root cause']),
+    mapSentiment: best(['csat sentiment','csat_sentiment','sentiment_theme','sentiment','q1 rating','q1_rating','q1','csat','rating','score']),
+    mapResolution:best(['resolved','resolution','resol','q2','outcome'])
+  };
+  Object.keys(maps).forEach(function(selId){
+    var sel=document.getElementById(selId);if(!sel)return;
+    sel.innerHTML=cols.map(function(c){return '<option value="'+c+'"'+(c===maps[selId]?' selected':'')+'>'+c+'</option>';}).join('');
+  });
+}
+
+function renderPreview() {
+  var map = getMapping();
+  var cols = [map.date, map.market, map.text, map.theme, map.sentiment, map.resolution];
+  var displayCols = ['Date','Market','Q3 Text','Theme','Sentiment','Resolution'];
+  var preview = parsedFileData.slice(0, 5);
+  document.getElementById('previewCount').textContent = '(showing 5 of ' + parsedFileData.length + ' rows)';
+  document.getElementById('previewHead').innerHTML =
+    '<tr>' + displayCols.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr>';
+  document.getElementById('previewBody').innerHTML = preview.map(function(row) {
+    return '<tr>' + cols.map(function(c) {
+      var v = String(row[c] || '');
+      return '<td>' + (v.length > 40 ? v.slice(0,40) + '...' : v) + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+}
+
+function calcUploadMetrics() {
+  var map = getMapping();
+  var total = parsedFileData.length;
+  var neg = 0, pos = 0, resolved = 0;
+  parsedFileData.forEach(function(row){var s=String(row[map.sentiment]||'').trim().toLowerCase(),r=String(row[map.resolution]||'').trim().toLowerCase(),n=parseInt(s);if(!isNaN(n)){if(n<=2)neg++;else pos++;}else{if(s.indexOf('neg')>=0)neg++;else if(s.indexOf('pos')>=0||s.indexOf('neu')>=0)pos++;}if(r==='yes'||r==='1'||r==='true'||r==='\u05db\u05df')resolved++;});
+  var negPct = total ? (neg/total*100).toFixed(1) : '0.0';
+  var posPct = total ? (pos/total*100).toFixed(1) : '0.0';
+  var resPct = total ? (resolved/total*100).toFixed(1) : '0.0';
+  var negCol = negPct >= 22 ? '#DC2626' : negPct >= 18 ? '#D97706' : '#16A34A';
+  var posCol = posPct >= 60 ? '#16A34A' : posPct >= 50 ? '#D97706' : '#DC2626';
+  var resCol = resPct >= 70 ? '#16A34A' : resPct >= 50 ? '#D97706' : '#DC2626';
+  document.getElementById('uploadMetrics').innerHTML =
+    '<div class="ms-card"><div class="ms-val" style="color:var(--or)">' + total.toLocaleString() + '</div><div class="ms-lbl">Total Rows</div></div>' +
+    '<div class="ms-card"><div class="ms-val" style="color:' + negCol + '">' + negPct + '%</div><div class="ms-lbl">Negative Rate</div></div>' +
+    '<div class="ms-card"><div class="ms-val" style="color:' + posCol + '">' + posPct + '%</div><div class="ms-lbl">Positive Rate</div></div>' +
+    '<div class="ms-card"><div class="ms-val" style="color:' + resCol + '">' + resPct + '%</div><div class="ms-lbl">Resolution Rate</div></div>';
+}
+
+/* Re-render preview when column mapping changes */
+document.addEventListener('DOMContentLoaded', function() {
+  ['mapDate','mapMarket','mapText','mapTheme','mapSentiment','mapResolution'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.addEventListener('change', function() { renderPreview(); calcUploadMetrics(); }); }
+  });
+});
+
+function applyUpload() {
+  try {
+    if (!parsedFileData || !parsedFileData.length) {
+      alert('No data loaded. Please select a CSV file first.');
+      return;
+    }
+    var map = getMapping();
+    /* Build rows from CSV */
+    var newTC = [];
+    parsedFileData.forEach(function(row, i) {
+      var sRaw=String(row[map.sentiment]||'').trim(),sL=sRaw.toLowerCase(),sN=parseInt(sRaw),q1;
+      if(!isNaN(sN)&&sN>=1&&sN<=5){q1=sN;}
+      else if(sL.indexOf('pos')>=0){q1=4;}
+      else if(sL.indexOf('neg')>=0){q1=2;}
+      else{q1=3;}
+      var rRaw=String(row[map.resolution]||'').trim().toLowerCase();
+      var q2=(rRaw==='yes'||rRaw==='1'||rRaw==='true'||rRaw==='\u05db\u05df')?'Yes':'No';
+      var txt=String(row[map.text]||'').trim();
+      if(!txt)return; /* skip empty rows */
+      newTC.push({
+        id:'U'+String(i+1).padStart(4,'0'),
+        date:String(row[map.date]||'').slice(0,10),
+        mkt:String(row[map.market]||'Unknown').slice(0,20),
+        platform:String(row['Platform']||row['platform']||'Uploaded'),
+        q1:q1, q2:q2,
+        pillar:String(row[map.theme]||'General / Minimal Feedback'),
+        theme:String(row[map.theme]||'Uploaded'),
+        text:txt
+      });
+    });
+    if(!newTC.length){alert('No valid rows found. Make sure the Q3 Text column has content.');return;}
+    /* Merge with dedup */
+    var seen={};
+    TC.forEach(function(t){seen[t.text.slice(0,60).toLowerCase()]=true;});
+    var added=0,skipped=0;
+    newTC.forEach(function(t){
+      var k=t.text.slice(0,60).toLowerCase();
+      if(!seen[k]){TC.push(t);seen[k]=true;added++;}else{skipped++;}
+    });
+    /* Update KPIs */
+    var total=TC.length,neg=TC.filter(function(t){return t.q1<=2;}).length,pos=TC.filter(function(t){return t.q1>=3;}).length;
+    var nP=(total?(neg/total*100).toFixed(1):'0.0'),pP=(total?(pos/total*100).toFixed(1):'0.0');
+    var kv=document.querySelectorAll('.kv');
+    if(kv[0])kv[0].textContent=total.toLocaleString();
+    if(kv[1]){kv[1].textContent=pP+'%';kv[1].style.color=pP>=60?'#16A34A':pP>=50?'#D97706':'#DC2626';}
+    if(kv[2]){kv[2].textContent=nP+'%';kv[2].style.color=nP>22?'#DC2626':nP>=18?'#D97706':'#16A34A';}
+    if(kv[3])kv[3].textContent=total.toLocaleString();
+    if(typeof renderTC==='function')renderTC();
+    /* Success */
+    var s=document.getElementById('uploadSuccess');
+    if(s){
+      s.style.display='block';s.style.background='#D1FAE5';s.style.color='#065F46';
+      s.innerHTML='\u2714 <strong>'+added+' new rows added</strong>'+(skipped?' ('+skipped+' duplicates skipped)':'')+'. Switching to dashboard...';
+    }
+    var btn=document.getElementById('applyUploadBtn');
+    if(btn){btn.textContent='\u2714 Applied! ('+added+' rows)';btn.style.background='#16A34A';}
+    setTimeout(function(){if(typeof showTab==='function')showTab('dashboard');},1500);
+  } catch(err) {
+    alert('Error applying data: '+err.message+'\n\nOpen browser console (F12) for details.');
+    console.error('applyUpload error:',err);
+  }
+}
 
 function resetUpload() {
   parsedFileData = [];
