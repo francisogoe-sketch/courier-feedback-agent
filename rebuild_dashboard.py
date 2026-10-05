@@ -29,7 +29,10 @@ def get_drive_service():
 
 def find_file(service, name, folder_id):
     q = f'name="{name}" and "{folder_id}" in parents and trashed=false'
-    res = service.files().list(q=q, fields="files(id,name)", pageSize=5).execute()
+    res = service.files().list(
+        q=q, fields="files(id,name)", pageSize=5,
+        supportsAllDrives=True, includeItemsFromAllDrives=True, corpora="allDrives"
+    ).execute()
     files = res.get("files", [])
     return files[0]["id"] if files else None
 
@@ -47,11 +50,11 @@ def upload_html(service, name, html_bytes, folder_id, existing_id=None):
     mime = "text/html"
     media = MediaIoBaseUpload(io.BytesIO(html_bytes), mimetype=mime, resumable=True)
     if existing_id:
-        service.files().update(fileId=existing_id, media_body=media).execute()
+        service.files().update(fileId=existing_id, media_body=media, supportsAllDrives=True).execute()
         print(f"  Updated: {name}")
     else:
         meta = {"name": name, "mimeType": mime, "parents": [folder_id]}
-        f = service.files().create(body=meta, media_body=media, fields="id").execute()
+        f = service.files().create(body=meta, media_body=media, fields="id", supportsAllDrives=True).execute()
         print(f"  Created: {name} id={f.get(chr(39)+chr(105)+chr(100)+chr(39))}")
 
 def build_transcripts_js(df):
