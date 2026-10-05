@@ -40,8 +40,6 @@ jobs:
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: python feedback_agent.py --slack
       - name: Rebuild HTML Dashboard
-        env:
-          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_CREDENTIALS }}
         run: python rebuild_dashboard.py
 
       - name: Run dry

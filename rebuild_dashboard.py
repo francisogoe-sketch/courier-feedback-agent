@@ -25,8 +25,7 @@ from datetime import datetime, timezone
 
 # ── Google Drive imports ──────────────────────────────────────────────────────
 try:
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
+        from googleapiclient.discovery import build
     from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 except ImportError:
     sys.exit("Missing google packages. Add to requirements.txt:\n"
@@ -54,14 +53,8 @@ PILLAR_NAME_FIX = {
 # GOOGLE DRIVE HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 def get_drive_service():
-    """Authenticate using service account JSON stored in GitHub Secret."""
-    creds_raw = os.environ.get("GDRIVE_SERVICE_ACCOUNT_JSON", "")
-    if not creds_raw:
-        sys.exit("ERROR: GDRIVE_SERVICE_ACCOUNT_JSON secret not set.")
-    creds_info = json.loads(creds_raw)
-    creds = service_account.Credentials.from_service_account_info(
-        creds_info, scopes=SCOPES
-    )
+    import google.auth
+    creds, _ = google.auth.default(scopes=SCOPES)
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 
