@@ -44,8 +44,7 @@ jobs:
         run: python feedback_agent.py --slack
       - name: Rebuild HTML Dashboard
         run: |
-          python fix_auth_runtime.py
-          python rebuild_dashboard.py
+          python rebuild_dashboard_DEFINITIVE.py
 
 
       - name: Publish Dashboard to GitHub Pages
