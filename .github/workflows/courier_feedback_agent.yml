@@ -43,7 +43,9 @@ jobs:
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: python feedback_agent.py --slack
       - name: Rebuild HTML Dashboard
-        run: python rebuild_dashboard.py
+        run: |
+          python fix_auth_runtime.py
+          python rebuild_dashboard.py
 
 
       - name: Publish Dashboard to GitHub Pages
