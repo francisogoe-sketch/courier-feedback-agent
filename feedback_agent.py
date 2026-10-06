@@ -206,7 +206,15 @@ def join_questions(q1,q2,q3,market,platform,period):
         if not rc: rc=[c for c in q1f.columns if c!="visitor_id"][0] if len(q1f.columns)>1 else None
         if rc:
             q1f=q1f[["visitor_id",rc]].rename(columns={rc:"q1_rating"}).rename(columns={rc:"q1_rating"})
-            base=base.merge(q1f[["visitor_id","q1_rating"]],on="courier_id",how="left")
+            # Safe Q1 join: prefer courier_id, fall back to visitor_id
+            try:
+                if "courier_id" in q1f.columns and "courier_id" in base.columns:
+                    _q1m=q1f[["courier_id","q1_rating"]].drop_duplicates("courier_id")
+                    base=base.merge(_q1m,on="courier_id",how="left")
+                else:
+                    base=base.merge(q1f[["visitor_id","q1_rating"]],on="visitor_id",how="left")
+            except Exception as _je:
+                log.warning(f"  Q1 join failed: {_je}")
 
     if 2 in frames:
         q2f=frames[2].copy()
