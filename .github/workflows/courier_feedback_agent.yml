@@ -48,7 +48,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          cp csat_dashboard_latest.html index.html 2>/dev/null || python rebuild_dashboard.py
+          python save_index.py
           git add index.html
           git diff --staged --quiet || git commit -m "auto: update dashboard [skip ci]"
           git push
