@@ -170,6 +170,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div class="footer">CSAT Dashboard &mdash; Courier Feedback Intelligence &mdash; Scope: CSAT surveys triggered when courier closes live chat</div>
 <script>
 var TRANSCRIPTS=[["Pillar","Cluster","Date","Market","Platform","Q1","Q2","Q3 Text"]];
+var WEEK_Q1_TOTALS={};
 (function(){
   if(!TRANSCRIPTS||TRANSCRIPTS.length<2)return;
   var PI=0,CL=1,DT=2,MK=3,PL=4,Q1c=5,Q2c=6,Q3c=7;
@@ -221,6 +222,8 @@ var TRANSCRIPTS=[["Pillar","Cluster","Date","Market","Platform","Q1","Q2","Q3 Te
   }
   window.render=function(){
     var wk=document.getElementById('weekSelect').value;
+    var totalQ1=WEEK_Q1_TOTALS[wk]||0;
+    var denom=totalQ1||M.n;
     var rows=wkMap[wk]||[];
     var we=new Date(wk+'T00:00:00');we.setDate(we.getDate()+6);
     var wLabel=fmtD(wk)+' \u2013 '+fmtD(we.toISOString().split('T')[0])+', '+we.getFullYear();
@@ -245,8 +248,8 @@ var TRANSCRIPTS=[["Pillar","Cluster","Date","Market","Platform","Q1","Q2","Q3 Te
       var col=PCOL[p]||'#666';
       var np=pct(pd.neg,pd.n);          // neg% within pillar
       var rp=pct(pd.res,pd.n);          // resolution% within pillar
-      var negOfAll=pct(pd.neg,M.n);     // pillar neg / total Q1s this week
-      var posOfAll=pct(pd.pos,M.n);     // pillar pos / total Q1s this week
+      var negOfAll=pct(pd.neg,denom);     // pillar neg / total Q1s this week
+      var posOfAll=pct(pd.pos,denom);     // pillar pos / total Q1s this week
       return '<div class="pillar-card">'+
         '<div class="pillar-card-hdr"><span class="pillar-dot" style="background:'+col+'"></span><span class="pillar-name">'+esc(p)+'</span></div>'+
         '<div class="pillar-big" style="color:'+col+'">'+fp(np)+'%</div>'+

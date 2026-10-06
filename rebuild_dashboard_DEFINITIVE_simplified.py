@@ -150,6 +150,13 @@ def main():
         template = f.read()
 
     html = inject(template, transcripts_js)
+    # Inject WEEK_Q1_TOTALS
+    pat2 = r'var WEEK_Q1_TOTALS=\{[^}]*\};'
+    import re as _re
+    if _re.search(pat2, html):
+        html = _re.sub(pat2, week_q1_js, html)
+    else:
+        html = html.replace(transcripts_js, transcripts_js + '\n' + week_q1_js, 1)
     print("  Final HTML: {:,} chars".format(len(html)))
 
     eid = find_file(svc, OUTPUT_HTML_NAME, DRIVE_FOLDER_ID)
