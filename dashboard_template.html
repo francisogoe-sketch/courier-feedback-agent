@@ -37,14 +37,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .mkt-bar-fill{height:100%;border-radius:4px}
 .mkt-pct{width:38px;text-align:right;font-size:.73rem;font-weight:700;color:#374151}
 .mkt-cnt{width:60px;text-align:right;font-size:.68rem;color:#94A3B8}
-.pillar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:0 20px 16px}
+.pillar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;padding:0 20px 16px}
 .pillar-card{border-radius:10px;border:1.5px solid #E2E8F0;padding:14px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 .pillar-card-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 .pillar-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .pillar-name{font-weight:700;font-size:.82rem}
 .pillar-big{font-size:1.5rem;font-weight:800;line-height:1}
 .pillar-sub{font-size:.68rem;color:#64748B;margin-top:3px}
-.pillar-bar-bg{background:#F1F5F9;border-radius:3px;height:6px;margin-top:8px;overflow:hidden}
+.pillar-share{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+.pillar-share-pill{font-size:.67rem;font-weight:700;padding:2px 7px;border-radius:10px}
+.pillar-share-neg{background:#FEE2E2;color:#DC2626}
+.pillar-share-pos{background:#DCFCE7;color:#16A34A}
+.pillar-share-lbl{font-size:.65rem;color:#94A3B8;margin-top:4px}
+.pillar-bar-bg{background:#F1F5F9;border-radius:3px;height:5px;margin-top:8px;overflow:hidden}
 .pillar-bar-fill{height:100%;border-radius:3px}
 .clusters-wrap{padding:0 20px 16px}
 .cluster-details{border:1px solid #E2E8F0;border-radius:8px;margin-bottom:10px;overflow:hidden}
@@ -100,9 +105,67 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 <div class="pillar-grid" id="pillarGrid"></div>
 <div class="clusters-wrap" id="clustersWrap"></div>
-<div class="section">
+<div class="section" style="margin-bottom:16px">
   <div class="section-hdr"><span class="dot" style="background:#0D9488"></span>Selected Week vs Overall Period</div>
   <div class="section-body" id="cmpSection"></div>
+</div>
+<div class="section" style="margin-bottom:16px">
+  <div class="section-hdr"><span class="dot" style="background:#6366F1"></span>&#128218; Dashboard Glossary</div>
+  <div class="section-body">
+    <details>
+      <summary style="cursor:pointer;font-weight:700;font-size:.82rem;color:#374151;padding:6px 0;user-select:none;list-style:none">&#9654; Click to expand glossary</summary>
+      <div style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+        <div style="background:#F8FAFF;border-radius:8px;padding:14px;border-left:4px solid #E84855">
+          <div style="font-weight:800;font-size:.82rem;color:#E84855;margin-bottom:8px">&#128276; Q1 &mdash; CSAT Rating</div>
+          <div style="font-size:.75rem;color:#374151;line-height:1.6">Courier satisfaction rating at end of live chat (scale 1&ndash;5).<br><br>
+          <span style="background:#FEE2E2;color:#DC2626;padding:2px 7px;border-radius:10px;font-weight:800;font-size:.68rem">1-2&#9733; Negative</span> Rating 1 or 2 &mdash; dissatisfied.<br><br>
+          <span style="background:#DCFCE7;color:#16A34A;padding:2px 7px;border-radius:10px;font-weight:800;font-size:.68rem">3-5&#9733; Positive</span> Rating 3, 4 or 5 &mdash; satisfied.</div>
+        </div>
+        <div style="background:#F8FAFF;border-radius:8px;padding:14px;border-left:4px solid #0D9488">
+          <div style="font-weight:800;font-size:.82rem;color:#0D9488;margin-bottom:8px">&#10003; Q2 &mdash; Resolution</div>
+          <div style="font-size:.75rem;color:#374151;line-height:1.6">Whether courier confirmed issue was resolved during the chat.<br><br><strong>Yes</strong> &mdash; Resolved. &nbsp;<strong>No</strong> &mdash; Not resolved.<br><br><strong>Resolution Rate</strong> = % where courier said Yes.</div>
+        </div>
+        <div style="background:#F8FAFF;border-radius:8px;padding:14px;border-left:4px solid #6366F1">
+          <div style="font-weight:800;font-size:.82rem;color:#6366F1;margin-bottom:8px">&#128172; Q3 &mdash; Free Text Feedback</div>
+          <div style="font-size:.75rem;color:#374151;line-height:1.6">Verbatim courier comment after the chat. Click any row to expand full text.<br><br>Only Q3 responses classified into a pillar appear here.</div>
+        </div>
+        <div style="background:#F8FAFF;border-radius:8px;padding:14px;border-left:4px solid #E84855">
+          <div style="font-weight:800;font-size:.82rem;color:#E84855;margin-bottom:8px">&#128204; Pillars &mdash; Root Cause Categories</div>
+          <div style="font-size:.75rem;color:#374151;line-height:1.6">
+          <span style="color:#E84855;font-weight:700">&#9679; Support Quality</span> &mdash; Agent behaviour, response time<br>
+          <span style="color:#D97706;font-weight:700">&#9679; App / Tech Issues</span> &mdash; Bugs, GPS, order system<br>
+          <span style="color:#0D9488;font-weight:700">&#9679; Partner and External Delays</span> &mdash; Restaurant waits, traffic<br>
+          <span style="color:#1D4ED8;font-weight:700">&#9679; Compensation</span> &mdash; Pay disputes, refund issues</div>
+        </div>
+        <div style="background:#F8FAFF;border-radius:8px;padding:14px;border-left:4px solid #E84855">
+          <div style="font-weight:800;font-size:.82rem;color:#E84855;margin-bottom:8px">&#128269; Pillar Card &mdash; Share of All Q1s</div>
+          <div style="font-size:.75rem;color:#374151;line-height:1.6">Each pillar card shows two levels:<br><br>
+          <strong>Big %</strong> = neg rate within that pillar (neg in pillar &divide; total Q3 in pillar).<br><br>
+          <span style="background:#FEE2E2;color:#DC2626;padding:1px 6px;border-radius:8px;font-weight:700;font-size:.68rem">X% of all Q1s</span> = neg in pillar &divide; <strong>total Q1 responses</strong> this week. Shows the pillar's real-world impact on the overall respondent pool.<br><br>
+          <span style="background:#DCFCE7;color:#16A34A;padding:1px 6px;border-radius:8px;font-weight:700;font-size:.68rem">Y% of all Q1s</span> = same for positive Q1 responses.</div>
+        </div>
+        <div style="background:#F8FAFF;border-radius:8px;padding:14px;border-left:4px solid #D97706">
+          <div style="font-weight:800;font-size:.82rem;color:#D97706;margin-bottom:8px">&#127758; Markets</div>
+          <div style="font-size:.75rem;color:#374151;line-height:1.6">
+          <strong style="color:#1565C0">UK</strong> United Kingdom &nbsp;|&nbsp;<strong style="color:#E65100">CA</strong> Canada<br>
+          <strong style="color:#2E7D32">IE</strong> Ireland &nbsp;|&nbsp;<strong style="color:#6D28D9">AT</strong> Austria<br>
+          <strong style="color:#0369A1">DE</strong> Germany &nbsp;|&nbsp;<strong style="color:#065F46">SK</strong> Slovakia &nbsp;|&nbsp;<strong style="color:#92400E">IL</strong> Israel</div>
+        </div>
+        <div style="background:#F8FAFF;border-radius:8px;padding:14px;border-left:4px solid #1D4ED8">
+          <div style="font-weight:800;font-size:.82rem;color:#1D4ED8;margin-bottom:8px">&#128200; Reading the Metrics</div>
+          <div style="font-size:.75rem;color:#374151;line-height:1.6"><strong>pp</strong> = percentage points.<br><br>
+          <span style="color:#DC2626;font-weight:700">&#9650; +9.7pp</span> = Higher than all-time. For Neg% = worse &#128308;.<br>
+          <span style="color:#16A34A;font-weight:700">&#9660; -9.7pp</span> = Lower than all-time. For Neg% = better &#128994;.<br><br>
+          <strong>All-time</strong> = Jun 15, 2026 to present.</div>
+        </div>
+        <div style="background:#F8FAFF;border-radius:8px;padding:14px;border-left:4px solid #0D9488">
+          <div style="font-weight:800;font-size:.82rem;color:#0D9488;margin-bottom:8px">&#128260; Auto-Update Schedule</div>
+          <div style="font-size:.75rem;color:#374151;line-height:1.6">Dashboard rebuilds automatically:<br><br>
+          &#128336; Monday 1:00 PM UTC<br>&#128336; Monday 5:00 PM UTC<br>&#128336; Tuesday 10:00 AM UTC<br><br>No manual action needed.</div>
+        </div>
+      </div>
+    </details>
+  </div>
 </div>
 <div class="footer">CSAT Dashboard &mdash; Courier Feedback Intelligence &mdash; Scope: CSAT surveys triggered when courier closes live chat</div>
 <script>
@@ -161,7 +224,7 @@ var TRANSCRIPTS=[["Pillar","Cluster","Date","Market","Platform","Q1","Q2","Q3 Te
     var rows=wkMap[wk]||[];
     var we=new Date(wk+'T00:00:00');we.setDate(we.getDate()+6);
     var wLabel=fmtD(wk)+' \u2013 '+fmtD(we.toISOString().split('T')[0])+', '+we.getFullYear();
-    document.getElementById('wkTotal').textContent=fmtN(rows.length)+' transcripts this week';
+    document.getElementById('wkTotal').textContent=fmtN(rows.length)+' Q3 transcripts this week';
     var M=calc(rows);
     document.getElementById('statRow').innerHTML=
       '<div class="stat-card neg"><div class="stat-val red">'+fp(M.neg_pct)+'%</div><div class="stat-lbl">Negative Q1</div><div class="stat-vs">vs all-time '+fp(OV.neg_pct)+'% '+dBadge(M.neg_pct,OV.neg_pct,false)+'</div></div>'+
@@ -176,51 +239,59 @@ var TRANSCRIPTS=[["Pillar","Cluster","Date","Market","Platform","Q1","Q2","Q3 Te
         '<div class="mkt-bar-wrap"><div class="mkt-bar-fill" style="width:'+Math.round(md.neg/maxNeg*100)+'%;background:'+col+'"></div></div>'+
         '<span class="mkt-pct">'+fp(pct(md.neg,M.neg))+'%</span><span class="mkt-cnt">'+fmtN(md.neg)+' neg</span></div>';
     }).join('')||'<div class="empty">No data.</div>';
+    /* ── Pillar cards with Q1 share ── */
     document.getElementById('pillarGrid').innerHTML=PILLARS.map(function(p){
-      var pd=M.pillars[p]||{n:0,neg:0,res:0};var col=PCOL[p]||'#666';
-      var np=pct(pd.neg,pd.n),rp=pct(pd.res,pd.n);
-      return '<div class="pillar-card"><div class="pillar-card-hdr"><span class="pillar-dot" style="background:'+col+'"></span><span class="pillar-name">'+esc(p)+'</span></div>'+
+      var pd=M.pillars[p]||{n:0,neg:0,pos:0,res:0};
+      var col=PCOL[p]||'#666';
+      var np=pct(pd.neg,pd.n);          // neg% within pillar
+      var rp=pct(pd.res,pd.n);          // resolution% within pillar
+      var negOfAll=pct(pd.neg,M.n);     // pillar neg / total Q1s this week
+      var posOfAll=pct(pd.pos,M.n);     // pillar pos / total Q1s this week
+      return '<div class="pillar-card">'+
+        '<div class="pillar-card-hdr"><span class="pillar-dot" style="background:'+col+'"></span><span class="pillar-name">'+esc(p)+'</span></div>'+
         '<div class="pillar-big" style="color:'+col+'">'+fp(np)+'%</div>'+
-        '<div class="pillar-sub">neg &nbsp;|&nbsp; '+fmtN(pd.n)+' Q3 &nbsp;|&nbsp; '+fp(rp)+'% resolved</div>'+
-        '<div class="pillar-bar-bg"><div class="pillar-bar-fill" style="width:'+Math.min(np,100)+'%;background:'+col+'"></div></div></div>';
+        '<div class="pillar-sub">neg within pillar &nbsp;|&nbsp; '+fmtN(pd.n)+' Q3 &nbsp;|&nbsp; '+fp(rp)+'% resolved</div>'+
+        '<div class="pillar-share">'+
+          '<span class="pillar-share-pill pillar-share-neg">'+fp(negOfAll)+'% of all '+fmtN(M.n)+' Q1s neg</span>'+
+          '<span class="pillar-share-pill pillar-share-pos">'+fp(posOfAll)+'% pos</span>'+
+        '</div>'+
+        '<div class="pillar-share-lbl">Share of total Q1 responses this week</div>'+
+        '<div class="pillar-bar-bg"><div class="pillar-bar-fill" style="width:'+Math.min(np,100)+'%;background:'+col+'"></div></div>'+
+        '</div>';
     }).join('');
     var cw='';
     if(rows.length===0){cw='<div class="empty">No transcripts for this week.</div>';}
-    else{
-      PILLARS.forEach(function(p){
-        var pr=rows.filter(function(r){return r[PI]===p;});if(!pr.length)return;
-        var pd=M.pillars[p]||{n:0,neg:0};var col=PCOL[p]||'#666';
-        var np=pct(pd.neg,pd.n);
-        var sorted=pr.slice().sort(function(a,b){return b[DT]<a[DT]?-1:b[DT]>a[DT]?1:0;});
-        var trows=sorted.map(function(r){
-          var iN=r[Q1c]===NEG;var q1e=esc(r[Q1c]);
-          var q2c=r[Q2c]==='Yes'?'#16A34A':'#DC2626';
-          var q3=esc(r[Q3c]||'');
-          var sh=esc((r[Q3c]||'').slice(0,90)+((r[Q3c]||'').length>90?'...':''));
-          var mc=MCOL[r[MK]]||'#333';
-          return '<tr class="tcm" onclick="toggleRow(this)">'+
-            '<td class="tc-date">'+esc(r[DT])+'</td>'+
-            '<td class="tc-mkt" style="color:'+mc+';font-weight:700">'+esc(r[MK])+'</td>'+
-            '<td class="tc-plt">'+esc(r[PL])+'</td>'+
-            '<td><span class="qb '+(iN?'qbn':'qbp')+'">'+q1e+'</span></td>'+
-            '<td style="color:'+q2c+';font-weight:700;font-size:.69rem">'+esc(r[Q2c])+'</td>'+
-            '<td class="tcshort">'+sh+'</td></tr>'+
-            '<tr class="tcx"><td colspan="6"><strong>'+esc(r[DT])+' | '+esc(r[MK])+' | '+esc(r[PL])+' | Q1: '+q1e+' | Q2: '+esc(r[Q2c])+'</strong><br>'+q3+'</td></tr>';
-        }).join('');
-        cw+='<details class="cluster-details" open>'+
-          '<summary class="cluster-summary">'+
-          '<span class="c-dot" style="background:'+col+'"></span>'+
-          '<span class="c-name">'+esc(p)+'</span>'+
-          '<span class="gp gp-neg">\u25BC '+fp(np)+'% neg</span>'+
-          '<span class="gp gp-cnt">'+fmtN(pr.length)+' transcripts</span>'+
-          '<span class="c-arr">\u25BC</span></summary>'+
-          '<div class="cluster-body">'+
-          '<div style="font-size:.72rem;font-weight:700;color:#1A2E44;margin-bottom:8px">All '+fmtN(pr.length)+' Q3 transcripts &mdash; click any row to read full text</div>'+
-          '<div style="overflow-x:auto"><table class="tct">'+
-          '<thead><tr><th>Date</th><th>Mkt</th><th>Platform</th><th>Q1</th><th>Q2</th><th>Q3 Text (click row to expand)</th></tr></thead>'+
-          '<tbody>'+trows+'</tbody></table></div></div></details>';
-      });
-    }
+    else{PILLARS.forEach(function(p){
+      var pr=rows.filter(function(r){return r[PI]===p;});if(!pr.length)return;
+      var pd=M.pillars[p]||{n:0,neg:0};var col=PCOL[p]||'#666';var np=pct(pd.neg,pd.n);
+      var sorted=pr.slice().sort(function(a,b){return b[DT]<a[DT]?-1:b[DT]>a[DT]?1:0;});
+      var trows=sorted.map(function(r){
+        var iN=r[Q1c]===NEG;var q1e=esc(r[Q1c]);
+        var q2c=r[Q2c]==='Yes'?'#16A34A':'#DC2626';
+        var q3=esc(r[Q3c]||'');
+        var sh=esc((r[Q3c]||'').slice(0,90)+((r[Q3c]||'').length>90?'...':''));
+        var mc=MCOL[r[MK]]||'#333';
+        return '<tr class="tcm" onclick="toggleRow(this)">'+
+          '<td class="tc-date">'+esc(r[DT])+'</td>'+
+          '<td class="tc-mkt" style="color:'+mc+';font-weight:700">'+esc(r[MK])+'</td>'+
+          '<td class="tc-plt">'+esc(r[PL])+'</td>'+
+          '<td><span class="qb '+(iN?'qbn':'qbp')+'">'+q1e+'</span></td>'+
+          '<td style="color:'+q2c+';font-weight:700;font-size:.69rem">'+esc(r[Q2c])+'</td>'+
+          '<td class="tcshort">'+sh+'</td></tr>'+
+          '<tr class="tcx"><td colspan="6"><strong>'+esc(r[DT])+' | '+esc(r[MK])+' | '+esc(r[PL])+' | Q1: '+q1e+' | Q2: '+esc(r[Q2c])+'</strong><br>'+q3+'</td></tr>';
+      }).join('');
+      cw+='<details class="cluster-details" open>'+
+        '<summary class="cluster-summary"><span class="c-dot" style="background:'+col+'"></span>'+
+        '<span class="c-name">'+esc(p)+'</span>'+
+        '<span class="gp gp-neg">\u25BC '+fp(np)+'% neg</span>'+
+        '<span class="gp gp-cnt">'+fmtN(pr.length)+' transcripts</span>'+
+        '<span class="c-arr">\u25BC</span></summary>'+
+        '<div class="cluster-body">'+
+        '<div style="font-size:.72rem;font-weight:700;color:#1A2E44;margin-bottom:8px">All '+fmtN(pr.length)+' Q3 transcripts &mdash; click any row to read full text</div>'+
+        '<div style="overflow-x:auto"><table class="tct">'+
+        '<thead><tr><th>Date</th><th>Mkt</th><th>Platform</th><th>Q1</th><th>Q2</th><th>Q3 Text (click row to expand)</th></tr></thead>'+
+        '<tbody>'+trows+'</tbody></table></div></div></details>';
+    });}
     document.getElementById('clustersWrap').innerHTML=cw;
     var cmpR='';
     [{lbl:'Q3 Transcripts',wv:fmtN(M.n),ov:fmtN(OV.n),d:''},
