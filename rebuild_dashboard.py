@@ -99,7 +99,7 @@ def inject_transcripts(template_html, transcripts_js):
     pattern = r'var TRANSCRIPTS=\[.*?\];'
     if not re.search(pattern, template_html, flags=re.DOTALL):
         sys.exit("ERROR: TRANSCRIPTS placeholder not found in dashboard_template.html")
-    return re.sub(pattern, transcripts_js, template_html, flags=re.DOTALL)
+    return re.sub(pattern, lambda m: transcripts_js, template_html, flags=re.DOTALL)
 
 def main():
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
