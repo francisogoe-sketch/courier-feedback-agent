@@ -150,8 +150,13 @@ def parse_filename(name):
     for m in Config.SUPPORTED_MARKETS:
         if re.search(rf'\b{m}\b',n): market=m; break
     platform="iOS" if "IOS" in n else ("Android" if "AND" in n else "Unknown")
-    period_match=re.search(r'(\w{3}\s+\d+\s*[-–]\s*\d+)',name)
-    period=period_match.group(1).strip() if period_match else "unknown"
+    # Robust: handles 'Sep 28 - Oct 04' AND 'sep_28_oct_04'
+    period='unknown'
+    _pm=re.search(r'([A-Za-z]{3})\s+(\d{1,2})\s*[-\u2013]\s*([A-Za-z]{3})\s+(\d{1,2})',name)
+    if _pm: period=f"{_pm.group(1).capitalize()} {_pm.group(2)} - {_pm.group(3).capitalize()} {_pm.group(4)}"
+    else:
+        _pm=re.search(r'([a-z]{3})_(\d{1,2})_([a-z]{3})_(\d{1,2})',name.lower())
+        if _pm: period=f"{_pm.group(1).capitalize()} {_pm.group(2)} - {_pm.group(3).capitalize()} {_pm.group(4)}"
     return {"market":market,"platform":platform,
             "question":question,"period":period,
             "group_key":f"{market}_{platform}_{period}"}
