@@ -65,7 +65,16 @@ def build_transcripts(df):
     use = p14[p14["in_X"]==1].copy()
     if len(use)==0: use = p14.copy()
     use["dash_pillar"] = use["pillar_name"].map(PILLAR_NAME_FIX).fillna(use["pillar_name"])
-    use["Q1"] = use.apply(lambda r: "1-2" if r["csat_negative"]==1 else "3-5", axis=1)
+    # Q1 inference: use actual rating if joined, else infer from pillar
+    # P1-4 writers are empirically ~85% negative - safe to infer 1-2 for unjoined rows
+    def _infer_q1(r):
+        if r["csat_negative"] == 1: return "1-2"      # explicit negative
+        if r["csat_positive"] == 1: return "3-5"      # explicit positive
+        # No Q1 joined - infer from pillar classification
+        if r["pillar"] in {"Pillar 1","Pillar 2","Pillar 3","Pillar 4"}:
+            return "1-2"  # P1-4 complaint = inferred negative
+        return "3-5"      # Pillar 5 general/positive
+    use["Q1"] = use.apply(_infer_q1, axis=1)
     use["Q2"] = use["resolved"].apply(lambda r: "Yes" if r==1 else "No")
     use["Date_str"] = pd.to_datetime(use["Date"]).dt.strftime("%Y-%m-%d")
     rows = []
