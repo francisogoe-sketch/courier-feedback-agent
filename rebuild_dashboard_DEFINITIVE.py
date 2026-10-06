@@ -153,6 +153,95 @@ def update_kpis(svc, html, df, n_rows):
     html = html.replace('50.5%', f'{neg_pct}%', 5)
     return html
 
+
+
+import html as _html_lib
+PILLAR_1_4_SET = {"Pillar 1","Pillar 2","Pillar 3","Pillar 4"}
+PILLAR_NAME_FIX_FULL = {
+    "Support Quality":"Support Quality",
+    "App / Tech Issues":"App / Tech Issues",
+    "Partner & External Delays":"Partner and External Delays",
+    "Compensation":"Compensation",
+    "Pillar 1":"Support Quality",
+    "Pillar 2":"App / Tech Issues",
+    "Pillar 3":"Partner and External Delays",
+    "Pillar 4":"Compensation",
+}
+PILLAR_TO_CLUSTER = {
+    "Support Quality":"Incorrect Advice Given",
+    "App / Tech Issues":"System / Order Errors",
+    "Partner and External Delays":"Traffic / External Delays",
+    "Compensation":"Refund / Compensation",
+}
+MKT_COLORS_CL = {
+    "UK":"#1565C0","CA":"#E65100","IE":"#2E7D32",
+    "AT":"#6D28D9","DE":"#0369A1","SK":"#065F46","IL":"#92400E"
+}
+
+def _q1_for_row(row):
+    if row["csat_negative"]==1: return "1-2★"
+    if row["csat_positive"]==1: return "3-5★"
+    if row["pillar"] in PILLAR_1_4_SET: return "1-2★"
+    return "3-5★"
+
+def build_cluster_rows_html(pillar_df):
+    import pandas as _pd
+    rows_html = []
+    for _, r in pillar_df.sort_values("Date_str").iterrows():
+        date  = str(r["Date_str"])
+        mkt   = str(r["market"])
+        plt   = str(r.get("platform",""))
+        q1    = _q1_for_row(r)
+        q1cls = "qbn" if "1-2" in q1 else "qbp"
+        q1esc = q1.replace("★","&#9733;")
+        q2    = "Yes" if r["resolved"]==1 else "No"
+        q2col = "#DC2626" if q2=="No" else "#16A34A"
+        q3raw = str(r["q3_text"]) if (_pd.notna(r.get("q3_text")) and str(r.get("q3_text")) not in ("nan","")) else ""
+        q3e   = _html_lib.escape(q3raw, quote=True)
+        short = _html_lib.escape(q3raw[:80]+("..." if len(q3raw)>80 else ""), quote=True)
+        mktcol= MKT_COLORS_CL.get(mkt,"#333333")
+        tcm = ('<tr class="tcm"><td class="tc-date">'+date+'</td>'
+               +'<td class="tc-mkt" style="color:'+mktcol+';font-weight:700">'+mkt+'</td>'
+               +'<td class="tc-plt">'+plt+'</td>'
+               +'<td><span class="qb '+q1cls+'">'+q1esc+'</span></td>'
+               +'<td style="color:'+q2col+';font-weight:700;font-size:.69rem">'+q2+'</td>'
+               +'<td class="tcshort">'+short+'</td></tr>')
+        tcx = ('<tr class="tcx"><td colspan="6"><strong>'+date+' | '+mkt+' | '+plt+' | Q1: '+q1esc+' | Q2: '+q2+'</strong><br>'+q3e+'</td></tr>')
+        rows_html.append(tcm+tcx)
+    return "".join(rows_html)
+
+def inject_cluster_html(html_str, df):
+    import pandas as _pd
+    p14 = df[df["pillar"].isin(PILLAR_1_4_SET)].copy()
+    use = p14[p14["in_X"]==1].copy()
+    if len(use)==0: use=p14.copy()
+    use["dash_pillar"]=use["pillar_name"].map(PILLAR_NAME_FIX_FULL).fillna(use["pillar_name"])
+    use["Date_str"]=_pd.to_datetime(use["Date"],errors="coerce").dt.strftime("%Y-%m-%d")
+    for pillar,cluster in PILLAR_TO_CLUSTER.items():
+        prows=use[use["dash_pillar"]==pillar]
+        if len(prows)==0: print("  SKIP: no rows for",pillar); continue
+        new_rows=build_cluster_rows_html(prows)
+        n=len(prows)
+        neg=int((prows["csat_negative"]==1).sum())
+        neg_pct=round(neg/n*100,1) if n else 0.0
+        sname_marker='<div class="sname">'+cluster+'</div>'
+        sname_idx=html_str.find(sname_marker)
+        if sname_idx<0: print("  WARNING: cluster not found:",cluster); continue
+        region=html_str[sname_idx:sname_idx+600]
+        region=re.sub(r"\d[\d,]* transcripts","{:,} transcripts".format(n),region,count=1)
+        region=re.sub(r"[\d.]+% neg","{}% neg".format(neg_pct),region,count=1)
+        region=re.sub(r"All [\d,]+ Q3 transcripts","All {:,} Q3 transcripts".format(n),region,count=1)
+        html_str=html_str[:sname_idx]+region+html_str[sname_idx+600:]
+        sname_idx2=html_str.find(sname_marker)
+        tb_open=html_str.find("<tbody>",sname_idx2)
+        if tb_open<0: print("  WARNING: no tbody for",cluster); continue
+        tb_start=tb_open+len("<tbody>")
+        tb_end=html_str.find("</tbody>",tb_start)
+        html_str=html_str[:tb_start]+new_rows+html_str[tb_end:]
+        print("  Injected {:,} rows into '{}' ({:.1f}% neg)".format(n,cluster,neg_pct))
+    return html_str
+
+
 def main():
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     print(f"\n{'='*60}\n  Dashboard Rebuild  {ts}\n{'='*60}")
@@ -173,6 +262,8 @@ def main():
     if not os.path.exists(TEMPLATE_HTML): sys.exit(f"ERROR: {TEMPLATE_HTML} not found")
     with open(TEMPLATE_HTML,"r",encoding="utf-8") as f: template = f.read()
     html = inject(template, transcripts_js)
+    print("\n[4b/5] Injecting cluster HTML...")
+    html = inject_cluster_html(html, df)
     html = update_kpis(svc, html, df, n_rows)
     print(f"  Final HTML: {len(html):,} chars")
 
