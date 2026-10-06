@@ -10,6 +10,9 @@ on:
         description: 'Dry run only'
         required: false
         default: 'false'
+permissions:
+  contents: write
+
 jobs:
   run-feedback-agent:
     runs-on: ubuntu-latest
