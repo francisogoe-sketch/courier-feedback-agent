@@ -71,6 +71,7 @@ class Config:
     SCOPES     = ["https://www.googleapis.com/auth/drive"]
     REPORT_TITLE = "T1 SB CSAT — Courier Feedback Intelligence"
     DATA_CAVEAT  = "Scope: CSAT surveys triggered when courier closes live chat. Q1=Rating Q2=Resolution Q3=FreeText"
+    MASTER_CSV_NAME = "master_classified_all_time.csv"
 
 # ── AUTH ─────────────────────────────────────────────────────────────
 class AuthManager:
@@ -130,6 +131,35 @@ class DriveClient:
         except: buf.seek(0); df=pd.read_csv(buf,encoding="latin-1")
         log.info(f"  Downloaded: {file_name} ({len(df):,} rows)")
         return df
+
+    def find_file(self,folder_id,name):
+        q=(f"'{folder_id}' in parents and name='{name}' and trashed=false")
+        r=(self.service.files().list(q=q,fields="files(id,name,modifiedTime)",orderBy="modifiedTime desc",
+                 supportsAllDrives=True,includeItemsFromAllDrives=True,corpora="allDrives").execute())
+        files=r.get("files",[])
+        if len(files)>1:
+            log.warning(f"  {len(files)} files named {name} - using newest")
+            for old in files[1:]:
+                try: self.service.files().delete(fileId=old["id"],supportsAllDrives=True).execute()
+                except: pass
+        return (files[0]["id"],files[0]["name"]) if files else (None,None)
+
+    def download_csv_by_id(self,file_id,label="file"):
+        from io import BytesIO as _B
+        req=self.service.files().get_media(fileId=file_id)
+        buf=_B(); dl=__import__("googleapiclient.http",fromlist=["MediaIoBaseDownload"]).MediaIoBaseDownload(buf,req); done=False
+        while not done: _,done=dl.next_chunk()
+        buf.seek(0)
+        try: df=__import__("pandas").read_csv(buf,encoding="utf-8-sig")
+        except: buf.seek(0); df=__import__("pandas").read_csv(buf,encoding="latin-1")
+        log.info(f"  Downloaded: {label} ({len(df):,} rows)"); return df
+
+    def delete_file(self,file_id):
+        try:
+            self.service.files().delete(fileId=file_id,supportsAllDrives=True).execute()
+            log.info(f"  Deleted old master (id:{file_id})")
+        except Exception as e:
+            log.warning(f"  Delete skipped: {e}")
 
     def upload_file(self,local_path,folder_id,mime):
         name=Path(local_path).name
@@ -709,15 +739,39 @@ class FeedbackAgentPipeline:
             if self.args.dry_run:
                 cdf.to_csv(cfn,index=False); log.info(f"DRY RUN complete. Saved: {cfn}"); return
 
-            log.info("STEP 5  Building 7-tab Excel report...")
+            log.info("STEP 4b  Checking for master CSV (append mode)...")
+            master_id,_=self.drive.find_file(Config.OUTPUT_FOLDER_ID,Config.MASTER_CSV_NAME)
+            if master_id:
+                master_df=self.drive.download_csv_by_id(master_id,Config.MASTER_CSV_NAME)
+                log.info(f"  Existing master: {len(master_df):,} rows")
+                import pandas as _pd
+                combined=_pd.concat([master_df,cdf],ignore_index=True)
+                dedup_cols=[c for c in ["visitor_id","submitted_at","market","platform"] if c in combined.columns]
+                before=len(combined)
+                # Smart dedup: prefer rows with Q1 data (csat_valid=1)
+                if "csat_valid" in combined.columns:
+                    combined=combined.sort_values("csat_valid",ascending=False)
+                combined=combined.drop_duplicates(subset=dedup_cols,keep="first")
+                log.info(f"  After append+dedup: {len(combined):,} rows | {len(combined)-len(master_df):,} new")
+            else:
+                log.info("  No master found - first run")
+                combined=cdf; master_id=None
+
+            log.info("STEP 5  Building 7-tab Excel from FULL master (all-time)...")
             with tempfile.TemporaryDirectory() as tmp:
                 xp=os.path.join(tmp,rfn); cp=os.path.join(tmp,cfn)
-                ReportBuilder(cdf,Config.WEEK_LABEL,q1_sa=q1_sa,q2_sa=q2_sa).build(xp); cdf.to_csv(cp,index=False)
-                log.info("STEP 6  Uploading to Drive...")
-                link=self.drive.upload_file(xp,Config.OUTPUT_FOLDER_ID,
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                self.drive.upload_file(cp,Config.OUTPUT_FOLDER_ID,"text/csv")
-                if self.args.slack: log.info("STEP 7  Slack..."); self.slack.post_report(cdf,link,Config.WEEK_LABEL)
+                master_path=os.path.join(tmp,Config.MASTER_CSV_NAME)
+                snap_fn=f"courier_feedback_classified_{Config.WEEK_LABEL}.csv"
+                snap_path=os.path.join(tmp,snap_fn)
+                ReportBuilder(combined,Config.WEEK_LABEL,q1_sa=q1_sa,q2_sa=q2_sa).build(xp)
+                combined.to_csv(master_path,index=False); cdf.to_csv(snap_path,index=False)
+                log.info("STEP 6  Uploading (append-safe)...")
+                link=self.drive.upload_file(xp,Config.OUTPUT_FOLDER_ID,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                if master_id: self.drive.delete_file(master_id)
+                self.drive.upload_file(master_path,Config.OUTPUT_FOLDER_ID,"text/csv")
+                self.drive.upload_file(snap_path,Config.OUTPUT_FOLDER_ID,"text/csv")
+                log.info(f"  Master updated: {len(combined):,} rows | Snapshot: {snap_fn}")
+                if self.args.slack: log.info("STEP 7  Slack..."); self.slack.post_report(combined,link,Config.WEEK_LABEL)
             log.info("="*60); log.info("PIPELINE COMPLETE"); log.info("="*60)
         except Exception as e:
             log.error(f"FAILED: {e}",exc_info=True)
