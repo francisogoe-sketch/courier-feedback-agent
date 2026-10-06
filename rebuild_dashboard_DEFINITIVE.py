@@ -22,10 +22,16 @@ OUTPUT_HTML_NAME = "csat_dashboard_latest.html"
 SCOPES           = ["https://www.googleapis.com/auth/drive"]
 PILLAR_1_4       = {"Pillar 1","Pillar 2","Pillar 3","Pillar 4"}
 PILLAR_NAME_FIX  = {
-    "Support Quality":"Support Quality",
-    "App / Tech Issues":"App / Tech Issues",
-    "Partner & External Delays":"Partner and External Delays",
-    "Compensation":"Compensation",
+    # Human names (rows where pillar_name is already resolved)
+    "Support Quality":           "Support Quality",
+    "App / Tech Issues":         "App / Tech Issues",
+    "Partner & External Delays": "Partner and External Delays",
+    "Compensation":              "Compensation",
+    # Pillar numbers → human names (rows where pillar_name was not resolved)
+    "Pillar 1": "Support Quality",
+    "Pillar 2": "App / Tech Issues",
+    "Pillar 3": "Partner and External Delays",
+    "Pillar 4": "Compensation",
 }
 MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 
