@@ -224,6 +224,9 @@ var WEEK_Q1_TOTALS={};
     var wk=document.getElementById('weekSelect').value;
     var totalQ1=WEEK_Q1_TOTALS[wk]||0;
     var denom=totalQ1||M.n;
+    var allTimeQ1=Object.values(WEEK_Q1_TOTALS).reduce(function(a,b){return a+b;},0);
+    var totalQ1=WEEK_Q1_TOTALS[wk]||0;
+    var denom=totalQ1||M.n;
     var rows=wkMap[wk]||[];
     var we=new Date(wk+'T00:00:00');we.setDate(we.getDate()+6);
     var wLabel=fmtD(wk)+' \u2013 '+fmtD(we.toISOString().split('T')[0])+', '+we.getFullYear();
@@ -297,7 +300,7 @@ var WEEK_Q1_TOTALS={};
     });}
     document.getElementById('clustersWrap').innerHTML=cw;
     var cmpR='';
-    [{lbl:'Q3 Transcripts',wv:fmtN(M.n),ov:fmtN(OV.n),d:''},
+    [{lbl:'Total Q1 Respondents',wv:totalQ1?fmtN(totalQ1):'N/A',ov:allTimeQ1?fmtN(allTimeQ1):'N/A',d:''},{lbl:'Classified Q3 Transcripts',wv:fmtN(M.n),ov:fmtN(OV.n),d:''},
      {lbl:'Negative Q1 %',wv:fp(M.neg_pct)+'%',ov:fp(OV.neg_pct)+'%',d:dBadge(M.neg_pct,OV.neg_pct,false)},
      {lbl:'Positive Q1 %',wv:fp(M.pos_pct)+'%',ov:fp(OV.pos_pct)+'%',d:dBadge(M.pos_pct,OV.pos_pct,true)},
      {lbl:'Resolution Rate',wv:fp(M.res_pct)+'%',ov:fp(OV.res_pct)+'%',d:dBadge(M.res_pct,OV.res_pct,true)},
