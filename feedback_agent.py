@@ -221,7 +221,7 @@ def join_questions(q1,q2,q3,market,platform,period):
         rc=[c for c in q2f.columns if c!="visitor_id"][0] if len(q2f.columns)>1 else None
         if rc:
             q2f=q2f[["visitor_id",rc]].rename(columns={rc:"q2_resolution"}).rename(columns={rc:"q2_resolution"})
-            base=base.merge(q2f,on="courier_id",how="left")
+            base=base.merge(q2f,on="visitor_id",how="left")
 
     base["market"]=market; base["platform"]=platform; base["period"]=period
     if "q3_text" not in base.columns and "Response" in base.columns:
