@@ -10,10 +10,6 @@ on:
         description: 'Dry run only'
         required: false
         default: 'false'
-      rebuild_only:
-        description: 'Skip data pipeline — just rebuild dashboard from Drive master'
-        required: false
-        default: 'false'
 permissions:
   contents: write
 
@@ -44,11 +40,11 @@ jobs:
           printf "OUTPUT_FOLDER_ID=1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K\n" >> .env
           printf "GOOGLE_CLOUD_PROJECT=pendo-feedback-agent\n" >> .env
       - name: Run full
-        if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.rebuild_only != 'true' }}
+        if: ${{ github.event.inputs.dry_run != 'true' }}
         run: python feedback_agent.py --slack
       - name: Rebuild HTML Dashboard
         run: |
-          python rebuild_dashboard_DEFINITIVE_simplified.py
+          python rebuild_v2.py
 
 
       - name: Publish Dashboard to GitHub Pages
