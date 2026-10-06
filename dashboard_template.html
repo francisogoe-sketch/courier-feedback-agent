@@ -258,7 +258,7 @@ var WEEK_Q1_TOTALS={};
         '<div class="pillar-big" style="color:'+col+'">'+fp(np)+'%</div>'+
         '<div class="pillar-sub">neg within pillar &nbsp;|&nbsp; '+fmtN(pd.n)+' Q3 &nbsp;|&nbsp; '+fp(rp)+'% resolved</div>'+
         '<div class="pillar-share">'+
-          '<span class="pillar-share-pill pillar-share-neg">'+fp(negOfAll)+'% of all '+fmtN(M.n)+' Q1s neg</span>'+
+          '<span class="pillar-share-pill pillar-share-neg">'+fp(negOfAll)+'% of all '+(totalQ1?fmtN(totalQ1):fmtN(M.n))+' Q1s neg</span>'+
           '<span class="pillar-share-pill pillar-share-pos">'+fp(posOfAll)+'% pos</span>'+
         '</div>'+
         '<div class="pillar-share-lbl">Share of total Q1 responses this week</div>'+
