@@ -1,0 +1,72 @@
+name: Courier Feedback Agent
+on:
+  schedule:
+    - cron: '0 13 * * 1'   # Monday 1 PM UTC
+    - cron: '0 17 * * 1'   # Monday 5 PM UTC
+    - cron: '0 10 * * 2'   # Tuesday 10 AM UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run only'
+        required: false
+        default: 'false'
+      rebuild_only:
+        description: 'Skip data pipeline — just rebuild dashboard from Drive master'
+        required: false
+        default: 'false'
+permissions:
+  contents: write
+
+jobs:
+  run-feedback-agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install pandas openpyxl numpy google-auth google-auth-oauthlib google-api-python-client
+      - name: Configure Google credentials
+        env:
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: |
+          printf '%s' "$GOOGLE_CREDS" > /tmp/google_creds.json
+          python3 -c "import json; d=json.load(open('/tmp/google_creds.json')); d['quota_project_id']='pendo-feedback-agent'; json.dump(d,open('/tmp/google_creds.json','w'))"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/google_creds.json" >> $GITHUB_ENV
+          echo "GOOGLE_CLOUD_PROJECT=pendo-feedback-agent" >> $GITHUB_ENV
+      - name: Create env file
+        run: |
+          printf "AUTH_METHOD=adc\n" > .env
+          printf "DRIVE_FOLDER_ID=1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm\n" >> .env
+          printf "OUTPUT_FOLDER_ID=1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K\n" >> .env
+          printf "GOOGLE_CLOUD_PROJECT=pendo-feedback-agent\n" >> .env
+      - name: Run full
+        if: ${{ github.event.inputs.dry_run != 'true' && github.event.inputs.rebuild_only != 'true' }}
+        run: python feedback_agent.py --slack
+      - name: Rebuild HTML Dashboard
+        run: |
+          python rebuild_dashboard_DEFINITIVE.py
+
+
+      - name: Publish Dashboard to GitHub Pages
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          python save_index.py
+          git add index.html
+          git diff --staged --quiet || git commit -m "auto: update dashboard [skip ci]"
+          git push
+      - name: Run dry
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: python feedback_agent.py --dry-run
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.run_number }}
+          path: logs/
+          retention-days: 30
