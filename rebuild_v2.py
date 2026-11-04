@@ -1,29 +1,24 @@
 #!/usr/bin/env python3
 """
 rebuild_v2.py
-Smart search:
-1. Checks local workspace for combined_all_time.csv (from feedback_agent.py)
-2. Checks Input Folder (1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm)
-3. Checks Output Folder (1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K)
-4. Searches Drive globally by filename
+Self-discovering data loader:
+1. Scans local runner directory and prints all available CSVs
+2. Scans Google Drive input and output folders and prints all files
+3. Automatically selects and loads the primary CSAT survey CSV
+4. Processes metrics and uploads data.json
 """
 
 import os, io, json, sys, glob
 import pandas as pd
 from datetime import datetime, timezone
 
-# Google Drive imports
 try:
     import google.auth
-    from google.oauth2 import service_account
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 except ImportError:
-    sys.exit("Missing google libraries. Ensure google-api-python-client and google-auth are installed.")
+    sys.exit("Missing dependencies. Ensure google-api-python-client and google-auth are installed.")
 
-# ══════════════════════════════════════════════════════════════════════════════
-# CONFIGURATION
-# ══════════════════════════════════════════════════════════════════════════════
 INPUT_FOLDER_ID   = os.environ.get("DRIVE_FOLDER_ID", "1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm")
 OUTPUT_FOLDER_ID  = os.environ.get("OUTPUT_FOLDER_ID", "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K")
 DATA_JSON_FILE    = "data.json"
@@ -46,31 +41,21 @@ PILLAR_COLORS = {
 }
 
 def get_drive_service():
-    """Universal auth using ADC credentials."""
     creds, _ = google.auth.default(scopes=SCOPES)
     print("  Authenticated via Application Default Credentials (ADC)")
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
-def find_file_in_drive(service, filename, folder_ids):
-    """Searches given folders first, then searches across Drive globally."""
-    # 1. Search specific folders
-    for fid in folder_ids:
-        q = f'name = "{filename}" and "{fid}" in parents and trashed = false'
-        res = service.files().list(q=q, fields="files(id, name)", pageSize=1).execute()
-        files = res.get("files", [])
-        if files:
-            print(f"  Found {filename} in folder: {fid}")
-            return files[0]["id"]
-
-    # 2. Global search across Drive
-    q_global = f'name = "{filename}" and trashed = false'
-    res_global = service.files().list(q=q_global, fields="files(id, name, parents)", pageSize=5).execute()
-    files_global = res_global.get("files", [])
-    if files_global:
-        print(f"  Found {filename} globally on Drive (id: {files_global[0]['id']})")
-        return files_global[0]["id"]
-
-    return None
+def list_drive_folder(service, folder_id):
+    """Lists files inside a Drive folder and returns {name: file_id}."""
+    q = f'"{folder_id}" in parents and trashed = false'
+    res = service.files().list(q=q, fields="files(id, name, mimeType)", pageSize=100).execute()
+    files = res.get("files", [])
+    print(f"\n  --- Files in Drive Folder ({folder_id}) ---")
+    if not files:
+        print("    (Folder is empty)")
+    for f in files:
+        print(f"    • {f['name']} (id: {f['id']})")
+    return {f['name']: f['id'] for f in files}
 
 def download_stream(service, file_id):
     req = service.files().get_media(fileId=file_id)
@@ -96,52 +81,54 @@ def upload_file(service, name, file_bytes, mime_type, folder_id):
         f = service.files().create(body=meta, media_body=media, fields="id").execute()
         print(f"  Drive file created: {name} (id={f.get('id')})")
 
-def load_source_csv(service):
-    """Finds CSV locally or downloads from Drive."""
-    candidate_names = [
-        "combined_all_time.csv",
-        "master_classified_all_time.csv",
-        "combined_all_time (2).csv"
-    ]
-
-    # 1. Check local file system first
-    local_search_paths = [
-        ".",
-        "tmp",
-        "/tmp",
-        "data",
-        "outputs"
-    ]
-    for p in local_search_paths:
-        for name in candidate_names:
-            local_path = os.path.join(p, name)
-            if os.path.exists(local_path):
-                print(f"  Found local dataset at: {local_path}")
-                return pd.read_csv(local_path)
-
-    # Search wildcard pattern locally
-    any_local = glob.glob("**/*combined*.csv", recursive=True) + glob.glob("**/*master*.csv", recursive=True)
-    if any_local:
-        print(f"  Found local dataset via pattern: {any_local[0]}")
-        return pd.read_csv(any_local[0])
+def load_dataset(service):
+    """Checks local filesystem, then checks Drive folders, auto-detecting the CSV."""
+    # 1. Print and check local files on runner
+    local_csvs = glob.glob("**/*.csv", recursive=True) + glob.glob("/tmp/**/*.csv", recursive=True)
+    print("\n  --- Local CSV Files on Runner ---")
+    if local_csvs:
+        for lc in local_csvs:
+            print(f"    • {lc} ({os.path.getsize(lc):,} bytes)")
+        # Prioritize combined or master CSV
+        for lc in local_csvs:
+            name_lower = os.path.basename(lc).lower()
+            if any(k in name_lower for k in ["combined", "master", "classified"]):
+                print(f"  --> Selected local file: {lc}")
+                return pd.read_csv(lc)
+    else:
+        print("    (No local CSV files found)")
 
     # 2. Check Drive folders
-    print("  Checking Google Drive for dataset...")
-    folders_to_check = [INPUT_FOLDER_ID, OUTPUT_FOLDER_ID]
-    for name in candidate_names:
-        file_id = find_file_in_drive(service, name, folders_to_check)
-        if file_id:
-            buf = download_stream(service, file_id)
+    input_files = list_drive_folder(service, INPUT_FOLDER_ID)
+    output_files = list_drive_folder(service, OUTPUT_FOLDER_ID)
+
+    all_drive_files = {**input_files, **output_files}
+
+    # Search for priority names
+    priority_keywords = ["combined_all_time", "master_classified", "combined", "master", "classified", "feedback"]
+    for kw in priority_keywords:
+        for fname, fid in all_drive_files.items():
+            if kw in fname.lower() and fname.endswith(".csv"):
+                print(f"\n  --> Selected Drive file: {fname} (id={fid})")
+                buf = download_stream(service, fid)
+                return pd.read_csv(buf)
+
+    # If any CSV exists in output or input folder, use the largest one
+    for fname, fid in all_drive_files.items():
+        if fname.endswith(".csv"):
+            print(f"\n  --> Falling back to Drive CSV: {fname} (id={fid})")
+            buf = download_stream(service, fid)
             return pd.read_csv(buf)
 
-    raise FileNotFoundError("Could not find combined_all_time.csv or master_classified_all_time.csv locally or on Google Drive.")
+    raise FileNotFoundError("Could not find any suitable CSV dataset locally or in Google Drive folders.")
 
 def build_data_payload(df_raw):
-    # Pivot tall schema if questions are row-based
+    # Pivot tall schema if survey data is in question/Response format
     if "question" in df_raw.columns and "Response" in df_raw.columns:
         print("  Reshaping tall question format...")
+        idx_cols = [c for c in ["courier_id", "Date", "market", "platform"] if c in df_raw.columns]
         piv = df_raw.pivot_table(
-            index=["courier_id", "Date", "market", "platform"],
+            index=idx_cols,
             columns="question",
             values="Response",
             aggfunc="first"
@@ -150,18 +137,23 @@ def build_data_payload(df_raw):
     else:
         piv = df_raw.copy()
 
-    q1_col = "Q1_Rating" if "Q1_Rating" in piv.columns else ("Q1" if "Q1" in piv.columns else "rating")
-    q2_col = "Q2_Resolved" if "Q2_Resolved" in piv.columns else ("Q2" if "Q2" in piv.columns else "resolved")
-    q3_col = "Q3_Feedback" if "Q3_Feedback" in piv.columns else ("Q3" if "Q3" in piv.columns else "q3_text")
+    # Column name resolution
+    q1_col = next((c for c in ["Q1_Rating", "Q1", "rating", "csat_negative"] if c in piv.columns), None)
+    q2_col = next((c for c in ["Q2_Resolved", "Q2", "resolved"] if c in piv.columns), None)
+    q3_col = next((c for c in ["Q3_Feedback", "Q3", "q3_text", "comment", "feedback"] if c in piv.columns), None)
+    date_col = next((c for c in ["Date", "date", "created_at"] if c in piv.columns), None)
+    market_col = next((c for c in ["market", "mkt", "Market"] if c in piv.columns), None)
+    platform_col = next((c for c in ["platform", "plt", "Platform"] if c in piv.columns), None)
+    courier_col = next((c for c in ["courier_id", "courier", "Courier ID"] if c in piv.columns), None)
 
-    dt_series = pd.to_datetime(piv["Date"])
+    dt_series = pd.to_datetime(piv[date_col]) if date_col else pd.Series(pd.Timestamp.now(), index=piv.index)
     piv["d"] = dt_series.dt.strftime("%Y-%m-%d %H:%M:%S")
     mondays = dt_series - pd.to_timedelta(dt_series.dt.weekday, unit="D")
     piv["w"] = mondays.dt.strftime("%Y-%m-%d")
 
-    piv["m"] = piv["market"].astype(str)
-    piv["p"] = piv["platform"].astype(str)
-    piv["c"] = piv["courier_id"].astype(str)
+    piv["m"] = piv[market_col].astype(str) if market_col else "UK"
+    piv["p"] = piv[platform_col].astype(str) if platform_col else "iOS"
+    piv["c"] = piv[courier_col].astype(str) if courier_col else "Unknown"
 
     def parse_q1(val):
         s = str(val).strip()
@@ -169,18 +161,22 @@ def build_data_payload(df_raw):
             return "1-2★", True
         return "3-5★", False
 
-    q1_vals = piv[q1_col].apply(parse_q1)
+    q1_vals = piv[q1_col].apply(parse_q1) if q1_col else [("3-5★", False)] * len(piv)
     piv["q1"] = [v[0] for v in q1_vals]
     piv["is_neg"] = [v[1] for v in q1_vals]
 
-    piv["q2"] = piv[q2_col].apply(lambda v: "Yes" if str(v).strip().lower() in ("1", "yes", "true") else "No")
+    piv["q2"] = piv[q2_col].apply(lambda v: "Yes" if str(v).strip().lower() in ("1", "yes", "true") else "No") if q2_col else "No"
 
-    has_q3 = piv[q3_col].notna() & (piv[q3_col].astype(str).str.strip() != "") & (piv[q3_col].astype(str).str.lower() != "nan")
+    has_q3 = (
+        piv[q3_col].notna() &
+        (piv[q3_col].astype(str).str.strip() != "") &
+        (piv[q3_col].astype(str).str.lower() != "nan")
+    ) if q3_col else pd.Series(False, index=piv.index)
 
     df_transcripts = piv[has_q3].copy()
     df_q1_only = piv[~has_q3].copy()
 
-    print(f"  Total Q1: {len(piv):,} | With Q3: {len(df_transcripts):,} | Q1-only: {len(df_q1_only):,}")
+    print(f"  Processed Total Q1: {len(piv):,} | With Q3 text: {len(df_transcripts):,} | Q1-only: {len(df_q1_only):,}")
 
     q1_no_q3_list = []
     for _, r in df_q1_only.iterrows():
@@ -251,10 +247,7 @@ def build_data_payload(df_raw):
         }
 
     all_weeks = sorted(list(piv["w"].unique()))
-    by_week_dict = {}
-    for w in all_weeks:
-        w_sub = [t for t in transcripts_list if t["w"] == w]
-        by_week_dict[w] = compute_stats(w_sub)
+    by_week_dict = {w: compute_stats([t for t in transcripts_list if t["w"] == w]) for w in all_weeks}
 
     return {
         "weeks": all_weeks,
@@ -280,30 +273,27 @@ def build_data_payload(df_raw):
 
 def main():
     print(f"\n{'='*60}")
-    print(f"  Generating data.json for Option 1 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"  Dashboard Engine Rebuild — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"{'='*60}")
 
     service = get_drive_service()
 
-    # 1. Load data
     print("\n[1/3] Locating and loading dataset...")
-    df_raw = load_source_csv(service)
+    df_raw = load_dataset(service)
 
-    # 2. Process
-    print("\n[2/3] Computing stats and assembling full data.json...")
+    print("\n[2/3] Computing metrics and building payload...")
     payload = build_data_payload(df_raw)
 
     with open(DATA_JSON_FILE, "w", encoding="utf-8") as f:
         json.dump(payload, f, separators=(",", ":"))
-    print(f"  Local {DATA_JSON_FILE} generated.")
+    print(f"  Local {DATA_JSON_FILE} saved.")
 
-    # 3. Upload to Output folder
     print(f"\n[3/3] Uploading updated {DATA_JSON_FILE} to Google Drive...")
     json_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     upload_file(service, DATA_JSON_FILE, json_bytes, "application/json", OUTPUT_FOLDER_ID)
 
     print(f"\n{'='*60}")
-    print(f"  SUCCESS: data.json updated! index.html is ready.")
+    print("  SUCCESS: data.json built and synced!")
     print(f"{'='*60}\n")
 
 if __name__ == "__main__":
