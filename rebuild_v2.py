@@ -1,11 +1,11 @@
+```python
 #!/usr/bin/env python3
 """
 rebuild_v2.py
-Self-discovering data loader:
-1. Scans local runner directory and prints all available CSVs
-2. Scans Google Drive input and output folders and prints all files
-3. Automatically selects and loads the primary CSAT survey CSV
-4. Processes metrics and uploads data.json
+Shared-Drive enabled data loader:
+1. Enables supportsAllDrives & includeItemsFromAllDrives for Team Drives
+2. Scans folders and locates the survey CSV
+3. Builds data.json and syncs to GitHub / Drive
 """
 
 import os, io, json, sys, glob
@@ -46,9 +46,16 @@ def get_drive_service():
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 def list_drive_folder(service, folder_id):
-    """Lists files inside a Drive folder and returns {name: file_id}."""
-    q = f'"{folder_id}" in parents and trashed = false'
-    res = service.files().list(q=q, fields="files(id, name, mimeType)", pageSize=100).execute()
+    """Lists files inside a Shared/Team Drive folder."""
+    q = f"'{folder_id}' in parents and trashed = false"
+    res = service.files().list(
+        q=q,
+        fields="files(id, name, mimeType)",
+        pageSize=100,
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True,
+        corpora="allDrives"
+    ).execute()
     files = res.get("files", [])
     print(f"\n  --- Files in Drive Folder ({folder_id}) ---")
     if not files:
@@ -58,7 +65,7 @@ def list_drive_folder(service, folder_id):
     return {f['name']: f['id'] for f in files}
 
 def download_stream(service, file_id):
-    req = service.files().get_media(fileId=file_id)
+    req = service.files().get_media(fileId=file_id, supportsAllDrives=True)
     buf = io.BytesIO()
     dl = MediaIoBaseDownload(buf, req)
     done = False
@@ -68,43 +75,44 @@ def download_stream(service, file_id):
     return buf
 
 def upload_file(service, name, file_bytes, mime_type, folder_id):
-    q = f'name="{name}" and "{folder_id}" in parents and trashed=false'
-    res = service.files().list(q=q, fields="files(id)", pageSize=1).execute()
+    q = f"name = '{name}' and '{folder_id}' in parents and trashed = false"
+    res = service.files().list(
+        q=q,
+        fields="files(id)",
+        pageSize=1,
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True
+    ).execute()
     existing_id = res.get("files", [])[0]["id"] if res.get("files") else None
 
     media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=mime_type, resumable=True)
     if existing_id:
-        service.files().update(fileId=existing_id, media_body=media).execute()
+        service.files().update(fileId=existing_id, media_body=media, supportsAllDrives=True).execute()
         print(f"  Drive file updated: {name} (id={existing_id})")
     else:
         meta = {"name": name, "mimeType": mime_type, "parents": [folder_id]}
-        f = service.files().create(body=meta, media_body=media, fields="id").execute()
+        f = service.files().create(body=meta, media_body=media, fields="id", supportsAllDrives=True).execute()
         print(f"  Drive file created: {name} (id={f.get('id')})")
 
 def load_dataset(service):
-    """Checks local filesystem, then checks Drive folders, auto-detecting the CSV."""
-    # 1. Print and check local files on runner
+    """Checks local filesystem, then checks Shared Drive folders."""
+    # 1. Check local runner directories
     local_csvs = glob.glob("**/*.csv", recursive=True) + glob.glob("/tmp/**/*.csv", recursive=True)
     print("\n  --- Local CSV Files on Runner ---")
     if local_csvs:
         for lc in local_csvs:
             print(f"    • {lc} ({os.path.getsize(lc):,} bytes)")
-        # Prioritize combined or master CSV
         for lc in local_csvs:
             name_lower = os.path.basename(lc).lower()
             if any(k in name_lower for k in ["combined", "master", "classified"]):
                 print(f"  --> Selected local file: {lc}")
                 return pd.read_csv(lc)
-    else:
-        print("    (No local CSV files found)")
 
-    # 2. Check Drive folders
+    # 2. Check Shared Drive folders with full Team Drive support
     input_files = list_drive_folder(service, INPUT_FOLDER_ID)
     output_files = list_drive_folder(service, OUTPUT_FOLDER_ID)
-
     all_drive_files = {**input_files, **output_files}
 
-    # Search for priority names
     priority_keywords = ["combined_all_time", "master_classified", "combined", "master", "classified", "feedback"]
     for kw in priority_keywords:
         for fname, fid in all_drive_files.items():
@@ -113,17 +121,15 @@ def load_dataset(service):
                 buf = download_stream(service, fid)
                 return pd.read_csv(buf)
 
-    # If any CSV exists in output or input folder, use the largest one
     for fname, fid in all_drive_files.items():
         if fname.endswith(".csv"):
-            print(f"\n  --> Falling back to Drive CSV: {fname} (id={fid})")
+            print(f"\n  --> Selected Drive CSV: {fname} (id={fid})")
             buf = download_stream(service, fid)
             return pd.read_csv(buf)
 
     raise FileNotFoundError("Could not find any suitable CSV dataset locally or in Google Drive folders.")
 
 def build_data_payload(df_raw):
-    # Pivot tall schema if survey data is in question/Response format
     if "question" in df_raw.columns and "Response" in df_raw.columns:
         print("  Reshaping tall question format...")
         idx_cols = [c for c in ["courier_id", "Date", "market", "platform"] if c in df_raw.columns]
@@ -137,7 +143,6 @@ def build_data_payload(df_raw):
     else:
         piv = df_raw.copy()
 
-    # Column name resolution
     q1_col = next((c for c in ["Q1_Rating", "Q1", "rating", "csat_negative"] if c in piv.columns), None)
     q2_col = next((c for c in ["Q2_Resolved", "Q2", "resolved"] if c in piv.columns), None)
     q3_col = next((c for c in ["Q3_Feedback", "Q3", "q3_text", "comment", "feedback"] if c in piv.columns), None)
