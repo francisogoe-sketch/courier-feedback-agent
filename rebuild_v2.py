@@ -1,134 +1,271 @@
 #!/usr/bin/env python3
-"""rebuild_v2.py — Dashboard rebuild with WEEK_Q1_TOTALS. Oct 2026."""
-import os, io, json, re, sys
+"""
+rebuild_v2.py
+Fetches updated data from Google Drive, calculates all weekly & all-time metrics,
+and updates data.json so index.html displays all charts and Q1-only feedback.
+"""
+
+import os, io, json, sys
 import pandas as pd
 from datetime import datetime, timezone
 
+# Google Drive imports
 try:
-    import google.auth
+    from google.oauth2 import service_account
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 except ImportError:
-    sys.exit("Missing: pip install google-api-python-client google-auth")
+    sys.exit("Missing google libraries. Ensure google-api-python-client and google-auth are in requirements.txt")
 
-DRIVE_FOLDER_ID  = "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K"
-MASTER_CSV_NAME  = "master_classified_all_time.csv"
-TEMPLATE_HTML    = "dashboard_template.html"
-OUTPUT_HTML_NAME = "csat_dashboard_latest.html"
-SCOPES           = ["https://www.googleapis.com/auth/drive"]
+# ══════════════════════════════════════════════════════════════════════════════
+# CONFIGURATION
+# ══════════════════════════════════════════════════════════════════════════════
+DRIVE_FOLDER_ID   = os.environ.get("DRIVE_FOLDER_ID", "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K")
+COMBINED_CSV_NAME = "combined_all_time.csv"
+DATA_JSON_FILE    = "data.json"
+SCOPES            = ["https://www.googleapis.com/auth/drive"]
 
-PILLAR_1_4 = {"Pillar 1","Pillar 2","Pillar 3","Pillar 4"}
-PILLAR_NAME_FIX = {
-    "Support Quality":"Support Quality",
-    "App / Tech Issues":"App / Tech Issues",
-    "Partner & External Delays":"Partner and External Delays",
-    "Compensation":"Compensation",
-    "Pillar 1":"Support Quality",
-    "Pillar 2":"App / Tech Issues",
-    "Pillar 3":"Partner and External Delays",
-    "Pillar 4":"Compensation",
+PILLAR_ORDER = [
+    "Support Quality",
+    "App / Tech Issues",
+    "Partner and External Delays",
+    "Compensation",
+    "General / Minimal"
+]
+
+PILLAR_COLORS = {
+    "Support Quality": "#e74c3c",
+    "App / Tech Issues": "#e67e22",
+    "Partner and External Delays": "#16a085",
+    "Compensation": "#2980b9",
+    "General / Minimal": "#7f8c8d"
 }
 
-def get_service():
-    creds,_=google.auth.default(scopes=SCOPES)
-    return build("drive","v3",credentials=creds,cache_discovery=False)
+def get_drive_service():
+    creds_raw = os.environ.get("GDRIVE_SERVICE_ACCOUNT_JSON", "")
+    if not creds_raw:
+        sys.exit("ERROR: GDRIVE_SERVICE_ACCOUNT_JSON secret not set.")
+    creds_info = json.loads(creds_raw)
+    creds = service_account.Credentials.from_service_account_info(
+        creds_info, scopes=SCOPES
+    )
+    return build("drive", "v3", credentials=creds, cache_discovery=False)
 
-def find_file(svc,name,folder_id):
-    q='name="{}" and "{}" in parents and trashed=false'.format(name,folder_id)
-    res=svc.files().list(q=q,fields="files(id,name,modifiedTime)",
-        orderBy="modifiedTime desc",pageSize=5,
-        supportsAllDrives=True,includeItemsFromAllDrives=True,
-        corpora="allDrives").execute()
-    files=res.get("files",[])
-    return files[0]["id"] if files else None
+def download_file(service, name, folder_id):
+    q = f'name="{name}" and "{folder_id}" in parents and trashed=false'
+    res = service.files().list(q=q, fields="files(id,name)", pageSize=5).execute()
+    files = res.get("files", [])
+    if not files:
+        # Fallback check for alternate master CSV names
+        q_alt = f'name="master_classified_all_time.csv" and "{folder_id}" in parents and trashed=false'
+        res_alt = service.files().list(q=q_alt, fields="files(id,name)", pageSize=5).execute()
+        files = res_alt.get("files", [])
+        if not files:
+            raise FileNotFoundError(f"Neither {name} nor master_classified_all_time.csv found in folder {folder_id}")
 
-def dl_bytes(svc,fid):
-    req=svc.files().get_media(fileId=fid)
-    buf=io.BytesIO()
-    dl=MediaIoBaseDownload(buf,req)
-    done=False
-    while not done: _,done=dl.next_chunk()
-    buf.seek(0); return buf
+    file_id = files[0]["id"]
+    req = service.files().get_media(fileId=file_id)
+    buf = io.BytesIO()
+    dl = MediaIoBaseDownload(buf, req)
+    done = False
+    while not done:
+        _, done = dl.next_chunk()
+    buf.seek(0)
+    return buf
 
-def upload(svc,name,data_bytes,folder_id,mime,existing_id=None):
-    media=MediaIoBaseUpload(io.BytesIO(data_bytes),mimetype=mime,resumable=True)
+def upload_file(service, name, file_bytes, mime_type, folder_id):
+    q = f'name="{name}" and "{folder_id}" in parents and trashed=false'
+    res = service.files().list(q=q, fields="files(id)", pageSize=1).execute()
+    existing_id = res.get("files", [])[0]["id"] if res.get("files") else None
+
+    media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=mime_type, resumable=True)
     if existing_id:
-        svc.files().update(fileId=existing_id,media_body=media,
-                           supportsAllDrives=True).execute()
-        print("  Updated: {}".format(name))
+        service.files().update(fileId=existing_id, media_body=media).execute()
+        print(f"  Drive file updated: {name} (id={existing_id})")
     else:
-        meta={"name":name,"mimeType":mime,"parents":[folder_id]}
-        svc.files().create(body=meta,media_body=media,fields="id",
-                           supportsAllDrives=True).execute()
-        print("  Created: {}".format(name))
+        meta = {"name": name, "mimeType": mime_type, "parents": [folder_id]}
+        f = service.files().create(body=meta, media_body=media, fields="id").execute()
+        print(f"  Drive file created: {name} (id={f.get('id')})")
 
-def build_all(df):
-    # ── WEEK_Q1_TOTALS: all valid Q1 per week ──
-    df["sdt"]=pd.to_datetime(df["submitted_at"],errors="coerce")
-    def mon(d): return (d-pd.Timedelta(days=d.weekday())).strftime("%Y-%m-%d") if pd.notna(d) else None
-    df["wkm"]=df["sdt"].apply(mon)
-    wq1=(df[df["csat_valid"]==1].groupby("wkm")["csat_valid"]
-         .sum().astype(int).to_dict())
-    week_q1_js="var WEEK_Q1_TOTALS="+json.dumps(wq1)+";"
-    print("  WEEK_Q1_TOTALS: {} weeks, total Q1={:,}".format(len(wq1),sum(wq1.values())))
-
-    # ── TRANSCRIPTS: classified Q3 rows (Pillar 1-4, in_X=1) ──
-    p14=df[df["pillar"].isin(PILLAR_1_4)].copy()
-    use=p14[p14["in_X"]==1].copy()
-    if len(use)==0: print("  WARNING: using all P1-4"); use=p14.copy()
-    use["dash_pillar"]=use["pillar_name"].map(PILLAR_NAME_FIX).fillna(use["pillar_name"])
-    def _q1(r):
-        if r["csat_negative"]==1: return "1-2\u2605"
-        if r["csat_positive"]==1: return "3-5\u2605"
-        if r["pillar"] in PILLAR_1_4: return "1-2\u2605"
-        return "3-5\u2605"
-    use["Q1"]=use.apply(_q1,axis=1)
-    use["Q2"]=use["resolved"].apply(lambda r:"Yes" if r==1 else "No")
-    use["Date_str"]=pd.to_datetime(use["Date"],errors="coerce").dt.strftime("%Y-%m-%d")
-    rows=[]
-    for _,r in use.sort_values("Date_str").iterrows():
-        rows.append([str(r["dash_pillar"]),str(r.get("theme","")),str(r["Date_str"]),
-                     str(r["market"]),str(r["platform"]),str(r["Q1"]),str(r["Q2"]),
-                     str(r["q3_text"]) if pd.notna(r.get("q3_text")) else ""])
-    header='["Pillar","Cluster","Date","Market","Platform","Q1","Q2","Q3 Text"]'
-    data=",\n".join("["+",".join(json.dumps(v,ensure_ascii=True) for v in row)+"]" for row in rows)
-    print("  TRANSCRIPTS rows: {:,}".format(len(rows)))
-    tr_js="var TRANSCRIPTS=[\n{},\n{}\n];".format(header,data)
-    tr_js=tr_js.replace("</script>","<\\/script>").replace("<!--","<\\!--")
-    return tr_js, week_q1_js, len(rows)
-
-def inject_js(template, tr_js, week_q1_js):
-    pat=r'var TRANSCRIPTS=\[.*?\];'
-    if not re.search(pat,template,flags=re.DOTALL):
-        sys.exit("ERROR: TRANSCRIPTS placeholder not found in template")
-    html=re.sub(pat,lambda m:tr_js,template,flags=re.DOTALL)
-    pat2=r'var WEEK_Q1_TOTALS=\{[^}]*\};'
-    if re.search(pat2,html):
-        html=re.sub(pat2,week_q1_js,html)
+def build_data_payload(df_raw):
+    # Pivot tall schema if raw Q1/Q2/Q3 are in row format
+    if "question" in df_raw.columns and "Response" in df_raw.columns:
+        print("  Reshaping tall question format...")
+        piv = df_raw.pivot_table(
+            index=["courier_id", "Date", "market", "platform"],
+            columns="question",
+            values="Response",
+            aggfunc="first"
+        ).reset_index()
+        piv.columns.name = None
     else:
-        html=html.replace(tr_js,tr_js+"\n"+week_q1_js,1)
-    return html
+        piv = df_raw.copy()
+
+    # Column name normalization
+    q1_col = "Q1_Rating" if "Q1_Rating" in piv.columns else ("Q1" if "Q1" in piv.columns else "rating")
+    q2_col = "Q2_Resolved" if "Q2_Resolved" in piv.columns else ("Q2" if "Q2" in piv.columns else "resolved")
+    q3_col = "Q3_Feedback" if "Q3_Feedback" in piv.columns else ("Q3" if "Q3" in piv.columns else "q3_text")
+
+    # Dates and weeks (ISO Monday)
+    dt_series = pd.to_datetime(piv["Date"])
+    piv["d"] = dt_series.dt.strftime("%Y-%m-%d %H:%M:%S")
+    mondays = dt_series - pd.to_timedelta(dt_series.dt.weekday, unit="D")
+    piv["w"] = mondays.dt.strftime("%Y-%m-%d")
+
+    piv["m"] = piv["market"].astype(str)
+    piv["p"] = piv["platform"].astype(str)
+    piv["c"] = piv["courier_id"].astype(str)
+
+    # Q1 formatting
+    def parse_q1(val):
+        s = str(val).strip()
+        if s in ("1", "2", "1-2", "1-2★") or s.startswith("1") or s.startswith("2"):
+            return "1-2★", True
+        return "3-5★", False
+
+    q1_vals = piv[q1_col].apply(parse_q1)
+    piv["q1"] = [v[0] for v in q1_vals]
+    piv["is_neg"] = [v[1] for v in q1_vals]
+
+    # Q2 formatting
+    piv["q2"] = piv[q2_col].apply(lambda v: "Yes" if str(v).strip().lower() in ("1", "yes", "true") else "No")
+
+    # Split Q1+Q3 transcripts vs Q1-only
+    has_q3 = piv[q3_col].notna() & (piv[q3_col].astype(str).str.strip() != "") & (piv[q3_col].astype(str).str.lower() != "nan")
+
+    df_transcripts = piv[has_q3].copy()
+    df_q1_only = piv[~has_q3].copy()
+
+    print(f"  Loaded total Q1: {len(piv):,} | With Q3: {len(df_transcripts):,} | Q1-only: {len(df_q1_only):,}")
+
+    # Build q1NoQ3 records
+    q1_no_q3_list = []
+    for _, r in df_q1_only.iterrows():
+        q1_no_q3_list.append({
+            "d": r["d"],
+            "m": r["m"],
+            "p": r["p"],
+            "q": r["q1"],
+            "c": r["c"],
+            "w": r["w"],
+            "n": bool(r["is_neg"])
+        })
+
+    # Build Q1+Q3 transcript records
+    transcripts_list = []
+    for _, r in df_transcripts.iterrows():
+        pl = r.get("pillar", r.get("pl", "General / Minimal"))
+        if pl not in PILLAR_ORDER:
+            pl = "General / Minimal"
+
+        transcripts_list.append({
+            "d": r["d"],
+            "m": r["m"],
+            "p": r["p"],
+            "q1": r["q1"],
+            "q2": r["q2"],
+            "c": r["c"],
+            "t": str(r.get(q3_col, ""))[:300],
+            "pl": pl,
+            "w": r["w"],
+            "pl12": r.get("pl12", "Others")
+        })
+
+    # Compute metrics function
+    def compute_stats(rows):
+        tot = len(rows)
+        if tot == 0:
+            return {"total": 0, "negQ1": 0, "posQ1": 0, "resCount": 0, "negQ1Pct": 0.0, "posQ1Pct": 0.0, "resPct": 0.0, "marketNeg": {}, "marketPos": {}, "pillars": {}}
+        neg = sum(1 for t in rows if t["q1"] == "1-2★")
+        pos = tot - neg
+        res = sum(1 for t in rows if t["q2"] == "Yes")
+
+        pillars = {}
+        for p in PILLAR_ORDER:
+            sub = [t for t in rows if t["pl"] == p]
+            stot = len(sub)
+            sneg = sum(1 for t in sub if t["q1"] == "1-2★")
+            spos = stot - sneg
+            sres = sum(1 for t in sub if t["q2"] == "Yes")
+            pillars[p] = {
+                "total": stot,
+                "share": round(stot / tot * 100, 1) if tot else 0.0,
+                "neg": sneg,
+                "pos": spos,
+                "res": sres,
+                "negPct": round(sneg / stot * 100, 1) if stot else 0.0,
+                "posPct": round(spos / stot * 100, 1) if stot else 0.0,
+                "resPct": round(sres / stot * 100, 1) if stot else 0.0
+            }
+
+        return {
+            "total": tot,
+            "negQ1": neg,
+            "posQ1": pos,
+            "resCount": res,
+            "negQ1Pct": round(neg / tot * 100, 1),
+            "posQ1Pct": round(pos / tot * 100, 1),
+            "resPct": round(res / tot * 100, 1),
+            "pillars": pillars
+        }
+
+    all_weeks = sorted(list(piv["w"].unique()))
+    by_week_dict = {}
+    for w in all_weeks:
+        w_sub = [t for t in transcripts_list if t["w"] == w]
+        by_week_dict[w] = compute_stats(w_sub)
+
+    return {
+        "weeks": all_weeks,
+        "pillarOrder": PILLAR_ORDER,
+        "pillarColors": PILLAR_COLORS,
+        "dateRange": {
+            "start": piv["d"].min()[:10],
+            "end": piv["d"].max()[:10]
+        },
+        "all": {
+            "allTime": compute_stats(transcripts_list),
+            "byWeek": by_week_dict,
+            "transcripts": transcripts_list
+        },
+        "gold": {
+            "transcripts": []
+        },
+        "q1NoQ3": {
+            "all": q1_no_q3_list,
+            "gold": []
+        }
+    }
 
 def main():
-    ts=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    print("\n{}\n  rebuild_v2.py  {}\n{}".format("="*60,ts,"="*60))
-    print("\n[1/4] Authenticating (ADC)...")
-    svc=get_service(); print("  OK")
-    print("\n[2/4] Downloading {}...".format(MASTER_CSV_NAME))
-    cid=find_file(svc,MASTER_CSV_NAME,DRIVE_FOLDER_ID)
-    if not cid: sys.exit("ERROR: {} not found".format(MASTER_CSV_NAME))
-    df=pd.read_csv(dl_bytes(svc,cid))
-    print("  Rows: {:,} | {} to {}".format(len(df),df["week_start"].min(),df["week_start"].max()))
-    print("\n[3/4] Building TRANSCRIPTS + WEEK_Q1_TOTALS...")
-    tr_js,week_q1_js,n_rows=build_all(df)
-    print("\n[4/4] Loading template, injecting, uploading...")
-    if not os.path.exists(TEMPLATE_HTML): sys.exit("ERROR: {} not found".format(TEMPLATE_HTML))
-    with open(TEMPLATE_HTML,"r",encoding="utf-8") as f: template=f.read()
-    html=inject_js(template,tr_js,week_q1_js)
-    print("  Final HTML: {:,} chars".format(len(html)))
-    eid=find_file(svc,OUTPUT_HTML_NAME,DRIVE_FOLDER_ID)
-    upload(svc,OUTPUT_HTML_NAME,html.encode("utf-8"),DRIVE_FOLDER_ID,"text/html",eid)
-    print("\n{}\n  Done - {} is live\n{}\n".format("="*60,OUTPUT_HTML_NAME,"="*60))
+    print(f"\n{'='*60}")
+    print(f"  Generating data.json for Option 1 — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"{'='*60}")
 
-if __name__=="__main__":
+    service = get_drive_service()
+
+    # 1. Download
+    print(f"\n[1/3] Downloading {COMBINED_CSV_NAME} from Google Drive...")
+    buf = download_file(service, COMBINED_CSV_NAME, DRIVE_FOLDER_ID)
+    df_raw = pd.read_csv(buf)
+
+    # 2. Process
+    print("\n[2/3] Computing stats and assembling full data.json...")
+    payload = build_data_payload(df_raw)
+
+    # Save locally in GitHub runner
+    with open(DATA_JSON_FILE, "w", encoding="utf-8") as f:
+        json.dump(payload, f, separators=(",", ":"))
+    print(f"  Local {DATA_JSON_FILE} generated.")
+
+    # 3. Upload back to Drive
+    print(f"\n[3/3] Uploading updated {DATA_JSON_FILE} to Google Drive...")
+    json_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    upload_file(service, DATA_JSON_FILE, json_bytes, "application/json", DRIVE_FOLDER_ID)
+
+    print(f"\n{'='*60}")
+    print(f"  SUCCESS: data.json updated! index.html is ready.")
+    print(f"{'='*60}\n")
+
+if __name__ == "__main__":
     main()
