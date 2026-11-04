@@ -2,21 +2,8 @@
 """
 rebuild_dashboard.py
 ====================
-Step 9 of the courier CSAT workflow.
-Runs after the master CSV and Excel uploads are complete.
-
-What it does:
-  1. Downloads master_classified_all_time.csv from Google Drive
-  2. Builds the TRANSCRIPTS[] JS array (Pillars 1-4, in_X == 1)
-  3. Injects it into dashboard_template.html (stored in this repo)
-  4. Uploads csat_dashboard_latest.html back to Drive
-
-Add to GitHub Actions workflow (.github/workflows/your_workflow.yml):
-
-    - name: Rebuild HTML Dashboard
-      env:
-        GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
-      run: python rebuild_dashboard.py
+Captures ALL Q1 respondents (both with and without Q3 comments)
+and maps them into their respective categories.
 """
 
 import os, io, json, re, sys
@@ -33,21 +20,27 @@ except ImportError:
              "  google-api-python-client\n  google-auth")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# CONFIG — edit only these values if folder IDs or filenames change
+# CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
-DRIVE_FOLDER_ID  = "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K"
+DRIVE_FOLDER_ID  = os.environ.get("DRIVE_FOLDER_ID", "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K")
 MASTER_CSV_NAME  = "master_classified_all_time.csv"
-TEMPLATE_HTML    = "dashboard_template.html"     # lives in the GitHub repo
-OUTPUT_HTML_NAME = "csat_dashboard_latest.html"  # uploaded to Drive each run
+TEMPLATE_HTML    = "dashboard_template.html"     # lives in GitHub repo
+OUTPUT_HTML_NAME = "csat_dashboard_latest.html"  # uploaded back to Drive
 SCOPES           = ["https://www.googleapis.com/auth/drive"]
 
-PILLAR_1_4 = {"Pillar 1", "Pillar 2", "Pillar 3", "Pillar 4"}
-
+# Mapping dictionary to standardize category names
 PILLAR_NAME_FIX = {
-    "Support Quality":           "Support Quality",
-    "App / Tech Issues":         "App / Tech Issues",
+    "Pillar 1": "Support Quality",
+    "Pillar 2": "App / Tech Issues",
+    "Pillar 3": "Partner and External Delays",
+    "Pillar 4": "Compensation",
+    "Pillar 5": "General / Minimal",
+    "Support Quality": "Support Quality",
+    "App / Tech Issues": "App / Tech Issues",
     "Partner & External Delays": "Partner and External Delays",
-    "Compensation":              "Compensation",
+    "Partner and External Delays": "Partner and External Delays",
+    "Compensation": "Compensation",
+    "General / Minimal": "General / Minimal",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -99,52 +92,90 @@ def upload_html(service, name, html_bytes, folder_id, existing_id=None):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TRANSCRIPTS BUILDER
+# TRANSCRIPTS BUILDER (INCLUDES ALL Q1 RESPONDENTS)
 # ══════════════════════════════════════════════════════════════════════════════
 def build_transcripts_js(df):
     """
-    Filter master CSV to Pillars 1-4 where in_X == 1.
-    Falls back to all P1-4 rows if in_X==1 returns nothing
-    (handles pipeline lag on the most recent week).
-    Returns a JS var TRANSCRIPTS=[...]; string.
+    Captures ALL Q1 respondents:
+      - Couriers who left Q3 comments (Pillars 1-4)
+      - Couriers who only left Q1 ratings (Pillar 5 / General & Minimal)
     """
-    p14 = df[df["pillar"].isin(PILLAR_1_4)].copy()
+    # 1. Keep all rows that have a valid rating (either csat_negative or Q1 column)
+    if "csat_negative" in df.columns:
+        valid_df = df[df["csat_negative"].notna()].copy()
+    elif "Q1" in df.columns:
+        valid_df = df[df["Q1"].notna()].copy()
+    else:
+        valid_df = df.copy()
 
-    # Primary filter: in_X == 1
-    use = p14[p14["in_X"] == 1].copy()
+    # 2. Assign Category / Pillar
+    def get_pillar_category(row):
+        # Check pillar or pillar_name column
+        raw_pillar = str(row.get("pillar_name", row.get("pillar", "")))
+        if raw_pillar in PILLAR_NAME_FIX:
+            return PILLAR_NAME_FIX[raw_pillar]
+        
+        # If Q3 text is missing or blank, assign to General / Minimal
+        text = str(row.get("q3_text", "")).strip()
+        if not text or text.lower() in ("nan", "none", ""):
+            return "General / Minimal"
+        return "General / Minimal"
 
-    if len(use) == 0:
-        print("  WARNING: in_X==1 returned 0 P1-4 rows — "
-              "falling back to all P1-4 rows (pipeline lag)")
-        use = p14.copy()
+    valid_df["dash_pillar"] = valid_df.apply(get_pillar_category, axis=1)
 
-    # Normalise fields
-    use["dash_pillar"] = use["pillar_name"].map(PILLAR_NAME_FIX).fillna(use["pillar_name"])
-    use["Q1"]          = use.apply(
-        lambda r: "1-2\u2605" if r["csat_negative"] == 1 else "3-5\u2605", axis=1
-    )
-    use["Q2"]          = use["resolved"].apply(lambda r: "Yes" if r == 1 else "No")
-    use["Date_str"]    = pd.to_datetime(use["Date"]).dt.strftime("%Y-%m-%d")
+    # 3. Standardize Q1 (1-2★ vs 3-5★)
+    def format_q1(r):
+        if "csat_negative" in r and pd.notna(r["csat_negative"]):
+            return "1-2\u2605" if r["csat_negative"] == 1 else "3-5\u2605"
+        if "Q1" in r and pd.notna(r["Q1"]):
+            return "1-2\u2605" if str(r["Q1"]).startswith("1-2") else "3-5\u2605"
+        return "3-5\u2605"
 
+    valid_df["Q1_fmt"] = valid_df.apply(format_q1, axis=1)
+
+    # 4. Standardize Q2 (Yes vs No)
+    def format_q2(val):
+        if pd.isna(val):
+            return "No"
+        return "Yes" if str(val).strip() in ("1", "1.0", "Yes", "yes", "True") else "No"
+
+    valid_df["Q2_fmt"] = valid_df["resolved"].apply(format_q2) if "resolved" in valid_df.columns else "No"
+
+    # 5. Standardize Date
+    date_col = "Date" if "Date" in valid_df.columns else "date"
+    valid_df["Date_str"] = pd.to_datetime(valid_df[date_col]).dt.strftime("%Y-%m-%d")
+
+    # 6. Build records
     rows = []
-    for _, r in use.sort_values("Date_str").iterrows():
+    for _, r in valid_df.sort_values("Date_str", ascending=False).iterrows():
+        raw_text = r.get("q3_text", "")
+        has_text = pd.notna(raw_text) and str(raw_text).strip() not in ("", "nan", "None")
+
+        q3_text = str(raw_text).strip() if has_text else "[Rating Only \u2014 No Written Comment]"
+        cluster = str(r.get("theme", "")) if has_text else "Rating Only"
+
         rows.append([
             str(r["dash_pillar"]),
-            str(r.get("theme", "")),
+            cluster,
             str(r["Date_str"]),
-            str(r["market"]),
-            str(r["platform"]),
-            str(r["Q1"]),
-            str(r["Q2"]),
-            str(r["q3_text"]) if pd.notna(r["q3_text"]) else "",
+            str(r.get("market", "")),
+            str(r.get("platform", "")),
+            str(r["Q1_fmt"]),
+            str(r["Q2_fmt"]),
+            q3_text,
         ])
 
-    header   = '["Pillar","Cluster","Date","Market","Platform","Q1","Q2","Q3 Text"]'
+    header = '["Pillar","Cluster","Date","Market","Platform","Q1","Q2","Q3 Text"]'
     data_str = ",\n".join(
         "[" + ",".join(json.dumps(v, ensure_ascii=False) for v in row) + "]"
         for row in rows
     )
+    
+    q1_only_count = sum(1 for row in rows if row[7].startswith("[Rating Only"))
     print(f"  TRANSCRIPTS rows built: {len(rows):,}")
+    print(f"    - With Q3 text:      {len(rows) - q1_only_count:,}")
+    print(f"    - Rating only (Q1):  {q1_only_count:,}")
+
     return f"var TRANSCRIPTS=[\n{header},\n{data_str}\n];"
 
 
@@ -156,8 +187,7 @@ def inject_transcripts(template_html, transcripts_js):
     pattern = r'var TRANSCRIPTS=\[.*?\];'
     if not re.search(pattern, template_html, flags=re.DOTALL):
         sys.exit("ERROR: Could not find TRANSCRIPTS placeholder in template HTML. "
-                 "Ensure dashboard_template.html contains: var TRANSCRIPTS=[...];"
-                 )
+                 "Ensure dashboard_template.html contains: var TRANSCRIPTS=[...];")
     updated = re.sub(pattern, transcripts_js, template_html, flags=re.DOTALL)
     return updated
 
@@ -168,7 +198,7 @@ def inject_transcripts(template_html, transcripts_js):
 def main():
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     print(f"\n{'='*60}")
-    print(f"  Dashboard Rebuild  —  {ts}")
+    print(f"  Dashboard Rebuild (All Q1 Feedback) — {ts}")
     print(f"{'='*60}")
 
     # 1. Auth
@@ -184,7 +214,6 @@ def main():
     csv_buf = download_bytes(service, csv_id)
     df = pd.read_csv(csv_buf)
     print(f"  Rows loaded: {len(df):,}")
-    print(f"  Date range:  {df['week_start'].min()} → {df['week_start'].max()}")
 
     # 3. Build TRANSCRIPTS JS
     print("\n[3/5] Building TRANSCRIPTS array...")
@@ -211,7 +240,7 @@ def main():
     )
 
     print(f"\n{'='*60}")
-    print(f"  ✅ Done — {OUTPUT_HTML_NAME} is live on Drive")
+    print(f"  Done — {OUTPUT_HTML_NAME} is live on Drive")
     print(f"{'='*60}\n")
 
 
