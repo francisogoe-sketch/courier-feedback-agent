@@ -10,6 +10,7 @@ on:
         description: 'Dry run only'
         required: false
         default: 'false'
+
 permissions:
   contents: write
 
@@ -19,12 +20,15 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
+
       - name: Install dependencies
         run: pip install pandas openpyxl numpy google-auth google-auth-oauthlib google-api-python-client
+
       - name: Configure Google credentials
         env:
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDENTIALS }}
@@ -33,19 +37,24 @@ jobs:
           python3 -c "import json; d=json.load(open('/tmp/google_creds.json')); d['quota_project_id']='pendo-feedback-agent'; json.dump(d,open('/tmp/google_creds.json','w'))"
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/google_creds.json" >> $GITHUB_ENV
           echo "GOOGLE_CLOUD_PROJECT=pendo-feedback-agent" >> $GITHUB_ENV
+
       - name: Create env file
         run: |
           printf "AUTH_METHOD=adc\n" > .env
           printf "DRIVE_FOLDER_ID=1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm\n" >> .env
           printf "OUTPUT_FOLDER_ID=1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K\n" >> .env
           printf "GOOGLE_CLOUD_PROJECT=pendo-feedback-agent\n" >> .env
+
       - name: Run full
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: python feedback_agent.py --slack
-      - name: Rebuild HTML Dashboard
-        run: |
-          python rebuild_v2.py
 
+      - name: Rebuild HTML Dashboard
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        env:
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_CREDENTIALS }}
+          DRIVE_FOLDER_ID: "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K"
+        run: python rebuild_v2.py
 
       - name: Publish Dashboard to GitHub Pages
         if: ${{ github.event.inputs.dry_run != 'true' }}
@@ -53,12 +62,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           python save_index.py
-          git add index.html
-          git diff --staged --quiet || git commit -m "auto: update dashboard [skip ci]"
+          git add index.html data.json
+          git diff --staged --quiet || git commit -m "auto: update dashboard and data [skip ci]"
           git push
+
       - name: Run dry
         if: ${{ github.event.inputs.dry_run == 'true' }}
         run: python feedback_agent.py --dry-run
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
