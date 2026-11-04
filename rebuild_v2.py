@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 rebuild_v2.py
-Fetches updated data from Google Drive, calculates all weekly & all-time metrics,
-and updates data.json so index.html displays all charts and Q1-only feedback.
+Universal authentication version (supports ADC, User Token, and Service Account).
+Fetches data from Google Drive, calculates metrics, and updates data.json.
 """
 
 import os, io, json, sys
@@ -11,16 +11,17 @@ from datetime import datetime, timezone
 
 # Google Drive imports
 try:
+    import google.auth
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 except ImportError:
-    sys.exit("Missing google libraries. Ensure google-api-python-client and google-auth are in requirements.txt")
+    sys.exit("Missing google libraries. Ensure google-api-python-client and google-auth are installed.")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
 # ══════════════════════════════════════════════════════════════════════════════
-DRIVE_FOLDER_ID   = os.environ.get("DRIVE_FOLDER_ID", "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K")
+DRIVE_FOLDER_ID   = os.environ.get("OUTPUT_FOLDER_ID", os.environ.get("DRIVE_FOLDER_ID", "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K"))
 COMBINED_CSV_NAME = "combined_all_time.csv"
 DATA_JSON_FILE    = "data.json"
 SCOPES            = ["https://www.googleapis.com/auth/drive"]
@@ -42,14 +43,34 @@ PILLAR_COLORS = {
 }
 
 def get_drive_service():
-    creds_raw = os.environ.get("GDRIVE_SERVICE_ACCOUNT_JSON", "")
-    if not creds_raw:
-        sys.exit("ERROR: GDRIVE_SERVICE_ACCOUNT_JSON secret not set.")
-    creds_info = json.loads(creds_raw)
-    creds = service_account.Credentials.from_service_account_info(
-        creds_info, scopes=SCOPES
-    )
-    return build("drive", "v3", credentials=creds, cache_discovery=False)
+    """Universal auth: checks ADC/env creds first, then falls back to JSON parsing."""
+    creds = None
+
+    # 1. Try ADC / preconfigured credentials file (/tmp/google_creds.json)
+    try:
+        creds, _ = google.auth.default(scopes=SCOPES)
+        print("  Authenticated via Application Default Credentials (ADC)")
+        return build("drive", "v3", credentials=creds, cache_discovery=False)
+    except Exception as e:
+        print(f"  ADC not available ({e}), trying explicit secret...")
+
+    # 2. Try raw secret string
+    creds_raw = os.environ.get("GDRIVE_SERVICE_ACCOUNT_JSON") or os.environ.get("GOOGLE_CREDS", "")
+    if creds_raw:
+        try:
+            creds_info = json.loads(creds_raw)
+            if "client_email" in creds_info:
+                creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+                print("  Authenticated via Service Account info")
+            else:
+                from google.oauth2.credentials import Credentials
+                creds = Credentials.from_authorized_user_info(creds_info, scopes=SCOPES)
+                print("  Authenticated via Authorized User info")
+            return build("drive", "v3", credentials=creds, cache_discovery=False)
+        except Exception as err:
+            sys.exit(f"ERROR: Could not parse credentials: {err}")
+
+    sys.exit("ERROR: No valid Google credentials found.")
 
 def download_file(service, name, folder_id):
     q = f'name="{name}" and "{folder_id}" in parents and trashed=false'
@@ -88,7 +109,6 @@ def upload_file(service, name, file_bytes, mime_type, folder_id):
         print(f"  Drive file created: {name} (id={f.get('id')})")
 
 def build_data_payload(df_raw):
-    # Pivot tall schema if raw Q1/Q2/Q3 are in row format
     if "question" in df_raw.columns and "Response" in df_raw.columns:
         print("  Reshaping tall question format...")
         piv = df_raw.pivot_table(
@@ -101,12 +121,10 @@ def build_data_payload(df_raw):
     else:
         piv = df_raw.copy()
 
-    # Column name normalization
     q1_col = "Q1_Rating" if "Q1_Rating" in piv.columns else ("Q1" if "Q1" in piv.columns else "rating")
     q2_col = "Q2_Resolved" if "Q2_Resolved" in piv.columns else ("Q2" if "Q2" in piv.columns else "resolved")
     q3_col = "Q3_Feedback" if "Q3_Feedback" in piv.columns else ("Q3" if "Q3" in piv.columns else "q3_text")
 
-    # Dates and weeks (ISO Monday)
     dt_series = pd.to_datetime(piv["Date"])
     piv["d"] = dt_series.dt.strftime("%Y-%m-%d %H:%M:%S")
     mondays = dt_series - pd.to_timedelta(dt_series.dt.weekday, unit="D")
@@ -116,7 +134,6 @@ def build_data_payload(df_raw):
     piv["p"] = piv["platform"].astype(str)
     piv["c"] = piv["courier_id"].astype(str)
 
-    # Q1 formatting
     def parse_q1(val):
         s = str(val).strip()
         if s in ("1", "2", "1-2", "1-2★") or s.startswith("1") or s.startswith("2"):
@@ -127,10 +144,8 @@ def build_data_payload(df_raw):
     piv["q1"] = [v[0] for v in q1_vals]
     piv["is_neg"] = [v[1] for v in q1_vals]
 
-    # Q2 formatting
     piv["q2"] = piv[q2_col].apply(lambda v: "Yes" if str(v).strip().lower() in ("1", "yes", "true") else "No")
 
-    # Split Q1+Q3 transcripts vs Q1-only
     has_q3 = piv[q3_col].notna() & (piv[q3_col].astype(str).str.strip() != "") & (piv[q3_col].astype(str).str.lower() != "nan")
 
     df_transcripts = piv[has_q3].copy()
@@ -138,7 +153,6 @@ def build_data_payload(df_raw):
 
     print(f"  Loaded total Q1: {len(piv):,} | With Q3: {len(df_transcripts):,} | Q1-only: {len(df_q1_only):,}")
 
-    # Build q1NoQ3 records
     q1_no_q3_list = []
     for _, r in df_q1_only.iterrows():
         q1_no_q3_list.append({
@@ -151,7 +165,6 @@ def build_data_payload(df_raw):
             "n": bool(r["is_neg"])
         })
 
-    # Build Q1+Q3 transcript records
     transcripts_list = []
     for _, r in df_transcripts.iterrows():
         pl = r.get("pillar", r.get("pl", "General / Minimal"))
@@ -171,7 +184,6 @@ def build_data_payload(df_raw):
             "pl12": r.get("pl12", "Others")
         })
 
-    # Compute metrics function
     def compute_stats(rows):
         tot = len(rows)
         if tot == 0:
@@ -253,7 +265,7 @@ def main():
     print("\n[2/3] Computing stats and assembling full data.json...")
     payload = build_data_payload(df_raw)
 
-    # Save locally in GitHub runner
+    # Save locally
     with open(DATA_JSON_FILE, "w", encoding="utf-8") as f:
         json.dump(payload, f, separators=(",", ":"))
     print(f"  Local {DATA_JSON_FILE} generated.")
