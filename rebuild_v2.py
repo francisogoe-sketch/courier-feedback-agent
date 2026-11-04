@@ -1,4 +1,3 @@
-```python
 #!/usr/bin/env python3
 """
 rebuild_v2.py
