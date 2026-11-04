@@ -1,4 +1,5 @@
 name: Courier Feedback Agent
+
 on:
   schedule:
     - cron: '0 13 * * 1'   # Monday 1 PM UTC
@@ -19,15 +20,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
       - name: Install dependencies
-        run: pip install pandas openpyxl numpy google-auth google-auth-oauthlib google-api-python-client
+        run: |
+          pip install pandas openpyxl numpy google-auth google-auth-oauthlib google-api-python-client
 
       - name: Configure Google credentials
         env:
@@ -45,15 +49,12 @@ jobs:
           printf "OUTPUT_FOLDER_ID=1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K\n" >> .env
           printf "GOOGLE_CLOUD_PROJECT=pendo-feedback-agent\n" >> .env
 
-      - name: Run full
+      - name: Run full agent
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: python feedback_agent.py --slack
 
       - name: Rebuild HTML Dashboard
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        env:
-          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_CREDENTIALS }}
-          DRIVE_FOLDER_ID: "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K"
         run: python rebuild_v2.py
 
       - name: Publish Dashboard to GitHub Pages
@@ -63,11 +64,11 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           python save_index.py
           touch .nojekyll
-git add index.html data.json .nojekyll
+          git add index.html data.json .nojekyll
           git diff --staged --quiet || git commit -m "auto: update dashboard and data [skip ci]"
           git push
 
-      - name: Run dry
+      - name: Run dry agent
         if: ${{ github.event.inputs.dry_run == 'true' }}
         run: python feedback_agent.py --dry-run
 
