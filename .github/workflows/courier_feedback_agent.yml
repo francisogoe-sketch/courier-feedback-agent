@@ -63,7 +63,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           touch .nojekyll
-          git add index.html data.json .nojekyll
+          git add -f data.json index.html .nojekyll
           git diff --staged --quiet || git commit -m "auto: update dashboard and data [skip ci]"
           git push
 
@@ -73,4 +73,8 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.run_number }}
+          path: logs/
+          retention-days: 30
