@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
 rebuild_v2.py
-Universal authentication version (supports ADC, User Token, and Service Account).
-Fetches data from Google Drive, calculates metrics, and updates data.json.
+Smart search:
+1. Checks local workspace for combined_all_time.csv (from feedback_agent.py)
+2. Checks Input Folder (1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm)
+3. Checks Output Folder (1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K)
+4. Searches Drive globally by filename
 """
 
-import os, io, json, sys
+import os, io, json, sys, glob
 import pandas as pd
 from datetime import datetime, timezone
 
@@ -21,8 +24,8 @@ except ImportError:
 # ══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
 # ══════════════════════════════════════════════════════════════════════════════
-DRIVE_FOLDER_ID   = os.environ.get("OUTPUT_FOLDER_ID", os.environ.get("DRIVE_FOLDER_ID", "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K"))
-COMBINED_CSV_NAME = "combined_all_time.csv"
+INPUT_FOLDER_ID   = os.environ.get("DRIVE_FOLDER_ID", "1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm")
+OUTPUT_FOLDER_ID  = os.environ.get("OUTPUT_FOLDER_ID", "1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K")
 DATA_JSON_FILE    = "data.json"
 SCOPES            = ["https://www.googleapis.com/auth/drive"]
 
@@ -43,48 +46,33 @@ PILLAR_COLORS = {
 }
 
 def get_drive_service():
-    """Universal auth: checks ADC/env creds first, then falls back to JSON parsing."""
-    creds = None
+    """Universal auth using ADC credentials."""
+    creds, _ = google.auth.default(scopes=SCOPES)
+    print("  Authenticated via Application Default Credentials (ADC)")
+    return build("drive", "v3", credentials=creds, cache_discovery=False)
 
-    # 1. Try ADC / preconfigured credentials file (/tmp/google_creds.json)
-    try:
-        creds, _ = google.auth.default(scopes=SCOPES)
-        print("  Authenticated via Application Default Credentials (ADC)")
-        return build("drive", "v3", credentials=creds, cache_discovery=False)
-    except Exception as e:
-        print(f"  ADC not available ({e}), trying explicit secret...")
+def find_file_in_drive(service, filename, folder_ids):
+    """Searches given folders first, then searches across Drive globally."""
+    # 1. Search specific folders
+    for fid in folder_ids:
+        q = f'name = "{filename}" and "{fid}" in parents and trashed = false'
+        res = service.files().list(q=q, fields="files(id, name)", pageSize=1).execute()
+        files = res.get("files", [])
+        if files:
+            print(f"  Found {filename} in folder: {fid}")
+            return files[0]["id"]
 
-    # 2. Try raw secret string
-    creds_raw = os.environ.get("GDRIVE_SERVICE_ACCOUNT_JSON") or os.environ.get("GOOGLE_CREDS", "")
-    if creds_raw:
-        try:
-            creds_info = json.loads(creds_raw)
-            if "client_email" in creds_info:
-                creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
-                print("  Authenticated via Service Account info")
-            else:
-                from google.oauth2.credentials import Credentials
-                creds = Credentials.from_authorized_user_info(creds_info, scopes=SCOPES)
-                print("  Authenticated via Authorized User info")
-            return build("drive", "v3", credentials=creds, cache_discovery=False)
-        except Exception as err:
-            sys.exit(f"ERROR: Could not parse credentials: {err}")
+    # 2. Global search across Drive
+    q_global = f'name = "{filename}" and trashed = false'
+    res_global = service.files().list(q=q_global, fields="files(id, name, parents)", pageSize=5).execute()
+    files_global = res_global.get("files", [])
+    if files_global:
+        print(f"  Found {filename} globally on Drive (id: {files_global[0]['id']})")
+        return files_global[0]["id"]
 
-    sys.exit("ERROR: No valid Google credentials found.")
+    return None
 
-def download_file(service, name, folder_id):
-    q = f'name="{name}" and "{folder_id}" in parents and trashed=false'
-    res = service.files().list(q=q, fields="files(id,name)", pageSize=5).execute()
-    files = res.get("files", [])
-    if not files:
-        # Fallback check for alternate master CSV names
-        q_alt = f'name="master_classified_all_time.csv" and "{folder_id}" in parents and trashed=false'
-        res_alt = service.files().list(q=q_alt, fields="files(id,name)", pageSize=5).execute()
-        files = res_alt.get("files", [])
-        if not files:
-            raise FileNotFoundError(f"Neither {name} nor master_classified_all_time.csv found in folder {folder_id}")
-
-    file_id = files[0]["id"]
+def download_stream(service, file_id):
     req = service.files().get_media(fileId=file_id)
     buf = io.BytesIO()
     dl = MediaIoBaseDownload(buf, req)
@@ -108,7 +96,48 @@ def upload_file(service, name, file_bytes, mime_type, folder_id):
         f = service.files().create(body=meta, media_body=media, fields="id").execute()
         print(f"  Drive file created: {name} (id={f.get('id')})")
 
+def load_source_csv(service):
+    """Finds CSV locally or downloads from Drive."""
+    candidate_names = [
+        "combined_all_time.csv",
+        "master_classified_all_time.csv",
+        "combined_all_time (2).csv"
+    ]
+
+    # 1. Check local file system first
+    local_search_paths = [
+        ".",
+        "tmp",
+        "/tmp",
+        "data",
+        "outputs"
+    ]
+    for p in local_search_paths:
+        for name in candidate_names:
+            local_path = os.path.join(p, name)
+            if os.path.exists(local_path):
+                print(f"  Found local dataset at: {local_path}")
+                return pd.read_csv(local_path)
+
+    # Search wildcard pattern locally
+    any_local = glob.glob("**/*combined*.csv", recursive=True) + glob.glob("**/*master*.csv", recursive=True)
+    if any_local:
+        print(f"  Found local dataset via pattern: {any_local[0]}")
+        return pd.read_csv(any_local[0])
+
+    # 2. Check Drive folders
+    print("  Checking Google Drive for dataset...")
+    folders_to_check = [INPUT_FOLDER_ID, OUTPUT_FOLDER_ID]
+    for name in candidate_names:
+        file_id = find_file_in_drive(service, name, folders_to_check)
+        if file_id:
+            buf = download_stream(service, file_id)
+            return pd.read_csv(buf)
+
+    raise FileNotFoundError("Could not find combined_all_time.csv or master_classified_all_time.csv locally or on Google Drive.")
+
 def build_data_payload(df_raw):
+    # Pivot tall schema if questions are row-based
     if "question" in df_raw.columns and "Response" in df_raw.columns:
         print("  Reshaping tall question format...")
         piv = df_raw.pivot_table(
@@ -151,7 +180,7 @@ def build_data_payload(df_raw):
     df_transcripts = piv[has_q3].copy()
     df_q1_only = piv[~has_q3].copy()
 
-    print(f"  Loaded total Q1: {len(piv):,} | With Q3: {len(df_transcripts):,} | Q1-only: {len(df_q1_only):,}")
+    print(f"  Total Q1: {len(piv):,} | With Q3: {len(df_transcripts):,} | Q1-only: {len(df_q1_only):,}")
 
     q1_no_q3_list = []
     for _, r in df_q1_only.iterrows():
@@ -256,24 +285,22 @@ def main():
 
     service = get_drive_service()
 
-    # 1. Download
-    print(f"\n[1/3] Downloading {COMBINED_CSV_NAME} from Google Drive...")
-    buf = download_file(service, COMBINED_CSV_NAME, DRIVE_FOLDER_ID)
-    df_raw = pd.read_csv(buf)
+    # 1. Load data
+    print("\n[1/3] Locating and loading dataset...")
+    df_raw = load_source_csv(service)
 
     # 2. Process
     print("\n[2/3] Computing stats and assembling full data.json...")
     payload = build_data_payload(df_raw)
 
-    # Save locally
     with open(DATA_JSON_FILE, "w", encoding="utf-8") as f:
         json.dump(payload, f, separators=(",", ":"))
     print(f"  Local {DATA_JSON_FILE} generated.")
 
-    # 3. Upload back to Drive
+    # 3. Upload to Output folder
     print(f"\n[3/3] Uploading updated {DATA_JSON_FILE} to Google Drive...")
     json_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-    upload_file(service, DATA_JSON_FILE, json_bytes, "application/json", DRIVE_FOLDER_ID)
+    upload_file(service, DATA_JSON_FILE, json_bytes, "application/json", OUTPUT_FOLDER_ID)
 
     print(f"\n{'='*60}")
     print(f"  SUCCESS: data.json updated! index.html is ready.")
