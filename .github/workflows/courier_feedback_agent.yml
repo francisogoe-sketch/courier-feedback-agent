@@ -62,7 +62,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           python save_index.py
-          git add index.html data.json
+          touch .nojekyll
+git add index.html data.json .nojekyll
           git diff --staged --quiet || git commit -m "auto: update dashboard and data [skip ci]"
           git push
 
