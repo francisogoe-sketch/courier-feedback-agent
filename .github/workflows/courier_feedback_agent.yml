@@ -53,9 +53,9 @@ jobs:
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: python feedback_agent.py --slack
 
-      - name: Rebuild HTML Dashboard
+     - name: Rebuild HTML Dashboard
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: python rebuild_v2.py
+        run: python build_master_data.py
 
       - name: Publish Dashboard to GitHub Pages
         if: ${{ github.event.inputs.dry_run != 'true' }}
