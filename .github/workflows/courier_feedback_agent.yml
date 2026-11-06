@@ -2,9 +2,9 @@ name: Courier Feedback Agent
 
 on:
   schedule:
-    - cron: '0 13 * * 1'   # Monday 1 PM UTC
-    - cron: '0 17 * * 1'   # Monday 5 PM UTC
-    - cron: '0 10 * * 2'   # Tuesday 10 AM UTC
+    - cron: '0 13 * * 1'
+    - cron: '0 17 * * 1'
+    - cron: '0 10 * * 2'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -49,16 +49,10 @@ jobs:
           printf "OUTPUT_FOLDER_ID=1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K\n" >> .env
           printf "GOOGLE_CLOUD_PROJECT=pendo-feedback-agent\n" >> .env
 
-      - name: Run full agent
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: python feedback_agent.py --slack
-
-     - name: Rebuild HTML Dashboard
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+      - name: Rebuild HTML Dashboard
         run: python build_master_data.py
 
       - name: Publish Dashboard to GitHub Pages
-        if: ${{ github.event.inputs.dry_run != 'true' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -66,10 +60,6 @@ jobs:
           git add -f data.json index.html .nojekyll
           git diff --staged --quiet || git commit -m "auto: update dashboard and data"
           git push
-
-      - name: Run dry agent
-        if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: python feedback_agent.py --dry-run
 
       - name: Upload logs
         if: always()
