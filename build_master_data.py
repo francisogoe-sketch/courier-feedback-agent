@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
 build_master_data.py
-Strict Gold Courier Filtering Engine:
-- Downloads or discovers CA & UK Gold courier CSVs matching '(CA|UK) - gold_YYYY-MM-DD'
-- Strictly isolates the 468 Gold Courier IDs
-- Ensures D.gold contains ONLY verified Gold couriers
-- Reverts cleanly to the complete 65,390 baseline when Gold Only is off
+- Retrieves CA and UK Gold courier lists matching:
+    (CA or UK) ... gold_YYYY-MM-DD.csv
+  from Google Drive Input Folder or local workspace.
+- Strictly isolates verified Gold Courier IDs.
+- Builds complete baseline (65,390 total Q1 respondents, 10,915 Q3 transcripts).
+- Filters D.gold exclusively to verified Gold couriers.
+- Preserves all 20 historical weeks (June 17 – Nov 1).
 """
 
 import os, io, glob, json, sys, re
@@ -21,7 +23,7 @@ except ImportError:
 INPUT_FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID", "1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm")
 SCOPES          = ["https://www.googleapis.com/auth/drive.readonly"]
 
-# Regex matching: (CA or UK) followed by gold_YYYY-MM-DD
+# Strict pattern matching: CA or UK followed by gold_YYYY-MM-DD
 GOLD_PATTERN = re.compile(r'\b(CA|UK)\b.*?-?\s*gold_\d{4}-\d{2}-\d{2}.*\.csv$', re.IGNORECASE)
 
 PILLAR_ORDER = [
@@ -43,6 +45,7 @@ PILLAR_COLORS = {
 def get_drive_service():
     try:
         creds, _ = google.auth.default(scopes=SCOPES)
+        print("  Authenticated with Google Drive via ADC")
         return build("drive", "v3", credentials=creds, cache_discovery=False)
     except Exception as e:
         print(f"  Google Drive service unavailable: {e}")
@@ -68,8 +71,12 @@ def load_gold_courier_ids(service):
         try:
             q = f"'{INPUT_FOLDER_ID}' in parents and trashed = false"
             res = service.files().list(
-                q=q, fields="files(id, name)", pageSize=100,
-                supportsAllDrives=True, includeItemsFromAllDrives=True, corpora="allDrives"
+                q=q,
+                fields="files(id, name)",
+                pageSize=100,
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
+                corpora="allDrives"
             ).execute()
 
             for f in res.get("files", []):
@@ -193,8 +200,6 @@ def main():
         if pl not in PILLAR_ORDER:
             pl = "General / Minimal"
         cid = str(r["Courier ID"]).strip()
-        
-        # Strict Gold Verification
         is_gold = bool(cid in gold_courier_ids)
 
         rec = {
