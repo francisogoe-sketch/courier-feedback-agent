@@ -692,7 +692,8 @@ function populatePeriodSelector() {
   const transcripts = getFilteredTranscripts();
 
   if (periodMode === 'weekly') {
-    const weeks = [...new Set(transcripts.map(t => t.w))].filter(Boolean).sort();
+    const allAvailableWeeks = (D && D.weeks && D.weeks.length) ? D.weeks : [];
+        const weeks = [...new Set([...allAvailableWeeks, ...transcripts.map(t => t.w)])].filter(Boolean).sort();
     weeks.forEach(w => {
       const opt = document.createElement('option');
       opt.value = w;

@@ -116,8 +116,16 @@ def load_gold_courier_ids(service):
 def load_all_surveys(service):
     """Loads all surveys from combined CSVs or individual weekly exports."""
     dfs = []
-    # 1. Local combined CSVs
-    candidates = glob.glob("**/*combined*.csv", recursive=True) + glob.glob("**/*master*.csv", recursive=True)
+    # 1. Check Parquet Base or Local Combined/Master Data
+    parquet_path = os.path.join("data", "base", "courier_survey_all_data.parquet")
+    if os.path.exists(parquet_path):
+        try:
+            df_p = pd.read_parquet(parquet_path)
+            print(f"  Loaded master Parquet: {parquet_path} ({len(df_p):,} rows)")
+            dfs.append(df_p)
+        except Exception as e:
+            print(f"  Warning reading parquet: {e}")
+    candidates = glob.glob("**/*combined*.csv", recursive=True) + glob.glob("**/*master*.csv", recursive=True) + glob.glob("*all_data*.csv", recursive=True)
     for c in candidates:
         try:
             d = pd.read_csv(c, low_memory=False)
@@ -147,6 +155,12 @@ def process_and_assemble(df_raw, gold_ids):
     # Standardize column names
     col_map = {c: c.strip() for c in df_raw.columns}
     df_raw = df_raw.rename(columns=col_map)
+    aliases = {'region': 'market', 'response_datetime': 'Date', 'response_english': 'Response', 'response_original': 'Response', 'Visitor ID': 'Visitor_ID'}
+    for k, v in aliases.items():
+        if k in df_raw.columns and v not in df_raw.columns:
+            df_raw[v] = df_raw[k]
+    if 'Date' not in df_raw.columns and 'week_start' in df_raw.columns:
+        df_raw['Date'] = df_raw['week_start']
 
     # Tall format: pivot by session
     if "question" in df_raw.columns and "Response" in df_raw.columns:
@@ -168,7 +182,7 @@ def process_and_assemble(df_raw, gold_ids):
         piv["dt"] = piv[session_col].map(date_lookup)
     else:
         piv = df_raw.copy()
-        date_col = next((c for c in ["Date", "date", "created_at"] if c in piv.columns), "Date")
+        date_col = next((c for c in ["Date", "date", "created_at", "response_datetime", "week_start"] if c in piv.columns), "Date")
         piv["dt"] = pd.to_datetime(piv[date_col], errors="coerce")
         piv = piv.dropna(subset=["dt"])
 
