@@ -68,7 +68,7 @@ input[type="text"]:focus, input[type="date"]:focus { outline: none; border-color
 .courier-clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 16px; color: var(--text-secondary); border: none; background: none; padding: 0; }
 .custom-range { display: flex; align-items: center; gap: 6px; }
 
-/* MAIN LAYOUT — FULL WIDTH */
+/* MAIN LAYOUT */
 .main { padding: 20px 24px; width: 100%; }
 .section { margin-bottom: 20px; }
 
@@ -97,7 +97,7 @@ input[type="text"]:focus, input[type="date"]:focus { outline: none; border-color
 .kpi-change.bad { color: var(--red); }
 .kpi-change.neutral { color: var(--text-secondary); }
 
-/* TWO-COLUMN LAYOUT: chart + pillars side by side */
+/* TWO-COLUMN LAYOUT */
 .dual-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 1200px) { .dual-row { grid-template-columns: 1fr; } }
 
@@ -512,7 +512,7 @@ function init() {
   document.getElementById('goldOnly').addEventListener('change', e => {
     goldOnly = e.target.checked;
     
-    // Reset courier filter to prevent retaining non-gold courier
+    // Clear individual courier filter to prevent non-gold filter retention
     courierFilter = null;
     document.getElementById('courierFilter').value = '';
     document.getElementById('courierClear').classList.add('hidden');
@@ -873,11 +873,18 @@ function render() {
   document.getElementById('transcriptLabel').innerHTML = '<strong>' + label + filterLabel + ': ' + allTime.total.toLocaleString() + ' Q3 transcripts</strong>';
   document.getElementById('periodLabel').textContent = period.total.toLocaleString() + ' Q3 transcripts this period';
 
+  // Total Q1 respondents = Q3 transcripts + Q1-only ratings
   const allQ1Period = getAllQ1Responses();
-  const allQ1AllTime = getFilteredTranscripts().concat(
-    (goldOnly ? (D.q1NoQ3.gold||[]) : (D.q1NoQ3.all||[]))
-      .filter(r => !goldOnly || r.isGold === true || (D.q1NoQ3.gold && D.q1NoQ3.gold.includes(r)))
-      .map(r => ({q1: r.q1||r.q||'', neg: r.neg!==undefined?r.neg:(r.n||false), m: r.m, q2: 'No'}))
+  const allQ1AllTime = allTranscripts.concat(
+    (goldOnly ? (D.q1NoQ3.gold || []) : (D.q1NoQ3.all || []))
+      .filter(r => !courierFilter || r.c === courierFilter)
+      .filter(r => marketFilter === 'all' || r.m === marketFilter)
+      .map(r => ({
+        q1: r.q1 || r.q || '',
+        neg: r.neg !== undefined ? r.neg : (r.n || false),
+        pos: r.pos !== undefined ? r.pos : !(r.neg !== undefined ? r.neg : (r.n || false)),
+        m: r.m, q2: 'No'
+      }))
   );
 
   const q1PeriodMetrics = computeQ1Metrics(allQ1Period);
@@ -886,8 +893,12 @@ function render() {
   renderCard('negQ1', q1PeriodMetrics.negQ1Pct, q1AllTimeMetrics.negQ1Pct, 'pp', false);
   renderCard('posQ1', q1PeriodMetrics.posQ1Pct, q1AllTimeMetrics.posQ1Pct, 'pp', true);
   renderCard('res', period.resPct, allTime.resPct, 'pp', true);
+
+  // Q3 Transcripts Card (Couriers who left comments)
   document.getElementById('countVal').textContent = period.total.toLocaleString();
   document.getElementById('countSub').textContent = 'of ' + allTime.total.toLocaleString() + ' all-time';
+
+  // Q1 Respondents Card (Total volume who rated Q1)
   document.getElementById('q1CountVal').textContent = q1PeriodMetrics.total.toLocaleString();
   document.getElementById('q1CountSub').textContent = 'of ' + q1AllTimeMetrics.total.toLocaleString() + ' all-time';
 
