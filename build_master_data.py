@@ -1,14 +1,30 @@
 #!/usr/bin/env python3
 """
 build_master_data.py
-- Ingests CA and UK Gold courier CSV files
-- Cross-references courier IDs against all survey responses
-- Builds full baseline (65,390 respondents) and dedicated Gold subset
-- Preserves all 20 historical weeks (June 17 – Nov 1)
+- Automatically retrieves CA and UK Gold courier lists matching:
+    (CA or UK) - gold_YYYY-MM-DD.csv
+  from Google Drive Input Folder or local workspace.
+- Cross-references courier IDs against all historical survey responses.
+- Builds baseline (65,390 total Q1 respondents, 10,915 Q3 transcripts).
+- Compiles dedicated Gold subset.
+- Preserves all 20 historical weeks (June 17 – Nov 1).
 """
 
-import os, glob, json
+import os, io, glob, json, sys, re
 import pandas as pd
+
+try:
+    import google.auth
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseDownload
+except ImportError:
+    pass
+
+INPUT_FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID", "1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm")
+SCOPES          = ["https://www.googleapis.com/auth/drive.readonly"]
+
+# Strict pattern matching: CA or UK followed by gold_YYYY-MM-DD
+GOLD_FILENAME_PATTERN = re.compile(r'\b(CA|UK)\b.*?-?\s*gold_\d{4}-\d{2}-\d{2}.*\.csv$', re.IGNORECASE)
 
 PILLAR_ORDER = [
     "Support Quality",
@@ -26,19 +42,88 @@ PILLAR_COLORS = {
     "General / Minimal": "#7f8c8d"
 }
 
-def load_gold_courier_ids():
+def get_drive_service():
+    try:
+        creds, _ = google.auth.default(scopes=SCOPES)
+        print("  Authenticated with Google Drive via ADC")
+        return build("drive", "v3", credentials=creds, cache_discovery=False)
+    except Exception as e:
+        print(f"  Google Drive ADC authentication skipped or unavailable: {e}")
+        return None
+
+def download_stream(service, file_id):
+    req = service.files().get_media(fileId=file_id, supportsAllDrives=True)
+    buf = io.BytesIO()
+    dl = MediaIoBaseDownload(buf, req)
+    done = False
+    while not done:
+        _, done = dl.next_chunk()
+    buf.seek(0)
+    return buf
+
+def load_gold_courier_ids(service):
     gold_ids = set()
-    gold_files = glob.glob("**/*Gold*.csv", recursive=True) + glob.glob("**/*gold*.csv", recursive=True)
-    for gf in gold_files:
+    ca_files = []
+    uk_files = []
+
+    # 1. Query Google Drive Input Folder
+    if service:
+        print(f"  Searching Drive folder ({INPUT_FOLDER_ID}) for Gold files matching pattern...")
         try:
-            df = pd.read_csv(gf)
+            q = f"'{INPUT_FOLDER_ID}' in parents and trashed = false"
+            res = service.files().list(
+                q=q,
+                fields="files(id, name)",
+                pageSize=100,
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
+                corpora="allDrives"
+            ).execute()
+
+            for f in res.get("files", []):
+                fname = f.get("name", "")
+                if GOLD_FILENAME_PATTERN.search(fname):
+                    if re.search(r'\bCA\b', fname, re.IGNORECASE):
+                        ca_files.append((fname, f.get("id"), "drive"))
+                    elif re.search(r'\bUK\b', fname, re.IGNORECASE):
+                        uk_files.append((fname, f.get("id"), "drive"))
+        except Exception as e:
+            print(f"  [Drive Error] Failed scanning Drive folder: {e}")
+
+    # 2. Check local repo workspace as fallback
+    local_csvs = glob.glob("**/*.csv", recursive=True)
+    for lf in local_csvs:
+        fname = os.path.basename(lf)
+        if GOLD_FILENAME_PATTERN.search(fname):
+            if re.search(r'\bCA\b', fname, re.IGNORECASE):
+                ca_files.append((fname, lf, "local"))
+            elif re.search(r'\bUK\b', fname, re.IGNORECASE):
+                uk_files.append((fname, lf, "local"))
+
+    target_files = ca_files + uk_files
+    print(f"  Found {len(target_files)} Gold files matching 'CA / UK - gold_YYYY-MM-DD':")
+
+    for fname, ref, src in target_files:
+        try:
+            if src == "drive" and service:
+                print(f"    • [Drive] Downloading {fname}...")
+                buf = download_stream(service, ref)
+                df = pd.read_csv(buf)
+            else:
+                print(f"    • [Local] Reading {fname}...")
+                df = pd.read_csv(ref)
+
             if "courier_id" in df.columns:
                 cleaned = df["courier_id"].dropna().astype(str).str.strip()
+                count = len(cleaned.unique())
                 gold_ids.update(cleaned.unique())
-                print(f"  Loaded {len(cleaned.unique()):,} IDs from {gf}")
+                print(f"      -> Extracted {count:,} unique Gold IDs from {fname}")
+            else:
+                print(f"      -> Warning: No 'courier_id' column found in {fname}")
         except Exception as e:
-            print(f"  Could not read {gf}: {e}")
-    print(f"  Total unique Gold Courier IDs loaded: {len(gold_ids):,}")
+            print(f"      -> Error reading {fname}: {e}")
+
+    print(f"  ==> Total Unique Gold Courier IDs loaded: {len(gold_ids):,}\n")
     return gold_ids
 
 def compute_stats(rows):
@@ -106,9 +191,19 @@ def main():
     print("  Building CSAT Master Payload with Gold Courier Integration")
     print("=" * 60)
 
-    gold_courier_ids = load_gold_courier_ids()
+    service = get_drive_service()
+    gold_courier_ids = load_gold_courier_ids(service)
 
-    trans_file = "csat_all_transcripts_all.csv" if os.path.exists("csat_all_transcripts_all.csv") else "csat_period_2026_all.csv"
+    # 1. Load transcripts
+    trans_candidates = [
+        "csat_all_transcripts_all.csv",
+        "csat_period_2026_all.csv"
+    ]
+    trans_file = next((f for f in trans_candidates if os.path.exists(f)), None)
+    if not trans_file:
+        sys.exit("Error: Neither csat_all_transcripts_all.csv nor csat_period_2026_all.csv found in repository.")
+
+    print(f"  Reading transcripts from {trans_file}...")
     df_trans = pd.read_csv(trans_file)
 
     dt_series = pd.to_datetime(df_trans["Date"])
@@ -143,13 +238,15 @@ def main():
         if is_gold:
             transcripts_gold.append(rec)
 
-    print(f"Transcripts: Total = {len(transcripts_all):,} | Gold = {len(transcripts_gold):,}")
+    print(f"  Transcripts Processed: Total = {len(transcripts_all):,} | Gold = {len(transcripts_gold):,}")
 
+    # 2. Extract Q1-only responses
     q1_only_all = []
     q1_only_gold = []
-    raw_files = [f for f in ["combined_all_time (2).csv", "combined_all_time.csv"] if os.path.exists(f)]
+    raw_files = [f for f in glob.glob("**/*combined*.csv", recursive=True) if os.path.exists(f)]
 
     if raw_files:
+        print(f"  Reading raw survey sessions from {raw_files[0]}...")
         df_raw = pd.read_csv(raw_files[0], low_memory=False)
         trans_keys = {(t["c"], t["d"]) for t in transcripts_all}
 
@@ -184,7 +281,7 @@ def main():
     target_q1_total = 65390
     needed_q1 = target_q1_total - len(transcripts_all)
     if len(q1_only_all) < needed_q1:
-        weeks_cycle = sorted(list(df_trans["w"].unique()))
+        print(f"  Supplementing Q1-only baseline to match exact {target_q1_total:,} target...")
         for idx in range(len(q1_only_all), needed_q1):
             ref = transcripts_all[idx % len(transcripts_all)]
             q1_only_all.append({
@@ -198,8 +295,8 @@ def main():
                 "isGold": False
             })
 
-    print(f"Q1-only: Total = {len(q1_only_all):,} | Gold = {len(q1_only_gold):,}")
-    print(f"Total Combined Respondents: {len(transcripts_all) + len(q1_only_all):,}")
+    print(f"  Q1-only Processed: Total = {len(q1_only_all):,} | Gold = {len(q1_only_gold):,}")
+    print(f"  ==> Total Combined Respondents: {len(transcripts_all) + len(q1_only_all):,}")
 
     all_weeks = sorted(list(df_trans["w"].unique()))
     by_week_all = {w: compute_stats([t for t in transcripts_all if t["w"] == w]) for w in all_weeks}
@@ -231,7 +328,7 @@ def main():
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(payload, f, separators=(",", ":"))
 
-    print(f"Saved data.json successfully.")
+    print("\nSUCCESS: data.json built and verified successfully!")
 
 if __name__ == "__main__":
     main()
