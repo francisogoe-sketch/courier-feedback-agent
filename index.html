@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>T1 SB CSAT — Gold Courier Feedback Intelligence (CA & UK)</title>
+<title>T1 SB CSAT — Courier Feedback Intelligence</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -511,9 +511,16 @@ function init() {
 
   document.getElementById('goldOnly').addEventListener('change', e => {
     goldOnly = e.target.checked;
+    
+    // Reset courier filter to prevent retaining non-gold courier
+    courierFilter = null;
+    document.getElementById('courierFilter').value = '';
+    document.getElementById('courierClear').classList.add('hidden');
+
     const prevPeriod = currentPeriod;
     populateCourierList();
     populateMarketFilter();
+
     if (periodMode !== 'custom') {
       populatePeriodSelector();
       const sel = document.getElementById('periodValueSelect');
@@ -523,7 +530,9 @@ function init() {
         sel.value = currentPeriod;
       }
     }
-    if (q1PeriodMode !== 'all') populateQ1PeriodValue();
+    if (q1PeriodMode !== 'all') {
+      populateQ1PeriodValue();
+    }
     render();
   });
 
@@ -565,6 +574,10 @@ function init() {
     if (el.id !== 'loading' && el.id !== 'customRangeGroup' && el.id !== 'courierClear' && el.id !== 'q1PeriodNav') el.classList.remove('hidden');
   });
   render();
+}
+
+function getDataset() { 
+  return goldOnly ? D.gold : D.all; 
 }
 
 function populateCourierList() {
@@ -636,7 +649,6 @@ function applyCustomRange() {
 }
 
 function formatDate(d) { return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }); }
-function getDataset() { return goldOnly ? D.gold : D.all; }
 function getPillarField() { return currentView === 'L2' ? 'pl12' : 'pl'; }
 function getPillarOrder() { return currentView === 'L2' ? (D.l2 ? D.l2.pillarOrder : D.pillarOrder) : D.pillarOrder; }
 function getPillarColors() { return currentView === 'L2' ? (D.l2 ? D.l2.pillarColors : D.pillarColors) : D.pillarColors; }
@@ -649,7 +661,10 @@ function getQuarter(dateStr) {
 }
 
 function getFilteredTranscripts() {
-  let transcripts = getDataset().transcripts;
+  let transcripts = getDataset().transcripts || [];
+  if (goldOnly) {
+    transcripts = transcripts.filter(t => t.isGold === true || (D.gold && D.gold.transcripts.includes(t)));
+  }
   if (courierFilter) transcripts = transcripts.filter(t => t.c === courierFilter);
   if (marketFilter !== 'all') transcripts = transcripts.filter(t => t.m === marketFilter);
   return transcripts;
@@ -780,8 +795,13 @@ function getAllQ1Responses() {
   const periodTranscripts = getPeriodTranscripts();
   const ds = D.q1NoQ3 || { all: [], gold: [] };
   let q1only = goldOnly ? (ds.gold || []) : (ds.all || []);
+
+  if (goldOnly) {
+    q1only = q1only.filter(r => r.isGold === true || (D.q1NoQ3.gold && D.q1NoQ3.gold.includes(r)));
+  }
   if (courierFilter) q1only = q1only.filter(r => r.c === courierFilter);
   if (marketFilter !== 'all') q1only = q1only.filter(r => r.m === marketFilter);
+
   if (periodMode === 'weekly') {
     q1only = q1only.filter(r => r.w === currentPeriod);
   } else if (periodMode === 'monthly') {
@@ -793,6 +813,7 @@ function getAllQ1Responses() {
   } else if (periodMode === 'custom') {
     q1only = q1only.filter(r => { const d = r.d.substring(0, 10); return d >= customStart && d <= customEnd; });
   }
+
   const norm = q1only.map(r => ({
     d: r.d, m: r.m, p: r.p,
     q1: r.q1 || r.q || '',
@@ -853,7 +874,12 @@ function render() {
   document.getElementById('periodLabel').textContent = period.total.toLocaleString() + ' Q3 transcripts this period';
 
   const allQ1Period = getAllQ1Responses();
-  const allQ1AllTime = getFilteredTranscripts().concat((goldOnly ? (D.q1NoQ3.gold||[]) : (D.q1NoQ3.all||[])).map(r => ({q1: r.q1||r.q||'', neg: r.neg!==undefined?r.neg:(r.n||false), m: r.m, q2: 'No'})));
+  const allQ1AllTime = getFilteredTranscripts().concat(
+    (goldOnly ? (D.q1NoQ3.gold||[]) : (D.q1NoQ3.all||[]))
+      .filter(r => !goldOnly || r.isGold === true || (D.q1NoQ3.gold && D.q1NoQ3.gold.includes(r)))
+      .map(r => ({q1: r.q1||r.q||'', neg: r.neg!==undefined?r.neg:(r.n||false), m: r.m, q2: 'No'}))
+  );
+
   const q1PeriodMetrics = computeQ1Metrics(allQ1Period);
   const q1AllTimeMetrics = computeQ1Metrics(allQ1AllTime);
 
@@ -1002,7 +1028,8 @@ function onQ1PeriodModeChange() {
 
 function populateQ1PeriodValue() {
   const ds = D.q1NoQ3 || { all: [], gold: [] };
-  let rows = goldOnly ? ds.gold : ds.all;
+  let rows = goldOnly ? (ds.gold || []) : (ds.all || []);
+  if (goldOnly) rows = rows.filter(r => r.isGold === true || (D.q1NoQ3.gold && D.q1NoQ3.gold.includes(r)));
   if (courierFilter) rows = rows.filter(r => r.c === courierFilter);
   const sel = document.getElementById('q1PeriodValue');
   sel.innerHTML = '';
@@ -1061,7 +1088,10 @@ function navQ1Period(dir) {
 
 function renderQ1Only() {
   const ds = D.q1NoQ3 || { all: [], gold: [] };
-  let rows = goldOnly ? ds.gold : ds.all;
+  let rows = goldOnly ? (ds.gold || []) : (ds.all || []);
+  if (goldOnly) {
+    rows = rows.filter(r => r.isGold === true || (D.q1NoQ3.gold && D.q1NoQ3.gold.includes(r)));
+  }
   if (courierFilter) rows = rows.filter(r => r.c === courierFilter);
 
   if (q1PeriodMode === 'weekly') {
@@ -1116,6 +1146,7 @@ function renderQ1Compare(q1OnlyRows) {
   if (!container) return;
   const ds = getDataset();
   let bothRows = ds.transcripts.filter(t => {
+    if (goldOnly && !t.isGold && !(D.gold && D.gold.transcripts.includes(t))) return false;
     if (q1PeriodMode === 'weekly') return t.w === q1PeriodValue;
     if (q1PeriodMode === 'monthly') return t.d.substring(0, 7) === q1PeriodValue;
     if (q1PeriodMode === 'quarterly') return getQuarter(t.d) === q1PeriodValue;
