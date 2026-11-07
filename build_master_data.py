@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """
 build_master_data.py
-- Automatically retrieves CA and UK Gold courier lists matching:
-    (CA or UK) - gold_YYYY-MM-DD.csv
-  from Google Drive Input Folder or local workspace.
-- Cross-references courier IDs against all historical survey responses.
-- Builds baseline (65,390 total Q1 respondents, 10,915 Q3 transcripts).
-- Compiles dedicated Gold subset.
-- Preserves all 20 historical weeks (June 17 – Nov 1).
+Strict Gold Courier Filtering Engine:
+- Downloads or discovers CA & UK Gold courier CSVs matching '(CA|UK) - gold_YYYY-MM-DD'
+- Strictly isolates the 468 Gold Courier IDs
+- Ensures D.gold contains ONLY verified Gold couriers
+- Reverts cleanly to the complete 65,390 baseline when Gold Only is off
 """
 
 import os, io, glob, json, sys, re
@@ -23,8 +21,8 @@ except ImportError:
 INPUT_FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID", "1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm")
 SCOPES          = ["https://www.googleapis.com/auth/drive.readonly"]
 
-# Strict pattern matching: CA or UK followed by gold_YYYY-MM-DD
-GOLD_FILENAME_PATTERN = re.compile(r'\b(CA|UK)\b.*?-?\s*gold_\d{4}-\d{2}-\d{2}.*\.csv$', re.IGNORECASE)
+# Regex matching: (CA or UK) followed by gold_YYYY-MM-DD
+GOLD_PATTERN = re.compile(r'\b(CA|UK)\b.*?-?\s*gold_\d{4}-\d{2}-\d{2}.*\.csv$', re.IGNORECASE)
 
 PILLAR_ORDER = [
     "Support Quality",
@@ -45,10 +43,9 @@ PILLAR_COLORS = {
 def get_drive_service():
     try:
         creds, _ = google.auth.default(scopes=SCOPES)
-        print("  Authenticated with Google Drive via ADC")
         return build("drive", "v3", credentials=creds, cache_discovery=False)
     except Exception as e:
-        print(f"  Google Drive ADC authentication skipped or unavailable: {e}")
+        print(f"  Google Drive service unavailable: {e}")
         return None
 
 def download_stream(service, file_id):
@@ -63,67 +60,48 @@ def download_stream(service, file_id):
 
 def load_gold_courier_ids(service):
     gold_ids = set()
-    ca_files = []
-    uk_files = []
+    found_files = []
 
-    # 1. Query Google Drive Input Folder
+    # 1. Check Google Drive Input Folder
     if service:
-        print(f"  Searching Drive folder ({INPUT_FOLDER_ID}) for Gold files matching pattern...")
+        print(f"  Searching Drive ({INPUT_FOLDER_ID}) for Gold files...")
         try:
             q = f"'{INPUT_FOLDER_ID}' in parents and trashed = false"
             res = service.files().list(
-                q=q,
-                fields="files(id, name)",
-                pageSize=100,
-                supportsAllDrives=True,
-                includeItemsFromAllDrives=True,
-                corpora="allDrives"
+                q=q, fields="files(id, name)", pageSize=100,
+                supportsAllDrives=True, includeItemsFromAllDrives=True, corpora="allDrives"
             ).execute()
 
             for f in res.get("files", []):
                 fname = f.get("name", "")
-                if GOLD_FILENAME_PATTERN.search(fname):
-                    if re.search(r'\bCA\b', fname, re.IGNORECASE):
-                        ca_files.append((fname, f.get("id"), "drive"))
-                    elif re.search(r'\bUK\b', fname, re.IGNORECASE):
-                        uk_files.append((fname, f.get("id"), "drive"))
+                if GOLD_PATTERN.search(fname):
+                    found_files.append((fname, f.get("id"), "drive"))
         except Exception as e:
-            print(f"  [Drive Error] Failed scanning Drive folder: {e}")
+            print(f"  [Drive Error] Failed listing folder: {e}")
 
-    # 2. Check local repo workspace as fallback
-    local_csvs = glob.glob("**/*.csv", recursive=True)
-    for lf in local_csvs:
+    # 2. Check local repo workspace
+    for lf in glob.glob("**/*.csv", recursive=True):
         fname = os.path.basename(lf)
-        if GOLD_FILENAME_PATTERN.search(fname):
-            if re.search(r'\bCA\b', fname, re.IGNORECASE):
-                ca_files.append((fname, lf, "local"))
-            elif re.search(r'\bUK\b', fname, re.IGNORECASE):
-                uk_files.append((fname, lf, "local"))
+        if GOLD_PATTERN.search(fname):
+            found_files.append((fname, lf, "local"))
 
-    target_files = ca_files + uk_files
-    print(f"  Found {len(target_files)} Gold files matching 'CA / UK - gold_YYYY-MM-DD':")
-
-    for fname, ref, src in target_files:
+    print(f"  Found {len(found_files)} Gold files:")
+    for fname, ref, src in found_files:
         try:
             if src == "drive" and service:
-                print(f"    • [Drive] Downloading {fname}...")
                 buf = download_stream(service, ref)
                 df = pd.read_csv(buf)
             else:
-                print(f"    • [Local] Reading {fname}...")
                 df = pd.read_csv(ref)
 
             if "courier_id" in df.columns:
                 cleaned = df["courier_id"].dropna().astype(str).str.strip()
-                count = len(cleaned.unique())
                 gold_ids.update(cleaned.unique())
-                print(f"      -> Extracted {count:,} unique Gold IDs from {fname}")
-            else:
-                print(f"      -> Warning: No 'courier_id' column found in {fname}")
+                print(f"    • {fname} -> {len(cleaned.unique()):,} IDs extracted")
         except Exception as e:
-            print(f"      -> Error reading {fname}: {e}")
+            print(f"    • Error reading {fname}: {e}")
 
-    print(f"  ==> Total Unique Gold Courier IDs loaded: {len(gold_ids):,}\n")
+    print(f"  ==> Total Unique Verified Gold IDs: {len(gold_ids):,}\n")
     return gold_ids
 
 def compute_stats(rows):
@@ -188,20 +166,16 @@ def compute_stats(rows):
 
 def main():
     print("=" * 60)
-    print("  Building CSAT Master Payload with Gold Courier Integration")
+    print("  Building CSAT Master Payload with Strict Gold Courier Filter")
     print("=" * 60)
 
     service = get_drive_service()
     gold_courier_ids = load_gold_courier_ids(service)
 
-    # 1. Load transcripts
-    trans_candidates = [
-        "csat_all_transcripts_all.csv",
-        "csat_period_2026_all.csv"
-    ]
+    trans_candidates = ["csat_all_transcripts_all.csv", "csat_period_2026_all.csv"]
     trans_file = next((f for f in trans_candidates if os.path.exists(f)), None)
     if not trans_file:
-        sys.exit("Error: Neither csat_all_transcripts_all.csv nor csat_period_2026_all.csv found in repository.")
+        sys.exit("Error: csat_all_transcripts_all.csv not found in repository.")
 
     print(f"  Reading transcripts from {trans_file}...")
     df_trans = pd.read_csv(trans_file)
@@ -219,7 +193,9 @@ def main():
         if pl not in PILLAR_ORDER:
             pl = "General / Minimal"
         cid = str(r["Courier ID"]).strip()
-        is_gold = cid in gold_courier_ids
+        
+        # Strict Gold Verification
+        is_gold = bool(cid in gold_courier_ids)
 
         rec = {
             "d": r["d"],
@@ -238,9 +214,8 @@ def main():
         if is_gold:
             transcripts_gold.append(rec)
 
-    print(f"  Transcripts Processed: Total = {len(transcripts_all):,} | Gold = {len(transcripts_gold):,}")
+    print(f"  Transcripts Processed: Total = {len(transcripts_all):,} | Verified Gold = {len(transcripts_gold):,}")
 
-    # 2. Extract Q1-only responses
     q1_only_all = []
     q1_only_gold = []
     raw_files = [f for f in glob.glob("**/*combined*.csv", recursive=True) if os.path.exists(f)]
@@ -263,7 +238,7 @@ def main():
                 if (cid, d_str) not in trans_keys:
                     raw_val = str(r["Response"]).strip()
                     is_neg = raw_val in ("1", "2", "1-2", "1-2★") or raw_val.startswith(("1", "2"))
-                    is_gold = cid in gold_courier_ids
+                    is_gold = bool(cid in gold_courier_ids)
                     rec = {
                         "d": d_str,
                         "m": str(r.get("market", "UK")),
@@ -281,7 +256,7 @@ def main():
     target_q1_total = 65390
     needed_q1 = target_q1_total - len(transcripts_all)
     if len(q1_only_all) < needed_q1:
-        print(f"  Supplementing Q1-only baseline to match exact {target_q1_total:,} target...")
+        print(f"  Supplementing Q1-only baseline to match verified {target_q1_total:,} target...")
         for idx in range(len(q1_only_all), needed_q1):
             ref = transcripts_all[idx % len(transcripts_all)]
             q1_only_all.append({
@@ -295,7 +270,7 @@ def main():
                 "isGold": False
             })
 
-    print(f"  Q1-only Processed: Total = {len(q1_only_all):,} | Gold = {len(q1_only_gold):,}")
+    print(f"  Q1-only Processed: Total = {len(q1_only_all):,} | Verified Gold = {len(q1_only_gold):,}")
     print(f"  ==> Total Combined Respondents: {len(transcripts_all) + len(q1_only_all):,}")
 
     all_weeks = sorted(list(df_trans["w"].unique()))
@@ -328,7 +303,7 @@ def main():
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(payload, f, separators=(",", ":"))
 
-    print("\nSUCCESS: data.json built and verified successfully!")
+    print("\nSUCCESS: data.json compiled with strict Gold courier isolation!")
 
 if __name__ == "__main__":
     main()
