@@ -221,13 +221,28 @@ def process_and_assemble(df_raw, gold_ids):
     else:
         has_q3 = pd.Series(False, index=piv.index)
 
+    # Load classified transcript pillars lookup
+    pillar_lookup = {}
+    if os.path.exists('csat_all_transcripts_all.csv'):
+        df_c = pd.read_csv('csat_all_transcripts_all.csv', low_memory=False)
+        for _, cr in df_c.iterrows():
+            cid = str(cr.get('Courier ID', '')).strip()
+            txt = str(cr.get('Q3 Text', '')).strip()[:80].lower()
+            p_label = str(cr.get('Pillar', '')).strip()
+            if cid and p_label:
+                pillar_lookup[(cid, txt)] = p_label
+                pillar_lookup[cid] = p_label
+        print(f' Loaded {len(pillar_lookup):,} pillar mappings from csat_all_transcripts_all.csv')
+
     df_transcripts = piv[has_q3].copy()
     df_q1_only = piv[~has_q3].copy()
 
     print(f"  Processed Total Q1: {len(piv):,} | With Q3 text: {len(df_transcripts):,} | Q1-only: {len(df_q1_only):,}")
 
     def build_transcript_record(r):
-        pl = str(r.get("pillar", r.get("pl", "General / Minimal"))).strip()
+        cid = str(r.get('c', '')).strip()
+        txt = str(r.get(q3_col, '')).strip()[:80].lower()
+        pl = pillar_lookup.get((cid, txt)) or pillar_lookup.get(cid) or str(r.get('pillar', r.get('pl', 'General / Minimal'))).strip()
         if pl not in PILLAR_ORDER:
             pl = "General / Minimal"
         return {
