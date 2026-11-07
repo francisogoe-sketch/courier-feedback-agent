@@ -225,3 +225,974 @@ input[type="text"]:focus, input[type="date"]:focus { outline: none; border-color
 .glossary-card.expanded .glossary-chevron { transform: rotate(180deg); }
 .glossary-body { max-height: 0; overflow: hidden; transition: max-height .3s; }
 .glossary-card.expanded .glossary-body { max-height: 1000px; }
+.glossary-content { padding: 18px; font-size: 13px; line-height: 1.7; }
+.glossary-content dt { font-weight: 700; color: var(--navy); margin-top: 10px; }
+[data-theme="dark"] .glossary-content dt { color: #7ab8d6; }
+.glossary-content dd { margin-left: 16px; color: var(--text-secondary); }
+
+/* UTILITY */
+.loading { text-align: center; padding: 60px; font-size: 18px; color: var(--text-secondary); }
+.spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.hidden { display: none !important; }
+.filter-active { background: rgba(41,128,185,.1) !important; border-color: var(--blue) !important; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-row">
+    <h1 id="dashTitle">T1 SB CSAT — Courier Feedback Intelligence</h1>
+    <div class="header-meta">
+      <span id="dateRange"></span>
+      <span>•</span>
+      <span id="transcriptLabel"></span>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="control-group">
+    <span class="control-label">Period</span>
+    <select id="periodSelect">
+      <option value="weekly">Weekly</option>
+      <option value="monthly">Monthly</option>
+      <option value="quarterly">Quarterly</option>
+      <option value="yearly">Yearly</option>
+      <option value="custom">Custom Range</option>
+    </select>
+  </div>
+  <div class="control-group" id="periodNavGroup">
+    <button id="prevBtn" class="icon-btn" title="Previous">◀</button>
+    <select id="periodValueSelect"></select>
+    <button id="nextBtn" class="icon-btn" title="Next">▶</button>
+  </div>
+  <div class="control-group hidden" id="customRangeGroup">
+    <span class="control-label">From</span>
+    <input type="date" id="customStart">
+    <span class="control-label">To</span>
+    <input type="date" id="customEnd">
+    <button class="btn-primary btn-download" onclick="applyCustomRange()">Apply</button>
+  </div>
+  <div class="control-group">
+    <span class="control-label">Courier</span>
+    <div class="courier-input-wrap">
+      <input type="text" id="courierFilter" list="courierList" placeholder="All couriers">
+      <button class="courier-clear hidden" id="courierClear" onclick="clearCourierFilter()">✕</button>
+    </div>
+    <datalist id="courierList"></datalist>
+  </div>
+  <div class="control-group">
+    <span class="control-label">Market</span>
+    <select id="marketFilter">
+      <option value="all">All Markets</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label class="checkbox-wrap">
+      <input type="checkbox" id="goldOnly"> <span style="font-weight:600;">Gold Only</span>
+    </label>
+  </div>
+  <div class="control-group">
+    <span class="control-label">View</span>
+    <select id="viewToggle">
+      <option value="L1">L1: 5 Pillars</option>
+      <option value="L2">L2: 12 Pillars</option>
+    </select>
+  </div>
+  <div class="control-group" style="margin-left:auto;">
+    <span id="periodLabel" style="font-size:12px;font-weight:600;color:var(--text-secondary);"></span>
+  </div>
+  <button class="icon-btn" id="themeToggle" title="Toggle dark mode">🌙</button>
+</div>
+
+<div class="main" id="main">
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div>Loading dashboard data…</div>
+  </div>
+
+  <div class="section cards-row hidden" id="cardsRow">
+    <div class="kpi-card neg">
+      <div class="kpi-label">Negative Q1</div>
+      <div class="kpi-value" id="negQ1Val">—</div>
+      <div class="kpi-sub" id="negQ1Sub">—</div>
+    </div>
+    <div class="kpi-card pos">
+      <div class="kpi-label">Positive Q1</div>
+      <div class="kpi-value" id="posQ1Val">—</div>
+      <div class="kpi-sub" id="posQ1Sub">—</div>
+    </div>
+    <div class="kpi-card res">
+      <div class="kpi-label">Resolution Rate</div>
+      <div class="kpi-value" id="resVal">—</div>
+      <div class="kpi-sub" id="resSub">—</div>
+    </div>
+    <div class="kpi-card count">
+      <div class="kpi-label">Q3 Transcripts</div>
+      <div class="kpi-value" id="countVal">—</div>
+      <div class="kpi-sub" id="countSub">—</div>
+    </div>
+    <div class="kpi-card" style="border-top-color: var(--orange);">
+      <div class="kpi-label">Q1 Respondents</div>
+      <div class="kpi-value" id="q1CountVal" style="color: var(--orange);">—</div>
+      <div class="kpi-sub" id="q1CountSub">—</div>
+    </div>
+  </div>
+
+  <div class="section dual-row hidden" id="dualRow">
+    <div class="chart-card">
+      <div class="chart-title">Market Contribution to Negative Q1</div>
+      <div id="marketChart"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Market Contribution to Positive Q1</div>
+      <div id="marketChartPos"></div>
+    </div>
+  </div>
+
+  <div class="section hidden" id="pillarsSection">
+    <div class="pillars-row" id="pillarsRow"></div>
+  </div>
+
+  <div class="section download-row hidden" id="downloadRow">
+    <button class="btn-primary btn-download" onclick="downloadPeriodCSV()">Download This Period CSV</button>
+    <button class="btn-primary btn-download" onclick="downloadAllCSV()">Download All Transcripts CSV</button>
+  </div>
+
+  <div class="section hidden" id="transcriptsSection"></div>
+
+  <div class="section hidden" id="compareSection">
+    <div class="compare-card">
+      <div class="chart-title">Selected Period vs Overall</div>
+      <table class="compare-table" id="compareTable"></table>
+    </div>
+  </div>
+
+  <div class="section hidden" id="q1OnlySection">
+    <div class="q1only-card">
+      <div class="q1only-header">
+        <div class="q1only-title">Couriers Who Answered Q1 But Not Q3</div>
+        <div class="control-group" style="margin-right:8px;">
+          <span class="control-label">Sentiment</span>
+          <select id="q1SentimentSelect" onchange="renderQ1Only()">
+            <option value="all">All</option>
+            <option value="neg">Negative (1-2★)</option>
+            <option value="pos">Positive (3-5★)</option>
+          </select>
+        </div>
+        <div class="control-group" style="margin-right:8px;">
+          <span class="control-label">Period</span>
+          <select id="q1PeriodMode" onchange="onQ1PeriodModeChange()">
+            <option value="all">All Periods</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+        </div>
+        <div class="control-group hidden" id="q1PeriodNav">
+          <button class="icon-btn" onclick="navQ1Period(-1)" title="Previous" style="font-size:14px;">◀</button>
+          <select id="q1PeriodValue" onchange="renderQ1Only()" style="min-width:140px;"></select>
+          <button class="icon-btn" onclick="navQ1Period(1)" title="Next" style="font-size:14px;">▶</button>
+        </div>
+        <div class="q1only-summary" id="q1OnlySummary"></div>
+      </div>
+      <div id="q1CompareContainer"></div>
+      <div class="q1only-body">
+        <table class="q1only-table" id="q1OnlyTable"></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="glossary-card" id="glossaryCard">
+      <div class="glossary-header" onclick="toggleGlossary()">
+        <span class="glossary-chevron">▼</span> Dashboard Glossary
+      </div>
+      <div class="glossary-body">
+        <div class="glossary-content">
+          <dl>
+            <dt>Q1 (Rating)</dt><dd>Courier satisfaction rating. 1–2★ = negative, 3–5★ = positive.</dd>
+            <dt>Q2 (Resolution)</dt><dd>Whether the courier's issue was resolved during the support interaction. "Yes" = resolved, "No" = not resolved.</dd>
+            <dt>Q3 (Free Text)</dt><dd>Courier's open-ended feedback comment submitted with the survey.</dd>
+            <dt>Negative Q1 %</dt><dd>Share of transcripts where the courier rated 1–2★.</dd>
+            <dt>Positive Q1 %</dt><dd>Share of transcripts where the courier rated 3–5★.</dd>
+            <dt>Resolution Rate</dt><dd>Share of transcripts where the issue was resolved (Q2 = "Yes").</dd>
+            <dt>Market Contribution to Negative Q1</dt><dd>Each market's share of total negative Q1 transcripts in the selected period.</dd>
+            <dt>Market Contribution to Positive Q1</dt><dd>Each market's share of total positive Q1 transcripts in the selected period. Shows which markets have the most satisfied couriers.</dd>
+            <dt>Pillar Categories</dt><dd>Feedback is classified into 5 operational pillars: Support Quality, App / Tech Issues, Partner and External Delays, Compensation, and General / Minimal.</dd>
+            <dt>Gold Couriers</dt><dd>Couriers in the Gold tier of the courier loyalty/rewards program (UK and CA markets).</dd>
+            <dt>Courier Filter</dt><dd>Type or select a courier ID to filter all dashboard metrics and transcripts to that individual courier only. Clear the field to show all couriers.</dd>
+            <dt>Custom Range</dt><dd>Select a start and end date to view transcripts within an arbitrary date range.</dd>
+            <dt>Q1 Without Q3</dt><dd>Couriers who submitted a Q1 satisfaction rating but did not leave a Q3 free-text comment. Shown with their rating (negative = 1-2 stars, positive = 3-5 stars). When Gold Only is checked, only gold-tier couriers appear in this list.</dd>
+            <dt>vs All-time</dt><dd>Change in percentage points (pp) between the selected period value and the all-time average. ▲ = increase, ▼ = decrease. Green = good change, red = bad change.</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ STATE ============
+let D = null;
+let currentPeriod = null;
+let goldOnly = false;
+let currentView = 'L1';
+let periodMode = 'weekly';
+let courierFilter = null;
+let marketFilter = 'all';
+let customStart = null;
+let q1PeriodMode = 'all';
+let q1PeriodValue = null;
+let customEnd = null;
+
+const MARKET_COLORS = { UK:'#2980b9', CA:'#e67e22', IE:'#27ae60', IL:'#8e44ad', AT:'#c0392b', DE:'#16a085', SK:'#f39c12' };
+const MARKET_COLORS_POS = { UK:'#27ae60', CA:'#2ecc71', IE:'#1abc9c', IL:'#9b59b6', AT:'#e74c3c', DE:'#16a085', SK:'#f1c40f' };
+const Q1_NEG = '1-2\u2605';
+const Q1_POS = '3-5\u2605';
+
+// ============ LOAD ============
+async function loadData() {
+  try {
+    const resp = await fetch('data.json?v=' + Date.now());
+    D = await resp.json();
+    D.q1NoQ3 = D.q1NoQ3 || { all: [], gold: [] };
+    function norm(r) {
+      return {
+        d: r.d || '', m: r.m || '', p: r.p || '',
+        q1: r.q1 || r.q || '',
+        c: r.c || '', w: r.w || '',
+        neg: r.neg !== undefined ? r.neg : (r.n !== undefined ? r.n : false),
+        pos: r.pos !== undefined ? r.pos : (r.neg !== undefined ? !r.neg : (r.n !== undefined ? !r.n : false)),
+        isGold: r.isGold !== undefined ? r.isGold : false
+      };
+    }
+    D.q1NoQ3.all = (D.q1NoQ3.all || []).map(norm);
+    D.q1NoQ3.gold = (D.q1NoQ3.gold || []).map(norm);
+    init();
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '<div style="color:var(--red);">Failed to load data. ' + e.message + '</div>';
+  }
+}
+
+// ============ INIT ============
+function init() {
+  document.getElementById('dateRange').textContent = D.dateRange.start + ' \u2013 ' + D.dateRange.end;
+  const savedTheme = localStorage.getItem('csatTheme') || 'light';
+  document.documentElement.dataset.theme = savedTheme;
+  document.getElementById('themeToggle').textContent = savedTheme === 'dark' ? '\u2600\ufe0f' : '\ud83c\udf19';
+
+  document.getElementById('periodSelect').addEventListener('change', e => {
+    periodMode = e.target.value;
+    if (periodMode === 'custom') {
+      document.getElementById('periodNavGroup').classList.add('hidden');
+      document.getElementById('customRangeGroup').classList.remove('hidden');
+      if (!customStart) customStart = D.dateRange.start;
+      if (!customEnd) customEnd = D.dateRange.end;
+      document.getElementById('customStart').value = customStart;
+      document.getElementById('customEnd').value = customEnd;
+    } else {
+      document.getElementById('periodNavGroup').classList.remove('hidden');
+      document.getElementById('customRangeGroup').classList.add('hidden');
+      populatePeriodSelector();
+    }
+    render();
+  });
+
+  document.getElementById('periodValueSelect').addEventListener('change', e => {
+    currentPeriod = e.target.value;
+    render();
+  });
+
+  document.getElementById('prevBtn').addEventListener('click', () => navPeriod(-1));
+  document.getElementById('nextBtn').addEventListener('click', () => navPeriod(1));
+
+  document.getElementById('goldOnly').addEventListener('change', e => {
+    goldOnly = e.target.checked;
+    const prevPeriod = currentPeriod;
+    populateCourierList();
+    populateMarketFilter();
+    if (periodMode !== 'custom') {
+      populatePeriodSelector();
+      const sel = document.getElementById('periodValueSelect');
+      const hasOption = Array.from(sel.options).some(o => o.value === prevPeriod);
+      if (hasOption) {
+        currentPeriod = prevPeriod;
+        sel.value = currentPeriod;
+      }
+    }
+    if (q1PeriodMode !== 'all') populateQ1PeriodValue();
+    render();
+  });
+
+  document.getElementById('viewToggle').addEventListener('change', e => {
+    currentView = e.target.value;
+    render();
+  });
+
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+  const cf = document.getElementById('courierFilter');
+  cf.addEventListener('input', e => {
+    const val = e.target.value.trim();
+    if (val === '') {
+      courierFilter = null;
+      document.getElementById('courierClear').classList.add('hidden');
+      cf.classList.remove('filter-active');
+    } else {
+      courierFilter = val;
+      document.getElementById('courierClear').classList.remove('hidden');
+      cf.classList.add('filter-active');
+    }
+    render();
+  });
+
+  document.getElementById('marketFilter').addEventListener('change', e => {
+    marketFilter = e.target.value;
+    if (periodMode !== 'custom') populatePeriodSelector();
+    if (q1PeriodMode !== 'all') populateQ1PeriodValue();
+    render();
+  });
+
+  populateCourierList();
+  populateMarketFilter();
+  populatePeriodSelector();
+
+  document.getElementById('loading').classList.add('hidden');
+  document.querySelectorAll('.hidden').forEach(el => {
+    if (el.id !== 'loading' && el.id !== 'customRangeGroup' && el.id !== 'courierClear' && el.id !== 'q1PeriodNav') el.classList.remove('hidden');
+  });
+  render();
+}
+
+function populateCourierList() {
+  const ds = getDataset();
+  const courierIds = [...new Set(ds.transcripts.map(t => t.c))].filter(Boolean).sort();
+  const dl = document.getElementById('courierList');
+  dl.innerHTML = '';
+  courierIds.forEach(id => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    dl.appendChild(opt);
+  });
+}
+
+function populateMarketFilter() {
+  const ds = getDataset();
+  const markets = [...new Set(ds.transcripts.map(t => t.m))].filter(Boolean).sort();
+  const sel = document.getElementById('marketFilter');
+  sel.innerHTML = '<option value="all">All Markets</option>';
+  markets.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.text = m;
+    sel.appendChild(opt);
+  });
+  if (markets.includes(marketFilter) || marketFilter === 'all') {
+    sel.value = marketFilter;
+  } else {
+    marketFilter = 'all';
+    sel.value = 'all';
+  }
+}
+
+function navPeriod(dir) {
+  const sel = document.getElementById('periodValueSelect');
+  const options = Array.from(sel.options);
+  const idx = options.findIndex(o => o.value === currentPeriod);
+  const newIdx = idx + dir;
+  if (newIdx >= 0 && newIdx < options.length) {
+    currentPeriod = options[newIdx].value;
+    sel.value = currentPeriod;
+    render();
+  }
+}
+
+function toggleTheme() {
+  const cur = document.documentElement.dataset.theme;
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('csatTheme', next);
+  document.getElementById('themeToggle').textContent = next === 'dark' ? '\u2600\ufe0f' : '\ud83c\udf19';
+}
+
+function toggleGlossary() { document.getElementById('glossaryCard').classList.toggle('expanded'); }
+
+function clearCourierFilter() {
+  document.getElementById('courierFilter').value = '';
+  courierFilter = null;
+  document.getElementById('courierClear').classList.add('hidden');
+  document.getElementById('courierFilter').classList.remove('filter-active');
+  render();
+}
+
+function applyCustomRange() {
+  customStart = document.getElementById('customStart').value;
+  customEnd = document.getElementById('customEnd').value;
+  if (!customStart || !customEnd) return;
+  render();
+}
+
+function formatDate(d) { return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }); }
+function getDataset() { return goldOnly ? D.gold : D.all; }
+function getPillarField() { return currentView === 'L2' ? 'pl12' : 'pl'; }
+function getPillarOrder() { return currentView === 'L2' ? (D.l2 ? D.l2.pillarOrder : D.pillarOrder) : D.pillarOrder; }
+function getPillarColors() { return currentView === 'L2' ? (D.l2 ? D.l2.pillarColors : D.pillarColors) : D.pillarColors; }
+
+function getQuarter(dateStr) {
+  const y = dateStr.substring(0, 4);
+  const m = parseInt(dateStr.substring(5, 7));
+  const q = Math.ceil(m / 3);
+  return y + 'Q' + q;
+}
+
+function getFilteredTranscripts() {
+  let transcripts = getDataset().transcripts;
+  if (courierFilter) transcripts = transcripts.filter(t => t.c === courierFilter);
+  if (marketFilter !== 'all') transcripts = transcripts.filter(t => t.m === marketFilter);
+  return transcripts;
+}
+
+function getPeriodTranscripts() {
+  let transcripts = getFilteredTranscripts();
+  if (periodMode === 'weekly') {
+    return transcripts.filter(t => t.w === currentPeriod);
+  } else if (periodMode === 'monthly') {
+    return transcripts.filter(t => t.d.substring(0, 7) === currentPeriod);
+  } else if (periodMode === 'quarterly') {
+    return transcripts.filter(t => getQuarter(t.d) === currentPeriod);
+  } else if (periodMode === 'yearly') {
+    return transcripts.filter(t => t.d.substring(0, 4) === currentPeriod);
+  } else if (periodMode === 'custom') {
+    return transcripts.filter(t => {
+      const d = t.d.substring(0, 10);
+      return d >= customStart && d <= customEnd;
+    });
+  }
+  return transcripts;
+}
+
+function populatePeriodSelector() {
+  const sel = document.getElementById('periodValueSelect');
+  sel.innerHTML = '';
+  const transcripts = getFilteredTranscripts();
+
+  if (periodMode === 'weekly') {
+    const weeks = [...new Set(transcripts.map(t => t.w))].filter(Boolean).sort();
+    weeks.forEach(w => {
+      const opt = document.createElement('option');
+      opt.value = w;
+      const s = new Date(w + "T00:00:00"); const e = new Date(s.getTime()); e.setDate(e.getDate() + 6);
+      opt.text = formatDate(s) + ' \u2013 ' + formatDate(e);
+      sel.appendChild(opt);
+    });
+    currentPeriod = weeks[weeks.length - 1] || D.weeks[D.weeks.length - 1];
+  } else if (periodMode === 'monthly') {
+    const months = [...new Set(transcripts.map(t => t.d.substring(0, 7)))].filter(Boolean).sort();
+    months.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      const dt = new Date(m + '-01T00:00:00');
+      opt.text = dt.toLocaleDateString('en-GB', { month:'long', year:'numeric' });
+      sel.appendChild(opt);
+    });
+    currentPeriod = months[months.length - 1];
+  } else if (periodMode === 'quarterly') {
+    const quarters = [...new Set(transcripts.map(t => getQuarter(t.d)))].filter(Boolean).sort();
+    quarters.forEach(q => {
+      const opt = document.createElement('option');
+      opt.value = q;
+      const y = q.substring(0, 4); const qn = q.substring(5);
+      opt.text = y + ' Q' + qn;
+      sel.appendChild(opt);
+    });
+    currentPeriod = quarters[quarters.length - 1];
+  } else if (periodMode === 'yearly') {
+    const years = [...new Set(transcripts.map(t => t.d.substring(0, 4)))].filter(Boolean).sort();
+    years.forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y; opt.text = y;
+      sel.appendChild(opt);
+    });
+    currentPeriod = years[years.length - 1];
+  }
+  sel.value = currentPeriod;
+  updateNavButtons();
+}
+
+function updateNavButtons() {
+  const sel = document.getElementById('periodValueSelect');
+  const options = Array.from(sel.options);
+  const idx = options.findIndex(o => o.value === currentPeriod);
+  document.getElementById('prevBtn').disabled = idx <= 0;
+  document.getElementById('nextBtn').disabled = idx < 0 || idx >= options.length - 1;
+}
+
+function computeMetrics(dataRows) {
+  const total = dataRows.length;
+  if (total === 0) return { total:0, negQ1:0, posQ1:0, resCount:0, negQ1Pct:0, posQ1Pct:0, resPct:0, marketNeg:{}, marketPos:{}, pillars:{} };
+  const negCount = dataRows.filter(r => r.q1 === Q1_NEG).length;
+  const posCount = dataRows.filter(r => r.q1 === Q1_POS).length;
+  const resCount = dataRows.filter(r => r.q2 === 'Yes').length;
+  const marketNeg = {}, marketPos = {}, marketTotal = {};
+  dataRows.forEach(r => {
+    marketTotal[r.m] = (marketTotal[r.m] || 0) + 1;
+    if (r.q1 === Q1_NEG) marketNeg[r.m] = (marketNeg[r.m] || 0) + 1;
+    if (r.q1 === Q1_POS) marketPos[r.m] = (marketPos[r.m] || 0) + 1;
+  });
+  const totalNeg = Object.values(marketNeg).reduce((a,b)=>a+b, 0) || 1;
+  const totalPos = Object.values(marketPos).reduce((a,b)=>a+b, 0) || 1;
+  const marketData = {};
+  Object.keys(marketTotal).sort((a,b) => (marketNeg[b]||0) - (marketNeg[a]||0)).forEach(m => {
+    marketData[m] = { neg: marketNeg[m]||0, pos: marketPos[m]||0, total: marketTotal[m], pct: Math.round((marketNeg[m]||0)/totalNeg*1000)/10 };
+  });
+  const marketPosData = {};
+  Object.keys(marketTotal).sort((a,b) => (marketPos[b]||0) - (marketPos[a]||0)).forEach(m => {
+    marketPosData[m] = { neg: marketNeg[m]||0, pos: marketPos[m]||0, total: marketTotal[m], pct: Math.round((marketPos[m]||0)/totalPos*1000)/10 };
+  });
+  const pillarData = {};
+  getPillarOrder().forEach(pl => {
+    const plRows = dataRows.filter(r => r[getPillarField()] === pl);
+    const plTotal = plRows.length;
+    pillarData[pl] = {
+      total: plTotal,
+      share: plTotal > 0 ? Math.round(plTotal/total*1000)/10 : 0,
+      neg: plRows.filter(r => r.q1 === Q1_NEG).length,
+      pos: plRows.filter(r => r.q1 === Q1_POS).length,
+      res: plRows.filter(r => r.q2 === 'Yes').length,
+      negPct: plTotal > 0 ? Math.round(plRows.filter(r => r.q1 === Q1_NEG).length/plTotal*1000)/10 : 0,
+      posPct: plTotal > 0 ? Math.round(plRows.filter(r => r.q1 === Q1_POS).length/plTotal*1000)/10 : 0,
+      resPct: plTotal > 0 ? Math.round(plRows.filter(r => r.q2 === 'Yes').length/plTotal*1000)/10 : 0,
+    };
+  });
+  return {
+    total, negQ1:negCount, posQ1:posCount, resCount,
+    negQ1Pct: Math.round(negCount/total*1000)/10,
+    posQ1Pct: Math.round(posCount/total*1000)/10,
+    resPct: Math.round(resCount/total*1000)/10,
+    marketNeg: marketData, marketPos: marketPosData, pillars: pillarData,
+  };
+}
+
+function getAllQ1Responses() {
+  const periodTranscripts = getPeriodTranscripts();
+  const ds = D.q1NoQ3 || { all: [], gold: [] };
+  let q1only = goldOnly ? (ds.gold || []) : (ds.all || []);
+  if (courierFilter) q1only = q1only.filter(r => r.c === courierFilter);
+  if (marketFilter !== 'all') q1only = q1only.filter(r => r.m === marketFilter);
+  if (periodMode === 'weekly') {
+    q1only = q1only.filter(r => r.w === currentPeriod);
+  } else if (periodMode === 'monthly') {
+    q1only = q1only.filter(r => r.d.substring(0, 7) === currentPeriod);
+  } else if (periodMode === 'quarterly') {
+    q1only = q1only.filter(r => getQuarter(r.d) === currentPeriod);
+  } else if (periodMode === 'yearly') {
+    q1only = q1only.filter(r => r.d.substring(0, 4) === currentPeriod);
+  } else if (periodMode === 'custom') {
+    q1only = q1only.filter(r => { const d = r.d.substring(0, 10); return d >= customStart && d <= customEnd; });
+  }
+  const norm = q1only.map(r => ({
+    d: r.d, m: r.m, p: r.p,
+    q1: r.q1 || r.q || '',
+    q2: 'No', c: r.c, t: '', pl: '', w: r.w,
+    neg: r.neg !== undefined ? r.neg : (r.n !== undefined ? r.n : false),
+  }));
+  return periodTranscripts.concat(norm);
+}
+
+function computeQ1Metrics(data_rows) {
+  const total = data_rows.length;
+  if (total === 0) return { total:0, negQ1:0, posQ1:0, resCount:0, negQ1Pct:0, posQ1Pct:0, resPct:0, marketNeg:{}, marketPos:{} };
+  const negCount = data_rows.filter(r => r.q1 === Q1_NEG || r.neg).length;
+  const posCount = data_rows.filter(r => r.q1 === Q1_POS || r.pos).length;
+  const resCount = data_rows.filter(r => r.q2 === 'Yes').length;
+  const marketNeg = {}, marketPos = {}, marketTotal = {};
+  data_rows.forEach(r => {
+    const m = r.m || '';
+    marketTotal[m] = (marketTotal[m] || 0) + 1;
+    if (r.q1 === Q1_NEG || r.neg) marketNeg[m] = (marketNeg[m] || 0) + 1;
+    if (r.q1 === Q1_POS || r.pos) marketPos[m] = (marketPos[m] || 0) + 1;
+  });
+  const totalNeg = Object.values(marketNeg).reduce((a,b)=>a+b, 0) || 1;
+  const totalPos = Object.values(marketPos).reduce((a,b)=>a+b, 0) || 1;
+  const marketData = {};
+  Object.keys(marketTotal).sort((a,b) => (marketNeg[b]||0) - (marketNeg[a]||0)).forEach(m => {
+    marketData[m] = { neg: marketNeg[m]||0, pos: marketPos[m]||0, total: marketTotal[m], pct: Math.round((marketNeg[m]||0)/totalNeg*1000)/10 };
+  });
+  const marketPosData = {};
+  Object.keys(marketTotal).sort((a,b) => (marketPos[b]||0) - (marketPos[a]||0)).forEach(m => {
+    marketPosData[m] = { neg: marketNeg[m]||0, pos: marketPos[m]||0, total: marketTotal[m], pct: Math.round((marketPos[m]||0)/totalPos*1000)/10 };
+  });
+  return {
+    total, negQ1: negCount, posQ1: posCount, resCount,
+    negQ1Pct: Math.round(negCount/total*1000)/10,
+    posQ1Pct: Math.round(posCount/total*1000)/10,
+    resPct: Math.round(resCount/total*1000)/10,
+    marketNeg: marketData, marketPos: marketPosData,
+  };
+}
+
+function render() {
+  const periodTranscripts = getPeriodTranscripts();
+  const allTranscripts = getFilteredTranscripts();
+  const period = computeMetrics(periodTranscripts);
+  const allTime = computeMetrics(allTranscripts);
+
+  const baseTitle = goldOnly
+    ? 'T1 SB CSAT — Gold Courier Feedback Intelligence (CA & UK)'
+    : 'T1 SB CSAT — Courier Feedback Intelligence';
+  document.getElementById('dashTitle').textContent = currentView === 'L2'
+    ? (goldOnly ? 'T1 SB CSAT — Gold Couriers (L2: 12 Pillars)' : 'T1 SB CSAT — All Couriers (L2: 12 Pillars)')
+    : baseTitle;
+
+  const label = goldOnly ? 'Gold Couriers' : 'All Couriers';
+  const filterLabel = courierFilter ? ' (filtered)' : '';
+  document.getElementById('transcriptLabel').innerHTML = '<strong>' + label + filterLabel + ': ' + allTime.total.toLocaleString() + ' Q3 transcripts</strong>';
+  document.getElementById('periodLabel').textContent = period.total.toLocaleString() + ' Q3 transcripts this period';
+
+  const allQ1Period = getAllQ1Responses();
+  const allQ1AllTime = getFilteredTranscripts().concat((goldOnly ? (D.q1NoQ3.gold||[]) : (D.q1NoQ3.all||[])).map(r => ({q1: r.q1||r.q||'', neg: r.neg!==undefined?r.neg:(r.n||false), m: r.m, q2: 'No'})));
+  const q1PeriodMetrics = computeQ1Metrics(allQ1Period);
+  const q1AllTimeMetrics = computeQ1Metrics(allQ1AllTime);
+
+  renderCard('negQ1', q1PeriodMetrics.negQ1Pct, q1AllTimeMetrics.negQ1Pct, 'pp', false);
+  renderCard('posQ1', q1PeriodMetrics.posQ1Pct, q1AllTimeMetrics.posQ1Pct, 'pp', true);
+  renderCard('res', period.resPct, allTime.resPct, 'pp', true);
+  document.getElementById('countVal').textContent = period.total.toLocaleString();
+  document.getElementById('countSub').textContent = 'of ' + allTime.total.toLocaleString() + ' all-time';
+  document.getElementById('q1CountVal').textContent = q1PeriodMetrics.total.toLocaleString();
+  document.getElementById('q1CountSub').textContent = 'of ' + q1AllTimeMetrics.total.toLocaleString() + ' all-time';
+
+  renderMarketChart(q1PeriodMetrics.marketNeg || {}, 'neg');
+  renderMarketChart(q1PeriodMetrics.marketPos || {}, 'pos');
+  renderPillars(period.pillars || {}, period.total);
+  renderTranscriptsDynamic(periodTranscripts);
+  renderComparison(period, allTime);
+  renderQ1Only();
+  if (periodMode !== 'custom') updateNavButtons();
+}
+
+function renderCard(prefix, periodVal, allTimeVal, unit, higherIsBetter) {
+  document.getElementById(prefix + 'Val').textContent = periodVal.toFixed(1) + '%';
+  const diff = periodVal - allTimeVal;
+  const diffStr = (diff > 0 ? 'up ' : diff < 0 ? 'down ' : '') + Math.abs(diff).toFixed(1) + ' ' + unit;
+  const isGood = higherIsBetter ? diff >= 0 : diff <= 0;
+  const cls = diff === 0 ? 'neutral' : (isGood ? 'good' : 'bad');
+  document.getElementById(prefix + 'Sub').innerHTML = 'vs. all-time ' + allTimeVal.toFixed(1) + '%, <span class="kpi-change ' + cls + '">' + diffStr + '</span>';
+}
+
+function renderMarketChart(marketData, type) {
+  const isNeg = type === 'neg';
+  const container = document.getElementById(isNeg ? 'marketChart' : 'marketChartPos');
+  container.innerHTML = '';
+  const countKey = isNeg ? 'neg' : 'pos';
+  const label = isNeg ? 'neg' : 'pos';
+  const entries = Object.entries(marketData).sort((a,b) => b[1][countKey] - a[1][countKey]);
+  if (entries.length === 0 || entries.every(([,v]) => v[countKey] === 0)) {
+    container.innerHTML = '<div style="padding:20px;color:var(--text-secondary);">No ' + (isNeg ? 'negative' : 'positive') + ' Q1 transcripts in this period.</div>';
+    return;
+  }
+  entries.forEach(([market, data]) => {
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    const color = isNeg ? (MARKET_COLORS[market] || '#7f8c8d') : (MARKET_COLORS_POS[market] || '#27ae60');
+    row.innerHTML = '<div class="bar-label">' + market + '</div><div class="bar-track"><div class="bar-fill" style="width:' + Math.max(data.pct, 1) + '%;background:' + color + ';"></div></div><div class="bar-value">' + data.pct.toFixed(1) + '% \u2022 ' + data[countKey] + ' ' + label + '</div>';
+    container.appendChild(row);
+  });
+}
+
+function renderPillars(pillars, totalTranscripts) {
+  const container = document.getElementById('pillarsRow');
+  container.innerHTML = '';
+  getPillarOrder().forEach(pl => {
+    const p = pillars[pl] || { total:0, share:0, neg:0, pos:0, res:0, negPct:0, posPct:0, resPct:0 };
+    const color = getPillarColors()[pl];
+    const card = document.createElement('div');
+    card.className = 'pillar-card';
+    card.style.borderBottomColor = color;
+    card.innerHTML = '<div class="pillar-header"><div class="pillar-dot" style="background:' + color + ';"></div><div class="pillar-name">' + pl + '</div></div><div class="pillar-share" style="color:' + color + ';">' + p.share.toFixed(1) + '%</div><div class="pillar-count">' + p.total + ' of ' + totalTranscripts + ' Q3 \u2022 ' + p.total + ' in pillar</div><div class="pillar-badges"><span class="badge neg">Neg ' + p.negPct.toFixed(1) + '%</span><span class="badge pos">Pos ' + p.posPct.toFixed(1) + '%</span><span class="badge res">Resolved ' + p.resPct.toFixed(1) + '%</span></div>';
+    container.appendChild(card);
+  });
+}
+
+function renderTranscriptsDynamic(periodTranscripts) {
+  const container = document.getElementById('transcriptsSection');
+  container.innerHTML = '';
+  getPillarOrder().forEach(pl => {
+    const plRows = periodTranscripts.filter(t => t[getPillarField()] === pl);
+    if (plRows.length === 0) return;
+    const negCount = plRows.filter(t => t.q1 === Q1_NEG).length;
+    const negPct = (negCount / plRows.length * 100).toFixed(1);
+    const color = getPillarColors()[pl];
+    const section = document.createElement('div');
+    section.className = 'transcript-section';
+    let tableHTML = '<div class="transcript-body"><div style="padding:0 4px 4px 18px;font-size:11px;color:var(--text-secondary);">' + plRows.length + ' Q3 transcript' + (plRows.length > 1 ? 's' : '') + ' \u2014 click any row.</div>';
+    tableHTML += '<table class="transcript-table"><thead><tr><th>Date</th><th>Mkt</th><th>Plat</th><th>Q1</th><th>Q2</th><th>Courier ID</th><th>Q3 Text</th></tr></thead><tbody>';
+    plRows.forEach(t => {
+      const q1Class = t.q1 === Q1_NEG ? 'neg' : 'pos';
+      const q2Class = t.q2 === 'Yes' ? 'yes' : 'no';
+      tableHTML += '<tr><td style="white-space:nowrap;">' + t.d + '</td><td><strong>' + t.m + '</strong></td><td>' + t.p + '</td><td><span class="q1-badge ' + q1Class + '">' + t.q1 + '</span></td><td><span class="q2-badge ' + q2Class + '">' + t.q2 + '</span></td><td><div class="courier-id" title="' + t.c + '">' + t.c + '</div></td><td class="q3-text">' + escapeHTML(t.t) + '</td></tr>';
+    });
+    tableHTML += '</tbody></table></div>';
+    section.innerHTML = '<div class="transcript-header" onclick="this.parentElement.classList.toggle(\'expanded\')"><div class="transcript-dot" style="background:' + color + ';"></div><div class="transcript-name">' + pl + '</div><span class="transcript-badge" style="background:' + color + '22;color:' + color + ';">' + negPct + '% neg</span><span class="transcript-count">' + plRows.length + ' transcript' + (plRows.length > 1 ? 's' : '') + '</span><span class="transcript-chevron">\u25BC</span></div>' + tableHTML;
+    container.appendChild(section);
+  });
+  if (container.innerHTML === '') {
+    container.innerHTML = '<div class="chart-card" style="padding:20px;color:var(--text-secondary);">No Q3 transcripts in this period.</div>';
+  }
+}
+
+function renderComparison(period, allTime) {
+  const table = document.getElementById('compareTable');
+  let periodLabel;
+  if (periodMode === 'weekly') {
+    const ws = new Date(currentPeriod + "T00:00:00"); const we = new Date(ws.getTime()); we.setDate(we.getDate() + 6);
+    periodLabel = formatDate(ws) + ' \u2013 ' + formatDate(we);
+  } else if (periodMode === 'monthly') {
+    const dt = new Date(currentPeriod + '-01T00:00:00');
+    periodLabel = dt.toLocaleDateString('en-GB', { month:'long', year:'numeric' });
+  } else if (periodMode === 'quarterly') {
+    periodLabel = currentPeriod.substring(0, 4) + ' Q' + currentPeriod.substring(5);
+  } else if (periodMode === 'yearly') {
+    periodLabel = currentPeriod;
+  } else {
+    periodLabel = formatDate(new Date(customStart + "T00:00:00")) + ' \u2013 ' + formatDate(new Date(customEnd + "T00:00:00"));
+  }
+
+  function arrow(val, allVal, higherIsBetter) {
+    const diff = val - allVal;
+    if (isNaN(diff) || allVal === 0) return '<span class="compare-arrow neutral">\u2014</span>';
+    const sign = diff > 0 ? '\u25b2 +' : diff < 0 ? '\u25bc \u2212' : '\u2014 0';
+    const isGood = higherIsBetter ? diff > 0 : diff < 0;
+    const cls = diff === 0 ? 'neutral' : (isGood ? 'good' : 'bad');
+    return '<span class="compare-arrow ' + cls + '">' + sign + Math.abs(diff).toFixed(1) + 'pp</span>';
+  }
+  function row(name, pv, av, fmt, hib) {
+    return '<tr><td class="metric-name">' + name + '</td><td>' + fmt(pv) + '</td><td>' + fmt(av) + '</td><td>' + (typeof pv === 'number' && typeof av === 'number' ? arrow(pv, av, hib) : '<span class="compare-arrow neutral">\u2014</span>') + '</td></tr>';
+  }
+  const pct = v => v.toFixed(1) + '%';
+  const num = v => v.toLocaleString();
+  let html = '<thead><tr><th>Metric</th><th>' + periodLabel + '</th><th>All-time</th><th>vs All-time</th></tr></thead><tbody>';
+  html += row('Classified Q3 Transcripts', period.total, allTime.total, num, true);
+  html += row('Negative Q1 %', period.negQ1Pct, allTime.negQ1Pct, pct, false);
+  html += row('Positive Q1 %', period.posQ1Pct, allTime.posQ1Pct, pct, true);
+  html += row('Resolution Rate', period.resPct, allTime.resPct, pct, true);
+  getPillarOrder().forEach(pl => {
+    const pP = (period.pillars[pl] || {}).negPct || 0;
+    const aP = (allTime.pillars[pl] || {}).negPct || 0;
+    html += row(pl + ' Neg%', pP, aP, pct, false);
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function onQ1PeriodModeChange() {
+  q1PeriodMode = document.getElementById('q1PeriodMode').value;
+  const nav = document.getElementById('q1PeriodNav');
+  if (q1PeriodMode === 'all') {
+    nav.classList.add('hidden');
+  } else {
+    nav.classList.remove('hidden');
+    populateQ1PeriodValue();
+  }
+  renderQ1Only();
+}
+
+function populateQ1PeriodValue() {
+  const ds = D.q1NoQ3 || { all: [], gold: [] };
+  let rows = goldOnly ? ds.gold : ds.all;
+  if (courierFilter) rows = rows.filter(r => r.c === courierFilter);
+  const sel = document.getElementById('q1PeriodValue');
+  sel.innerHTML = '';
+  if (q1PeriodMode === 'weekly') {
+    const weeks = [...new Set(rows.map(r => r.w))].filter(Boolean).sort();
+    weeks.forEach(w => {
+      const opt = document.createElement('option');
+      opt.value = w;
+      const s = new Date(w + "T00:00:00"); const e = new Date(s.getTime()); e.setDate(e.getDate() + 6);
+      opt.text = formatDate(s) + ' \u2013 ' + formatDate(e);
+      sel.appendChild(opt);
+    });
+    q1PeriodValue = weeks[weeks.length - 1] || '';
+  } else if (q1PeriodMode === 'monthly') {
+    const months = [...new Set(rows.map(r => r.d.substring(0, 7)))].filter(Boolean).sort();
+    months.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      const dt = new Date(m + '-01T00:00:00');
+      opt.text = dt.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      sel.appendChild(opt);
+    });
+    q1PeriodValue = months[months.length - 1] || '';
+  } else if (q1PeriodMode === 'quarterly') {
+    const quarters = [...new Set(rows.map(r => getQuarter(r.d)))].filter(Boolean).sort();
+    quarters.forEach(q => {
+      const opt = document.createElement('option');
+      opt.value = q;
+      opt.text = q.substring(0, 4) + ' Q' + q.substring(5);
+      sel.appendChild(opt);
+    });
+    q1PeriodValue = quarters[quarters.length - 1] || '';
+  } else if (q1PeriodMode === 'yearly') {
+    const years = [...new Set(rows.map(r => r.d.substring(0, 4)))].filter(Boolean).sort();
+    years.forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y; opt.text = y;
+      sel.appendChild(opt);
+    });
+    q1PeriodValue = years[years.length - 1] || '';
+  }
+  sel.value = q1PeriodValue;
+}
+
+function navQ1Period(dir) {
+  const sel = document.getElementById('q1PeriodValue');
+  const options = Array.from(sel.options);
+  const idx = options.findIndex(o => o.value === q1PeriodValue);
+  const newIdx = idx + dir;
+  if (newIdx >= 0 && newIdx < options.length) {
+    q1PeriodValue = options[newIdx].value;
+    sel.value = q1PeriodValue;
+    renderQ1Only();
+  }
+}
+
+function renderQ1Only() {
+  const ds = D.q1NoQ3 || { all: [], gold: [] };
+  let rows = goldOnly ? ds.gold : ds.all;
+  if (courierFilter) rows = rows.filter(r => r.c === courierFilter);
+
+  if (q1PeriodMode === 'weekly') {
+    rows = rows.filter(r => r.w === q1PeriodValue);
+  } else if (q1PeriodMode === 'monthly') {
+    rows = rows.filter(r => r.d.substring(0, 7) === q1PeriodValue);
+  } else if (q1PeriodMode === 'quarterly') {
+    rows = rows.filter(r => getQuarter(r.d) === q1PeriodValue);
+  } else if (q1PeriodMode === 'yearly') {
+    rows = rows.filter(r => r.d.substring(0, 4) === q1PeriodValue);
+  }
+
+  const sentSel = document.getElementById('q1SentimentSelect');
+  const sentFilter = sentSel ? sentSel.value : 'all';
+  if (sentFilter === 'neg') {
+    rows = rows.filter(r => r.neg);
+  } else if (sentFilter === 'pos') {
+    rows = rows.filter(r => r.pos);
+  }
+
+  rows = rows.slice().sort((a, b) => b.d.localeCompare(a.d));
+
+  const negCount = rows.filter(r => r.neg).length;
+  const posCount = rows.filter(r => r.pos).length;
+
+  renderQ1Compare(rows);
+
+  const summary = document.getElementById('q1OnlySummary');
+  summary.innerHTML = '<div class="sum-item"><span class="sum-num">' + rows.length + '</span> total</div>'
+    + '<div class="sum-item"><span class="sum-num neg">' + negCount + '</span> negative (1-2\u2605)</div>'
+    + '<div class="sum-item"><span class="sum-num pos">' + posCount + '</span> positive (3-5\u2605)</div>';
+
+  const table = document.getElementById('q1OnlyTable');
+  if (rows.length === 0) {
+    table.innerHTML = '<tbody><tr><td style="padding:20px;color:var(--text-secondary);">' + (goldOnly ? 'No gold couriers in this category.' : 'No couriers in this category for the selected filters.') + '</td></tr></tbody>';
+    return;
+  }
+
+  let html = '<thead><tr><th>Date</th><th>Market</th><th>Platform</th><th>Q1 Rating</th><th>Sentiment</th><th>Courier ID</th></tr></thead><tbody>';
+  rows.forEach(r => {
+    const q1Class = r.neg ? 'neg' : 'pos';
+    const sentLabel = r.neg ? 'Negative' : 'Positive';
+    const sentColor = r.neg ? 'var(--red)' : 'var(--green)';
+    html += '<tr><td style="white-space:nowrap;">' + r.d + '</td><td><strong>' + r.m + '</strong></td><td>' + r.p + '</td><td><span class="q1-badge ' + q1Class + '">' + r.q1 + '</span></td><td style="color:' + sentColor + ';font-weight:600;">' + sentLabel + '</td><td><div class="courier-id" title="' + r.c + '">' + r.c + '</div></td></tr>';
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function renderQ1Compare(q1OnlyRows) {
+  const container = document.getElementById('q1CompareContainer');
+  if (!container) return;
+  const ds = getDataset();
+  let bothRows = ds.transcripts.filter(t => {
+    if (q1PeriodMode === 'weekly') return t.w === q1PeriodValue;
+    if (q1PeriodMode === 'monthly') return t.d.substring(0, 7) === q1PeriodValue;
+    if (q1PeriodMode === 'quarterly') return getQuarter(t.d) === q1PeriodValue;
+    if (q1PeriodMode === 'yearly') return t.d.substring(0, 4) === q1PeriodValue;
+    return true;
+  });
+  if (courierFilter) bothRows = bothRows.filter(t => t.c === courierFilter);
+  const Q1N = '1-2\u2605';
+  const Q1P = '3-5\u2605';
+  const onlyTotal = q1OnlyRows.length;
+  const onlyNeg = q1OnlyRows.filter(r => r.neg).length;
+  const onlyPos = q1OnlyRows.filter(r => r.pos).length;
+  const bothTotal = bothRows.length;
+  const bothNeg = bothRows.filter(r => r.q1 === Q1N).length;
+  const bothPos = bothRows.filter(r => r.q1 === Q1P).length;
+  const onlyNegPct = onlyTotal > 0 ? (onlyNeg / onlyTotal * 100) : 0;
+  const onlyPosPct = onlyTotal > 0 ? (onlyPos / onlyTotal * 100) : 0;
+  const bothNegPct = bothTotal > 0 ? (bothNeg / bothTotal * 100) : 0;
+  const bothPosPct = bothTotal > 0 ? (bothPos / bothTotal * 100) : 0;
+  let html = '<div class="q1-compare-grid">';
+  html += '<div class="q1-compare-card"><div class="q1-compare-title">Negative vs Positive: Q1-Only vs Q1+Q3</div>';
+  html += '<div class="q1-compare-bar-row"><div class="q1-compare-bar-label" style="color:var(--red);">Q1-Only Neg</div><div class="q1-compare-bar-track"><div class="q1-compare-bar-fill" style="width:' + Math.max(onlyNegPct, 1) + '%;background:var(--red);"></div></div><div class="q1-compare-bar-val">' + onlyNegPct.toFixed(1) + '% (' + onlyNeg + ')</div></div>';
+  html += '<div class="q1-compare-bar-row"><div class="q1-compare-bar-label" style="color:var(--green);">Q1-Only Pos</div><div class="q1-compare-bar-track"><div class="q1-compare-bar-fill" style="width:' + Math.max(onlyPosPct, 1) + '%;background:var(--green);"></div></div><div class="q1-compare-bar-val">' + onlyPosPct.toFixed(1) + '% (' + onlyPos + ')</div></div>';
+  html += '<div style="height:6px;"></div>';
+  html += '<div class="q1-compare-bar-row"><div class="q1-compare-bar-label" style="color:var(--red);">Q1+Q3 Neg</div><div class="q1-compare-bar-track"><div class="q1-compare-bar-fill" style="width:' + Math.max(bothNegPct, 1) + '%;background:var(--red);opacity:.7;"></div></div><div class="q1-compare-bar-val">' + bothNegPct.toFixed(1) + '% (' + bothNeg + ')</div></div>';
+  html += '<div class="q1-compare-bar-row"><div class="q1-compare-bar-label" style="color:var(--green);">Q1+Q3 Pos</div><div class="q1-compare-bar-track"><div class="q1-compare-bar-fill" style="width:' + Math.max(bothPosPct, 1) + '%;background:var(--green);opacity:.7;"></div></div><div class="q1-compare-bar-val">' + bothPosPct.toFixed(1) + '% (' + bothPos + ')</div></div>';
+  html += '</div>';
+  html += '<div class="q1-compare-card"><div class="q1-compare-title">Group Comparison Stats</div>';
+  html += '<div class="q1-compare-stat"><span class="q1-compare-stat-label">Total Responses</span><span><b>' + onlyTotal + '</b> (Q1-only) vs <b>' + bothTotal + '</b> (Q1+Q3)</span></div>';
+  html += '<div class="q1-compare-stat"><span class="q1-compare-stat-label">Negative Rate</span><span><span class="q1-compare-stat-val neg">' + onlyNegPct.toFixed(1) + '%</span> vs <span class="q1-compare-stat-val neg">' + bothNegPct.toFixed(1) + '%</span></span></div>';
+  html += '<div class="q1-compare-stat"><span class="q1-compare-stat-label">Positive Rate</span><span><span class="q1-compare-stat-val pos">' + onlyPosPct.toFixed(1) + '%</span> vs <span class="q1-compare-stat-val pos">' + bothPosPct.toFixed(1) + '%</span></span></div>';
+  var moreNeg = onlyNegPct > bothNegPct ? 'Q1-Only couriers are more negative' : bothNegPct > onlyNegPct ? 'Q1+Q3 couriers are more negative' : 'Both groups have similar negativity';
+  html += '<div class="q1-compare-stat" style="margin-top:6px;"><span class="q1-compare-stat-label">Key Insight</span><span style="font-size:11px;font-weight:600;color:var(--red);">' + moreNeg + '</span></div>';
+  var q3Rate = (onlyTotal + bothTotal) > 0 ? (bothTotal / (onlyTotal + bothTotal) * 100).toFixed(1) : 0;
+  html += '<div class="q1-compare-stat"><span class="q1-compare-stat-label">Q3 Response Rate</span><span style="font-size:11px;font-weight:600;color:var(--blue);">' + q3Rate + '% provided Q3 text</span></div>';
+  html += '</div>';
+  var onlyNegDeg = onlyNegPct * 3.6;
+  html += '<div class="q1-compare-card"><div class="q1-compare-title">Sentiment Split: Q1-Only</div>';
+  html += '<div class="q1-donut-wrap"><div class="q1-donut" style="background:conic-gradient(var(--red) 0deg ' + onlyNegDeg + 'deg, var(--green) ' + onlyNegDeg + 'deg 360deg);"><span class="q1-donut-label">' + onlyTotal + '</span></div>';
+  html += '<div class="q1-donut-legend"><div class="leg-neg">' + onlyNegPct.toFixed(1) + '% Neg (' + onlyNeg + ')</div><div class="leg-pos">' + onlyPosPct.toFixed(1) + '% Pos (' + onlyPos + ')</div><div style="color:var(--text-secondary);margin-top:2px;">No Q3 text</div></div></div>';
+  html += '</div>';
+  var bothNegDeg = bothNegPct * 3.6;
+  html += '<div class="q1-compare-card"><div class="q1-compare-title">Sentiment Split: Q1+Q3</div>';
+  html += '<div class="q1-donut-wrap"><div class="q1-donut" style="background:conic-gradient(var(--red) 0deg ' + bothNegDeg + 'deg, var(--green) ' + bothNegDeg + 'deg 360deg);"><span class="q1-donut-label">' + bothTotal + '</span></div>';
+  html += '<div class="q1-donut-legend"><div class="leg-neg">' + bothNegPct.toFixed(1) + '% Neg (' + bothNeg + ')</div><div class="leg-pos">' + bothPosPct.toFixed(1) + '% Pos (' + bothPos + ')</div><div style="color:var(--text-secondary);margin-top:2px;">With Q3 text</div></div></div>';
+  html += '</div>';
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function downloadPeriodCSV() {
+  const rows = getPeriodTranscripts();
+  downloadCSV(rows, 'csat_period_' + (periodMode === 'custom' ? customStart + '_to_' + customEnd : currentPeriod) + (goldOnly ? '_gold' : '_all') + (courierFilter ? '_' + courierFilter.substring(0, 8) : '') + '.csv');
+}
+
+function downloadAllCSV() {
+  const rows = getFilteredTranscripts();
+  downloadCSV(rows, 'csat_all_transcripts' + (goldOnly ? '_gold' : '_all') + (courierFilter ? '_' + courierFilter.substring(0, 8) : '') + '.csv');
+}
+
+function downloadCSV(rows, filename) {
+  const headers = ['Pillar', 'Date', 'Market', 'Platform', 'Q1', 'Q2', 'Courier ID', 'Q3 Text'];
+  let csv = headers.join(',') + '\n';
+  rows.forEach(r => {
+    const vals = [r.pl, r.d, r.m, r.p, r.q1, r.q2, r.c, '"' + (r.t || '').replace(/"/g, '""') + '"'];
+    csv += vals.join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function escapeHTML(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+loadData();
+</script>
+</body>
+</html>
