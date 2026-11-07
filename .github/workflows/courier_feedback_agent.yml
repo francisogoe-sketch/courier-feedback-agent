@@ -66,12 +66,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           touch .nojekyll
-          git pull --rebase origin main
           git add -f data/base/ data/outputs/ weekly_courier_survey_all_data.csv data.json index.html .nojekyll
           if git diff --staged --quiet; then
             echo "No new updates to commit."
           else
             git commit -m "auto: update CSAT base parquet, metrics, and dashboard [skip ci]"
+            git pull --rebase origin main
             git push origin main
           fi
 
