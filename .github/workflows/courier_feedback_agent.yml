@@ -27,7 +27,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas pyarrow numpy google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
+          pip install pandas pyarrow numpy openpyxl requests google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
 
       - name: Run Feedback Agent (Fetch from Drive)
         env:
