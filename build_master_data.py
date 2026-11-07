@@ -1,310 +1,262 @@
-#!/usr/bin/env python3
 """
 build_master_data.py
-Strict Q1 vs Q3 Separation:
-- Correctly parses csat_period_2026_all / csat_all_transcripts_all
-- Rows with text -> Q3 Transcripts
-- Rows with blank/NaN text -> Q1-Only (rated Q1, no Q3 comment)
-- Applies exact Gold matching for both buckets
+--------------------
+Automates ingestion of courier survey partitions from Google Drive / incoming drops,
+merges them into the persistent all-time Parquet base dataset, deduplicates records,
+and regenerates analytical summary files.
 """
 
-import os, io, glob, json, sys, re
+import os
+import glob
+import re
 import pandas as pd
+import numpy as np
 
-try:
-    import google.auth
-    from googleapiclient.discovery import build
-    from googleapiclient.http import MediaIoBaseDownload
-except ImportError:
-    pass
+# ---------------------------------------------------------------------------
+# PATH DEFINITIONS
+# ---------------------------------------------------------------------------
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-INPUT_FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID", "1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm")
-SCOPES          = ["https://www.googleapis.com/auth/drive.readonly"]
+# Historical Parquet baseline (created in data/base/)
+BASE_PARQUET = os.path.join(REPO_ROOT, "data", "base", "courier_survey_all_data.parquet")
 
-GOLD_PATTERN = re.compile(r'\b(CA|UK)\b.*?-?\s*gold_\d{4}-\d{2}-\d{2}.*\.csv$', re.IGNORECASE)
+# Incoming folder where new survey CSV drops are placed
+INCOMING_DIR = os.path.join(REPO_ROOT, "data", "incoming")
 
-PILLAR_ORDER = [
-    "Support Quality",
-    "App / Tech Issues",
-    "Partner and External Delays",
-    "Compensation",
-    "General / Minimal"
-]
+# Outputs
+OUTPUT_SUMMARY_CSV = os.path.join(REPO_ROOT, "data", "outputs", "weekly_courier_survey_summary.csv")
+OUTPUT_MASTER_CSV = os.path.join(REPO_ROOT, "weekly_courier_survey_all_data.csv")
+LEGACY_TRANSCRIPTS_CSV = os.path.join(REPO_ROOT, "csat_all_transcripts_all.csv")
 
-PILLAR_COLORS = {
-    "Support Quality": "#e74c3c",
-    "App / Tech Issues": "#e67e22",
-    "Partner and External Delays": "#16a085",
-    "Compensation": "#2980b9",
-    "General / Minimal": "#7f8c8d"
-}
 
-def get_drive_service():
-    try:
-        creds, _ = google.auth.default(scopes=SCOPES)
-        print("  Authenticated with Google Drive via ADC")
-        return build("drive", "v3", credentials=creds, cache_discovery=False)
-    except Exception as e:
-        print(f"  Google Drive service unavailable: {e}")
+def load_historical_base():
+    """Loads the cumulative Parquet base dataset."""
+    if os.path.exists(BASE_PARQUET):
+        print(f"Loading historical base dataset from: {BASE_PARQUET}")
+        df = pd.read_parquet(BASE_PARQUET)
+        df['response_datetime'] = pd.to_datetime(df['response_datetime'])
+        print(f"Loaded {len(df):,} historical rows from Parquet base.")
+        return df
+    elif os.path.exists(OUTPUT_MASTER_CSV):
+        print(f"Parquet not found. Loading baseline CSV fallback: {OUTPUT_MASTER_CSV}")
+        df = pd.read_csv(OUTPUT_MASTER_CSV)
+        df['response_datetime'] = pd.to_datetime(df['response_datetime'])
+        return df
+    else:
+        print("No historical base found. Initializing empty dataset.")
+        return pd.DataFrame()
+
+
+def parse_filename(filepath):
+    """
+    Extracts metadata from filenames matching:
+    '{Region} {Platform} {Date Range} {Question}.csv'
+    Example: 'UK iOS Oct 26 - Nov 1 Q1.csv'
+    """
+    fname = os.path.basename(filepath)
+    # Ignore gold courier reference lists and base outputs
+    if "gold" in fname.lower():
         return None
 
-def download_stream(service, file_id):
-    req = service.files().get_media(fileId=file_id, supportsAllDrives=True)
-    buf = io.BytesIO()
-    dl = MediaIoBaseDownload(buf, req)
-    done = False
-    while not done:
-        _, done = dl.next_chunk()
-    buf.seek(0)
-    return buf
+    match = re.search(r"([A-Z]{2})\s+(iOS|And)\s+.*?(Q[123])", fname, re.IGNORECASE)
+    if not match:
+        return None
 
-def load_gold_courier_ids(service):
-    gold_ids = set()
-    found_files = []
+    region, platform_raw, question = match.groups()
+    platform = "Android" if platform_raw.lower() == "and" else "iOS"
+    return region.upper(), platform, question.upper(), fname
 
-    if service:
-        try:
-            q = f"'{INPUT_FOLDER_ID}' in parents and trashed = false"
-            res = service.files().list(
-                q=q, fields="files(id, name)", pageSize=100,
-                supportsAllDrives=True, includeItemsFromAllDrives=True, corpora="allDrives"
-            ).execute()
-            for f in res.get("files", []):
-                fname = f.get("name", "")
-                if GOLD_PATTERN.search(fname):
-                    found_files.append((fname, f.get("id"), "drive"))
-        except Exception as e:
-            print(f"  [Drive Error] {e}")
 
-    for lf in glob.glob("**/*.csv", recursive=True):
-        fname = os.path.basename(lf)
-        if GOLD_PATTERN.search(fname):
-            found_files.append((fname, lf, "local"))
+def process_csv_file(filepath):
+    """Reads and normalizes an individual survey CSV partition."""
+    meta = parse_filename(filepath)
+    if not meta:
+        return None
 
-    for fname, ref, src in found_files:
-        try:
-            if src == "drive" and service:
-                buf = download_stream(service, ref)
-                df = pd.read_csv(buf)
-            else:
-                df = pd.read_csv(ref)
-            if "courier_id" in df.columns:
-                cleaned = df["courier_id"].dropna().astype(str).str.strip()
-                gold_ids.update(cleaned.unique())
-        except Exception:
-            pass
+    region, platform, question, fname = meta
 
-    print(f"  ==> Total Unique Verified Gold IDs: {len(gold_ids):,}")
-    return gold_ids
+    try:
+        df = pd.read_csv(filepath)
+    except Exception as e:
+        print(f"Error reading {fname}: {e}")
+        return None
 
-def compute_stats(rows):
-    tot = len(rows)
-    if tot == 0:
-        return {"total": 0, "negQ1": 0, "posQ1": 0, "resCount": 0, "negQ1Pct": 0.0, "posQ1Pct": 0.0, "resPct": 0.0, "marketNeg": {}, "marketPos": {}, "pillars": {}}
-    neg = sum(1 for t in rows if t["q1"] == "1-2★")
-    pos = tot - neg
-    res = sum(1 for t in rows if t["q2"] == "Yes")
+    if df.empty:
+        return None
 
-    pillars = {}
-    for p in PILLAR_ORDER:
-        sub = [t for t in rows if t["pl"] == p]
-        stot = len(sub)
-        sneg = sum(1 for t in sub if t["q1"] == "1-2★")
-        spos = stot - sneg
-        sres = sum(1 for t in sub if t["q2"] == "Yes")
-        pillars[p] = {
-            "total": stot,
-            "share": round(stot / tot * 100, 1) if tot else 0.0,
-            "neg": sneg,
-            "pos": spos,
-            "res": sres,
-            "negPct": round(sneg / stot * 100, 1) if stot else 0.0,
-            "posPct": round(spos / stot * 100, 1) if stot else 0.0,
-            "resPct": round(sres / stot * 100, 1) if stot else 0.0
-        }
+    df.columns = [c.strip() for c in df.columns]
 
-    m_tot, m_neg, m_pos = {}, {}, {}
-    for r in rows:
-        m = r["m"]
-        m_tot[m] = m_tot.get(m, 0) + 1
-        if r["q1"] == "1-2★":
-            m_neg[m] = m_neg.get(m, 0) + 1
-        else:
-            m_pos[m] = m_pos.get(m, 0) + 1
+    # Map column names
+    col_map = {}
+    for c in df.columns:
+        cl = c.lower()
+        if "courier" in cl:
+            col_map[c] = "courier_id"
+        elif "visitor" in cl:
+            col_map[c] = "Visitor ID"
+        elif cl == "date":
+            col_map[c] = "response_datetime"
+        elif cl == "response":
+            col_map[c] = "response_original"
 
-    t_neg = sum(m_neg.values()) or 1
-    t_pos = sum(m_pos.values()) or 1
+    df = df.rename(columns=col_map)
 
-    m_neg_dict = {
-        m: {"neg": m_neg.get(m, 0), "pos": m_pos.get(m, 0), "total": m_tot[m], "pct": round(m_neg.get(m, 0) / t_neg * 100, 1)}
-        for m in sorted(m_tot.keys(), key=lambda x: m_neg.get(x, 0), reverse=True)
-    }
-    m_pos_dict = {
-        m: {"neg": m_neg.get(m, 0), "pos": m_pos.get(m, 0), "total": m_tot[m], "pct": round(m_pos.get(m, 0) / t_pos * 100, 1)}
-        for m in sorted(m_tot.keys(), key=lambda x: m_pos.get(x, 0), reverse=True)
-    }
+    # Validate essential columns
+    for req in ["courier_id", "Visitor ID", "response_datetime", "response_original"]:
+        if req not in df.columns:
+            print(f"Skipping {fname}: Missing column '{req}'")
+            return None
 
-    return {
-        "total": tot, "negQ1": neg, "posQ1": pos, "resCount": res,
-        "negQ1Pct": round(neg / tot * 100, 1), "posQ1Pct": round(pos / tot * 100, 1),
-        "resPct": round(res / tot * 100, 1),
-        "marketNeg": m_neg_dict, "marketPos": m_pos_dict, "pillars": pillars
-    }
+    df["region"] = region
+    df["platform"] = platform
+    df["question"] = question
+    df["source_file"] = fname
+    df["response_english"] = df["response_original"]
+    df["response_datetime"] = pd.to_datetime(df["response_datetime"])
 
-def main():
-    print("=" * 60)
-    print("  Building CSAT Master Payload: Strict Q1 vs Q3 Separation")
-    print("=" * 60)
+    return df
 
-    service = get_drive_service()
-    gold_courier_ids = load_gold_courier_ids(service)
 
-    # 1. Load source transcripts file
-    trans_candidates = [
-        "csat_period_2026_all (1).csv",
-        "csat_all_transcripts_all.csv",
-        "csat_period_2026_all.csv"
-    ]
-    trans_file = next((f for f in trans_candidates if os.path.exists(f)), None)
-    if not trans_file:
-        sys.exit("Error: No CSV survey file found.")
+def generate_weekly_summary(df):
+    """Generates aggregate weekly CSAT summary metrics matching weekly_courier_survey_summary.csv."""
+    records = []
+    grouped = df.groupby(["week_number", "week_start", "week_end", "region", "platform"])
 
-    print(f"  Reading dataset from {trans_file}...")
-    df_trans = pd.read_csv(trans_file)
-    dt_series = pd.to_datetime(df_trans["Date"])
-    df_trans["d"] = dt_series.dt.strftime("%Y-%m-%d %H:%M:%S")
-    mondays = dt_series - pd.to_timedelta(dt_series.dt.weekday, unit="D")
-    df_trans["w"] = mondays.dt.strftime("%Y-%m-%d")
+    for (wn, w_start, w_end, reg, plat), grp in grouped:
+        q1 = grp[grp["question"] == "Q1"]
+        q2 = grp[grp["question"] == "Q2"]
+        q3 = grp[grp["question"] == "Q3"]
 
-    transcripts_all = []
-    transcripts_gold = []
-    q1_only_all = []
-    q1_only_gold = []
+        q1_num = pd.to_numeric(q1["response_original"], errors="coerce")
+        total_q1 = len(q1_num.dropna())
 
-    for _, r in df_trans.iterrows():
-        cid = str(r["Courier ID"]).strip()
-        is_gold = bool(cid in gold_courier_ids)
-        raw_text = str(r["Q3 Text"]).strip() if pd.notna(r["Q3 Text"]) else ""
-        has_text = bool(raw_text and raw_text.lower() not in ("nan", "none", "null", ""))
+        q2_resp = q2["response_original"].astype(str).str.strip().str.lower()
+        yes_count = (q2_resp == "yes").sum()
+        no_count = (q2_resp == "no").sum()
+        total_q2 = yes_count + no_count
 
-        pl = str(r.get("Pillar", "General / Minimal")).strip()
-        if pl not in PILLAR_ORDER:
-            pl = "General / Minimal"
+        records.append({
+            "week_number": wn,
+            "week_start": w_start,
+            "week_end": w_end,
+            "region": reg,
+            "platform": plat,
+            "unique_couriers": grp["courier_id"].nunique(),
+            "total_rows": len(grp),
+            "q1_responses": total_q1,
+            "q1_avg_rating": round(q1_num.mean(), 2) if total_q1 > 0 else np.nan,
+            "q1_rating_1_count": (q1_num == 1).sum(),
+            "q1_rating_2_count": (q1_num == 2).sum(),
+            "q1_rating_3_count": (q1_num == 3).sum(),
+            "q1_rating_4_count": (q1_num == 4).sum(),
+            "q1_rating_5_count": (q1_num == 5).sum(),
+            "q1_pct_positive_4_5": round(((q1_num >= 4).sum() / total_q1) * 100, 1) if total_q1 > 0 else np.nan,
+            "q1_pct_negative_1_2": round(((q1_num <= 2).sum() / total_q1) * 100, 1) if total_q1 > 0 else np.nan,
+            "q2_responses": total_q2,
+            "q2_yes_count": yes_count,
+            "q2_no_count": no_count,
+            "q2_pct_yes": round((yes_count / total_q2) * 100, 1) if total_q2 > 0 else np.nan,
+            "q3_comments_total": len(q3),
+            "q3_comments_non_blank": q3["response_original"].dropna().str.strip().ne("").sum(),
+            "week_note": ""
+        })
 
-        if has_text:
-            rec = {
-                "d": r["d"], "m": str(r["Market"]), "p": str(r["Platform"]),
-                "q1": str(r["Q1"]), "q2": str(r["Q2"]), "c": cid,
-                "t": raw_text[:300], "pl": pl, "w": r["w"], "pl12": "Others",
-                "isGold": is_gold
-            }
-            transcripts_all.append(rec)
-            if is_gold:
-                transcripts_gold.append(rec)
-        else:
-            # Those with blank Q3 Text belong strictly in the Q1-only bucket
-            is_neg = (str(r["Q1"]) == "1-2★")
-            rec = {
-                "d": r["d"], "m": str(r["Market"]), "p": str(r["Platform"]),
-                "q": str(r["Q1"]), "c": cid, "w": r["w"],
-                "n": bool(is_neg), "isGold": is_gold
-            }
-            q1_only_all.append(rec)
-            if is_gold:
-                q1_only_gold.append(rec)
+    summary_df = pd.DataFrame(records).sort_values(["week_number", "region", "platform"])
+    return summary_df
 
-    # Ingest additional survey records if combined file exists
-    raw_files = [f for f in glob.glob("**/*combined*.csv", recursive=True) if os.path.exists(f)]
-    if raw_files:
-        df_raw = pd.read_csv(raw_files[0], low_memory=False)
-        trans_keys = {(t["c"], t["d"]) for t in transcripts_all}.union({(q["c"], q["d"]) for q in q1_only_all})
-        if "question" in df_raw.columns:
-            q1_rows = df_raw[df_raw["question"] == "Q1_Rating"].copy()
-            q1_dt = pd.to_datetime(q1_rows["Date"])
-            q1_rows["d"] = q1_dt.dt.strftime("%Y-%m-%d %H:%M:%S")
-            q1_mondays = q1_dt - pd.to_timedelta(q1_dt.dt.weekday, unit="D")
-            q1_rows["w"] = q1_mondays.dt.strftime("%Y-%m-%d")
 
-            for _, r in q1_rows.iterrows():
-                cid = str(r["courier_id"]).strip()
-                d_str = r["d"]
-                if (cid, d_str) not in trans_keys:
-                    raw_val = str(r["Response"]).strip()
-                    is_neg = raw_val in ("1", "2", "1-2", "1-2★") or raw_val.startswith(("1", "2"))
-                    is_gold = bool(cid in gold_courier_ids)
-                    rec = {
-                        "d": d_str, "m": str(r.get("market", "UK")), "p": str(r.get("platform", "ios")),
-                        "q": "1-2★" if is_neg else "3-5★", "c": cid, "w": r["w"],
-                        "n": bool(is_neg), "isGold": is_gold
-                    }
-                    q1_only_all.append(rec)
-                    if is_gold:
-                        q1_only_gold.append(rec)
-                    trans_keys.add((cid, d_str))
+def build_and_update_master():
+    """Main workflow to merge new survey data into the historical base."""
+    # 1. Load historical base
+    base_df = load_historical_base()
 
-    # Populate baseline totals
-    target_q1_total = 65390
-    needed_q1 = target_q1_total - len(transcripts_all)
-    if len(q1_only_all) < needed_q1:
-        for idx in range(len(q1_only_all), needed_q1):
-            ref = transcripts_all[idx % len(transcripts_all)]
-            q1_only_all.append({
-                "d": ref["d"], "m": ref["m"], "p": ref["p"], "q": ref["q1"],
-                "c": f"{ref['c']}_q1_{idx}", "w": ref["w"], "n": (ref["q1"] == "1-2★"),
-                "isGold": False
-            })
+    # Clean any internal duplicates within base itself first to get true unique baseline
+    if not base_df.empty:
+        base_df = base_df.drop_duplicates(
+            subset=["courier_id", "question", "response_datetime"],
+            keep="last"
+        )
+    initial_base_rows = len(base_df)
+    print(f"Verified unique historical records: {initial_base_rows:,}")
 
-    # Ensure Gold Q1-only volume exists across historical weeks
-    if len(q1_only_gold) < 117 and len(transcripts_gold) > 0:
-        for idx in range(len(q1_only_gold), 117):
-            ref = transcripts_gold[idx % len(transcripts_gold)]
-            q1_only_gold.append({
-                "d": ref["d"], "m": ref["m"], "p": ref["p"], "q": ref["q1"],
-                "c": f"{ref['c']}_gq1_{idx}", "w": ref["w"], "n": (ref["q1"] == "1-2★"),
-                "isGold": True
-            })
+    # 2. Check for newly downloaded files in incoming directory or root
+    search_dirs = [INCOMING_DIR, REPO_ROOT]
+    new_csvs = []
+    for d in search_dirs:
+        if os.path.exists(d):
+            for f in glob.glob(os.path.join(d, "*.csv")):
+                bname = os.path.basename(f)
+                if not any(kw in bname.lower() for kw in ["summary", "master", "transcripts", "gold", "weekly_courier_survey_all_data"]):
+                    new_csvs.append(f)
 
-    print(f"\n  Final Metrics Breakdown:")
-    print(f"    • All Couriers:")
-    print(f"        Q1 Respondents: {len(transcripts_all) + len(q1_only_all):,}")
-    print(f"        Q3 Transcripts: {len(transcripts_all):,}")
-    print(f"        Q1-Only:        {len(q1_only_all):,}")
-    print(f"    • Gold Couriers:")
-    print(f"        Q1 Respondents: {len(transcripts_gold) + len(q1_only_gold):,}")
-    print(f"        Q3 Transcripts: {len(transcripts_gold):,}")
-    print(f"        Q1-Only:        {len(q1_only_gold):,}")
+    new_dfs = []
+    for f in new_csvs:
+        parsed = process_csv_file(f)
+        if parsed is not None and not parsed.empty:
+            new_dfs.append(parsed)
 
-    all_weeks = sorted(list(df_trans["w"].unique()))
-    by_week_all = {w: compute_stats([t for t in transcripts_all if t["w"] == w]) for w in all_weeks}
-    by_week_gold = {w: compute_stats([t for t in transcripts_gold if t["w"] == w]) for w in all_weeks}
+    # 3. Combine base and new files
+    if new_dfs:
+        print(f"Processing {len(new_dfs)} new partition file(s)...")
+        incoming_combined = pd.concat(new_dfs, ignore_index=True)
+        full_df = pd.concat([base_df, incoming_combined], ignore_index=True)
+    else:
+        print("No new raw CSV files found. Validating and refreshing base data.")
+        full_df = base_df.copy()
 
-    all_dates = df_trans["d"].str[:10].dropna()
+    if full_df.empty:
+        print("Error: No data available to build.")
+        return
 
-    payload = {
-        "weeks": all_weeks,
-        "pillarOrder": PILLAR_ORDER,
-        "pillarColors": PILLAR_COLORS,
-        "dateRange": {"start": str(all_dates.min()), "end": str(all_dates.max())},
-        "all": {
-            "allTime": compute_stats(transcripts_all),
-            "byWeek": by_week_all,
-            "transcripts": transcripts_all
-        },
-        "gold": {
-            "allTime": compute_stats(transcripts_gold),
-            "byWeek": by_week_gold,
-            "transcripts": transcripts_gold
-        },
-        "q1NoQ3": {
-            "all": q1_only_all,
-            "gold": q1_only_gold
-        }
-    }
+    # 4. Deduplicate on composite primary key
+    full_df = full_df.drop_duplicates(
+        subset=["courier_id", "question", "response_datetime"],
+        keep="last"
+    )
 
-    with open("data.json", "w", encoding="utf-8") as f:
-        json.dump(payload, f, separators=(",", ":"))
+    # 5. Calculate chronological week bounds (Monday to Sunday)
+    full_df["response_datetime"] = pd.to_datetime(full_df["response_datetime"])
+    full_df["week_start"] = (
+        full_df["response_datetime"].dt.to_period("W-SUN").dt.start_time.dt.strftime("%Y-%m-%d")
+    )
+    full_df["week_end"] = (
+        full_df["response_datetime"].dt.to_period("W-SUN").dt.end_time.dt.strftime("%Y-%m-%d")
+    )
 
-    print("\nSUCCESS: data.json compiled with strict separation!")
+    # Assign sequential week numbering (Week 1 to latest)
+    unique_weeks = sorted(full_df["week_start"].unique())
+    week_map = {w: i + 1 for i, w in enumerate(unique_weeks)}
+    full_df["week_number"] = full_df["week_start"].map(week_map)
+
+    # Sort dataset chronologically
+    full_df = full_df.sort_values(["response_datetime", "region", "platform"]).reset_index(drop=True)
+
+    # 6. Safety check: Total records must never drop below historical unique base
+    if len(full_df) < initial_base_rows:
+        raise ValueError(
+            f"SAFETY ABORT: Resulting dataset ({len(full_df):,} rows) has fewer records "
+            f"than base ({initial_base_rows:,} rows)! Update halted."
+        )
+
+    rows_added = len(full_df) - initial_base_rows
+    print(f"Merge & Deduplication complete: {rows_added:,} new rows added.")
+    print(f"Total dataset size: {len(full_df):,} rows across {len(unique_weeks)} weeks.")
+
+    # 7. Save updated base Parquet (Primary source of truth)
+    os.makedirs(os.path.dirname(BASE_PARQUET), exist_ok=True)
+    full_df.to_parquet(BASE_PARQUET, index=False)
+    print(f"Successfully saved updated base dataset to: {BASE_PARQUET}")
+
+    # 8. Generate and save summary CSV
+    summary_df = generate_weekly_summary(full_df)
+    os.makedirs(os.path.dirname(OUTPUT_SUMMARY_CSV), exist_ok=True)
+    summary_df.to_csv(OUTPUT_SUMMARY_CSV, index=False)
+    print(f"Successfully saved summary metrics to: {OUTPUT_SUMMARY_CSV}")
+
+    # 9. Sync backwards-compatible CSV export
+    full_df.to_csv(OUTPUT_MASTER_CSV, index=False)
+    print(f"Synced master export: {OUTPUT_MASTER_CSV}")
+
 
 if __name__ == "__main__":
-    main()
+    build_and_update_master()
