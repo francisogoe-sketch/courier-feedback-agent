@@ -1,27 +1,22 @@
-name: Courier Feedback Agent
+name: Courier Feedback Agent Workflow
 
 on:
   schedule:
-    - cron: '0 13 * * 1'
-    - cron: '0 17 * * 1'
-    - cron: '0 10 * * 2'
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        description: 'Dry run only'
-        required: false
-        default: 'false'
-
-permissions:
-  contents: write
+    # Runs automatically every Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch: # Allows you to manually trigger the workflow from the Actions tab
 
 jobs:
-  run-feedback-agent:
+  run-pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    permissions:
+      contents: write
+
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,42 +24,39 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          pip install pandas openpyxl numpy google-auth google-auth-oauthlib google-api-python-client
+          python -m pip install --upgrade pip
+          pip install pandas pyarrow numpy google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
 
-      - name: Configure Google credentials
+      - name: Run Feedback Agent (Fetch from Drive)
         env:
-          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
         run: |
-          printf '%s' "$GOOGLE_CREDS" > /tmp/google_creds.json
-          python3 -c "import json; d=json.load(open('/tmp/google_creds.json')); d['quota_project_id']='pendo-feedback-agent'; json.dump(d,open('/tmp/google_creds.json','w'))"
-          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/google_creds.json" >> $GITHUB_ENV
-          echo "GOOGLE_CLOUD_PROJECT=pendo-feedback-agent" >> $GITHUB_ENV
+          python feedback_agent.py
 
-      - name: Create env file
+      - name: Update Master Dataset & Append to Base Parquet
         run: |
-          printf "AUTH_METHOD=adc\n" > .env
-          printf "DRIVE_FOLDER_ID=1Z2ugAbgFYgmErVrM-TTEJYGhcsx0U9Cm\n" >> .env
-          printf "OUTPUT_FOLDER_ID=1AJvXVyAi0up23juK1RDQFqc2QoDQ7W-K\n" >> .env
-          printf "GOOGLE_CLOUD_PROJECT=pendo-feedback-agent\n" >> .env
+          python build_master_data.py
 
-      - name: Rebuild HTML Dashboard
-        run: python build_master_data.py
+      - name: Rebuild Dashboard (Data & HTML)
+        run: |
+          if [ -f "rebuild_dashboard_DEFINITIVE.py" ]; then
+            python rebuild_dashboard_DEFINITIVE.py
+          elif [ -f "rebuild_dashboard.py" ]; then
+            python rebuild_dashboard.py
+          fi
 
-      - name: Publish Dashboard to GitHub Pages
+      - name: Commit and Push Updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          touch .nojekyll
-          git add -f data.json index.html .nojekyll
-          git diff --staged --quiet || git commit -m "auto: update dashboard and data"
-          git push
-
-      - name: Upload logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: logs-${{ github.run_number }}
-          path: logs/
-          retention-days: 30
+          git pull --rebase origin main
+          git add data/base/ data/outputs/ weekly_courier_survey_all_data.csv data.json index.html
+          if git diff --staged --quiet; then
+            echo "No new updates to commit."
+          else
+            git commit -m "Auto-append weekly CSAT data & rebuild dashboard [skip ci]"
+            git push origin main
+          fi
