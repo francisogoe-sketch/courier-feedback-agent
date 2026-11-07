@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>T1 SB CSAT — Courier Feedback Intelligence</title>
+<title>Courier CSAT Analysis</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -242,7 +242,7 @@ input[type="text"]:focus, input[type="date"]:focus { outline: none; border-color
 
 <div class="header">
   <div class="header-row">
-    <h1 id="dashTitle">T1 SB CSAT — Courier Feedback Intelligence</h1>
+    <h1 id="dashTitle">Courier CSAT Analysis</h1>
     <div class="header-meta">
       <span id="dateRange"></span>
       <span>•</span>
@@ -512,7 +512,7 @@ function init() {
   document.getElementById('goldOnly').addEventListener('change', e => {
     goldOnly = e.target.checked;
     
-    // Clear individual courier filter to prevent non-gold filter retention
+    // Clear individual courier filter on toggle change
     courierFilter = null;
     document.getElementById('courierFilter').value = '';
     document.getElementById('courierClear').classList.add('hidden');
@@ -662,9 +662,6 @@ function getQuarter(dateStr) {
 
 function getFilteredTranscripts() {
   let transcripts = getDataset().transcripts || [];
-  if (goldOnly) {
-    transcripts = transcripts.filter(t => t.isGold === true || (D.gold && D.gold.transcripts.includes(t)));
-  }
   if (courierFilter) transcripts = transcripts.filter(t => t.c === courierFilter);
   if (marketFilter !== 'all') transcripts = transcripts.filter(t => t.m === marketFilter);
   return transcripts;
@@ -796,9 +793,6 @@ function getAllQ1Responses() {
   const ds = D.q1NoQ3 || { all: [], gold: [] };
   let q1only = goldOnly ? (ds.gold || []) : (ds.all || []);
 
-  if (goldOnly) {
-    q1only = q1only.filter(r => r.isGold === true || (D.q1NoQ3.gold && D.q1NoQ3.gold.includes(r)));
-  }
   if (courierFilter) q1only = q1only.filter(r => r.c === courierFilter);
   if (marketFilter !== 'all') q1only = q1only.filter(r => r.m === marketFilter);
 
@@ -819,6 +813,7 @@ function getAllQ1Responses() {
     q1: r.q1 || r.q || '',
     q2: 'No', c: r.c, t: '', pl: '', w: r.w,
     neg: r.neg !== undefined ? r.neg : (r.n !== undefined ? r.n : false),
+    pos: r.pos !== undefined ? r.pos : !(r.neg !== undefined ? r.neg : (r.n !== undefined ? r.n : false))
   }));
   return periodTranscripts.concat(norm);
 }
@@ -861,11 +856,12 @@ function render() {
   const period = computeMetrics(periodTranscripts);
   const allTime = computeMetrics(allTranscripts);
 
+  // Renamed Dashboard Header Title
   const baseTitle = goldOnly
-    ? 'T1 SB CSAT — Gold Courier Feedback Intelligence (CA & UK)'
-    : 'T1 SB CSAT — Courier Feedback Intelligence';
+    ? 'Courier CSAT Analysis — Gold Couriers (CA & UK)'
+    : 'Courier CSAT Analysis';
   document.getElementById('dashTitle').textContent = currentView === 'L2'
-    ? (goldOnly ? 'T1 SB CSAT — Gold Couriers (L2: 12 Pillars)' : 'T1 SB CSAT — All Couriers (L2: 12 Pillars)')
+    ? (goldOnly ? 'Courier CSAT Analysis — Gold Couriers (L2: 12 Pillars)' : 'Courier CSAT Analysis (L2: 12 Pillars)')
     : baseTitle;
 
   const label = goldOnly ? 'Gold Couriers' : 'All Couriers';
@@ -894,11 +890,11 @@ function render() {
   renderCard('posQ1', q1PeriodMetrics.posQ1Pct, q1AllTimeMetrics.posQ1Pct, 'pp', true);
   renderCard('res', period.resPct, allTime.resPct, 'pp', true);
 
-  // Q3 Transcripts Card (Couriers who left comments)
+  // Q3 Transcripts Card (Only couriers who submitted written feedback)
   document.getElementById('countVal').textContent = period.total.toLocaleString();
   document.getElementById('countSub').textContent = 'of ' + allTime.total.toLocaleString() + ' all-time';
 
-  // Q1 Respondents Card (Total volume who rated Q1)
+  // Q1 Respondents Card (Total volume who rated Q1, with or without feedback)
   document.getElementById('q1CountVal').textContent = q1PeriodMetrics.total.toLocaleString();
   document.getElementById('q1CountSub').textContent = 'of ' + q1AllTimeMetrics.total.toLocaleString() + ' all-time';
 
@@ -1040,7 +1036,6 @@ function onQ1PeriodModeChange() {
 function populateQ1PeriodValue() {
   const ds = D.q1NoQ3 || { all: [], gold: [] };
   let rows = goldOnly ? (ds.gold || []) : (ds.all || []);
-  if (goldOnly) rows = rows.filter(r => r.isGold === true || (D.q1NoQ3.gold && D.q1NoQ3.gold.includes(r)));
   if (courierFilter) rows = rows.filter(r => r.c === courierFilter);
   const sel = document.getElementById('q1PeriodValue');
   sel.innerHTML = '';
@@ -1100,9 +1095,6 @@ function navQ1Period(dir) {
 function renderQ1Only() {
   const ds = D.q1NoQ3 || { all: [], gold: [] };
   let rows = goldOnly ? (ds.gold || []) : (ds.all || []);
-  if (goldOnly) {
-    rows = rows.filter(r => r.isGold === true || (D.q1NoQ3.gold && D.q1NoQ3.gold.includes(r)));
-  }
   if (courierFilter) rows = rows.filter(r => r.c === courierFilter);
 
   if (q1PeriodMode === 'weekly') {
@@ -1157,7 +1149,6 @@ function renderQ1Compare(q1OnlyRows) {
   if (!container) return;
   const ds = getDataset();
   let bothRows = ds.transcripts.filter(t => {
-    if (goldOnly && !t.isGold && !(D.gold && D.gold.transcripts.includes(t))) return false;
     if (q1PeriodMode === 'weekly') return t.w === q1PeriodValue;
     if (q1PeriodMode === 'monthly') return t.d.substring(0, 7) === q1PeriodValue;
     if (q1PeriodMode === 'quarterly') return getQuarter(t.d) === q1PeriodValue;
