@@ -169,17 +169,18 @@ def process_and_assemble(df_raw, gold_ids):
         df_raw = df_raw.dropna(subset=["dt"])
         
         session_col = "Visitor_ID" if "Visitor_ID" in df_raw.columns else "courier_id"
-        # Combine questions submitted in the same session
+        if "week_start" in df_raw.columns:
+            df_raw["session_key"] = df_raw[session_col].astype(str) + "__" + df_raw["week_start"].astype(str)
+        else:
+            df_raw["session_key"] = df_raw[session_col].astype(str) + "__" + df_raw["dt"].dt.strftime("%Y-%m-%d")
         piv = df_raw.pivot_table(
-            index=[session_col, "courier_id", "market", "platform"],
+            index=["session_key", "courier_id", "market", "platform"],
             columns="question",
             values="Response",
             aggfunc="first"
         ).reset_index()
-
-        # Date for the session is the earliest submission timestamp
-        date_lookup = df_raw.groupby(session_col)["dt"].min().to_dict()
-        piv["dt"] = piv[session_col].map(date_lookup)
+        date_lookup = df_raw.groupby("session_key")["dt"].min().to_dict()
+        piv["dt"] = piv["session_key"].map(date_lookup)
     else:
         piv = df_raw.copy()
         date_col = next((c for c in ["Date", "date", "created_at", "response_datetime", "week_start"] if c in piv.columns), "Date")
