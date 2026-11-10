@@ -114,40 +114,47 @@ def load_gold_courier_ids(service):
     return gold_ids
 
 def load_all_surveys(service):
-    """Loads all surveys from combined CSVs or individual weekly exports."""
+    """Loads all surveys from base Parquet and merges weekly Drive exports for Nov 2 - 8."""
     dfs = []
-    # 1. Check Parquet Base or Local Combined/Master Data
     parquet_path = os.path.join("data", "base", "courier_survey_all_data.parquet")
     if os.path.exists(parquet_path):
         try:
             df_p = pd.read_parquet(parquet_path)
-            print(f"  Loaded master Parquet: {parquet_path} ({len(df_p):,} rows)")
+            if 'week_start' in df_p.columns:
+                df_p = df_p[pd.to_datetime(df_p['week_start'], errors='coerce') != '2026-11-02']
+            # Align column names
+            col_rename = {'region': 'market', 'response_datetime': 'Date', 'response_english': 'Response'}
+            for old_c, new_c in col_rename.items():
+                if old_c in df_p.columns and new_c not in df_p.columns:
+                    df_p[new_c] = df_p[old_c]
+            print(f"  Loaded master Parquet (excluding partial Nov 2): {len(df_p):,} rows")
             dfs.append(df_p)
         except Exception as e:
             print(f"  Warning reading parquet: {e}")
-    candidates = glob.glob("**/*combined*.csv", recursive=True) + glob.glob("**/*master*.csv", recursive=True) + glob.glob("*all_data*.csv", recursive=True)
-    for c in candidates:
+
+    drive_files = {**list_drive_folder(service, INPUT_FOLDER_ID), **list_drive_folder(service, OUTPUT_FOLDER_ID)}
+    nov_files = {k: v for k, v in drive_files.items() if 'Nov 2 - 8' in k}
+    print(f"  Found {len(nov_files)} weekly export files for Nov 2 - 8 in Google Drive. Ingesting...")
+    for name, fid in sorted(nov_files.items()):
         try:
-            d = pd.read_csv(c, low_memory=False)
-            if "question" in d.columns or "Q1_Rating" in d.columns:
-                print(f"  Loaded dataset: {c} ({len(d):,} rows)")
-                dfs.append(d)
-        except Exception:
-            pass
+            buf = download_stream(service, fid)
+            df = pd.read_csv(buf, low_memory=False)
+            parts = name.replace('.csv', '').split()
+            m = parts[0]
+            p = 'Android' if 'And' in parts[1] else 'iOS'
+            q = 'Q1' if 'Q1' in name else ('Q2' if 'Q2' in name else 'Q3')
+            df['market'] = m
+            df['region'] = m
+            df['platform'] = p
+            df['question'] = q
+            df['week_start'] = '2026-11-02'
+            df['week_end'] = '2026-11-08'
+            dfs.append(df)
+        except Exception as ex:
+            print(f"    Error ingesting {name}: {ex}")
 
-    # 2. Drive search if no local dataset
-    if not dfs:
-        drive_files = {**list_drive_folder(service, INPUT_FOLDER_ID), **list_drive_folder(service, OUTPUT_FOLDER_ID)}
-        for fname, fid in drive_files.items():
-            if any(k in fname.lower() for k in ["combined", "master", "all_time"]) and fname.endswith(".csv"):
-                print(f"  Downloading from Drive: {fname}")
-                buf = download_stream(service, fid)
-                dfs.append(pd.read_csv(buf, low_memory=False))
-
-    if not dfs:
-        raise FileNotFoundError("Could not find combined survey dataset.")
-
-    return pd.concat(dfs, ignore_index=True).drop_duplicates()
+    combined = pd.concat(dfs, ignore_index=True)
+    return combined
 
 def process_and_assemble(df_raw, gold_ids):
     print("  Assembling survey sessions...")
