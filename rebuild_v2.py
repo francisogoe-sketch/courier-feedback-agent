@@ -87,29 +87,31 @@ def upload_file(service, name, file_bytes, mime_type, folder_id):
         print(f"  Drive file created: {name} (id={f.get('id')})")
 
 def load_gold_courier_ids(service):
-    """Loads Gold courier IDs from local files or Google Drive."""
+    """Loads Gold courier IDs from local CSV/ZIP files or Google Drive."""
+    import zipfile, io
     gold_ids = set()
-    local_files = glob.glob("**/*Gold*.csv", recursive=True) + glob.glob("**/*gold*.csv", recursive=True)
-    for lf in local_files:
+    local_patterns = ['**/*Gold*.csv', '**/*gold*.csv', '**/*Gold*.zip', '**/*gold*.zip']
+    local_files = []
+    for p in local_patterns:
+        local_files.extend(glob.glob(p, recursive=True))
+    for lf in set(local_files):
         try:
-            gdf = pd.read_csv(lf)
-            if "courier_id" in gdf.columns:
-                gold_ids.update(gdf["courier_id"].dropna().astype(str).unique())
-        except Exception:
-            pass
-
-    if not gold_ids:
-        drive_files = list_drive_folder(service, INPUT_FOLDER_ID)
-        for name, fid in drive_files.items():
-            if "gold" in name.lower() and name.endswith(".csv"):
-                try:
-                    buf = download_stream(service, fid)
-                    gdf = pd.read_csv(buf)
-                    if "courier_id" in gdf.columns:
-                        gold_ids.update(gdf["courier_id"].dropna().astype(str).unique())
-                except Exception:
-                    pass
-
+            if lf.endswith('.zip'):
+                with zipfile.ZipFile(lf) as zf:
+                    for member in zf.namelist():
+                        if member.endswith('.csv'):
+                            with zf.open(member) as zf_file:
+                                gdf = pd.read_csv(zf_file, low_memory=False)
+                                col = next((c for c in gdf.columns if 'courier' in c.lower()), None)
+                                if col:
+                                    gold_ids.update(gdf[col].dropna().astype(str).unique())
+            else:
+                gdf = pd.read_csv(lf, low_memory=False)
+                col = next((c for c in gdf.columns if 'courier' in c.lower()), None)
+                if col:
+                    gold_ids.update(gdf[col].dropna().astype(str).unique())
+        except Exception as e:
+            print(f"  Warning reading gold file {lf}: {e}")
     print(f"  Loaded {len(gold_ids):,} Gold Courier IDs.")
     return gold_ids
 
