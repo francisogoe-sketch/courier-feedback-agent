@@ -236,6 +236,7 @@ input[type="text"]:focus, input[type="date"]:focus { outline: none; border-color
 @keyframes spin { to { transform: rotate(360deg); } }
 .hidden { display: none !important; }
 .filter-active { background: rgba(41,128,185,.1) !important; border-color: var(--blue) !important; }
+.exec-summary-card{background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-left:4px solid var(--blue,#2980b9);border-radius:10px;padding:16px 20px;margin-bottom:18px;box-shadow:0 2px 6px rgba(0,0,0,.04)}.exec-summary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.exec-summary-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue,#2980b9)}.exec-summary-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:rgba(41,128,185,.1);color:var(--blue,#2980b9)}.exec-summary-body{font-size:14px;line-height:1.55;color:var(--text-primary,#1e293b)}.exec-insights-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#e2e8f0)}.exec-insight-item{font-size:12.5px;color:var(--text-secondary,#475569)}.exec-insight-label{font-weight:700;color:var(--text-primary,#1e293b);display:block;margin-bottom:2px}
 </style>
 </head>
 <body>
@@ -312,6 +313,7 @@ input[type="text"]:focus, input[type="date"]:focus { outline: none; border-color
     <div>Loading dashboard data…</div>
   </div>
 
+  <div class="section exec-summary-card hidden" id="execSummaryBanner"><div class="exec-summary-header"><div class="exec-summary-title">Executive Summary &amp; Period Analysis</div><span class="exec-summary-badge" id="execSummaryScope">All Markets</span></div><div class="exec-summary-body" id="execSummaryText"></div><div class="exec-insights-grid" id="execInsightsGrid"></div></div>
   <div class="section cards-row hidden" id="cardsRow">
     <div class="kpi-card neg">
       <div class="kpi-label">Negative Q1</div>
@@ -851,11 +853,43 @@ function computeQ1Metrics(data_rows) {
   };
 }
 
+function updateExecutiveSummary(period, allTime) {
+  const b = document.getElementById('execSummaryBanner');
+  const t = document.getElementById('execSummaryText');
+  const g = document.getElementById('execInsightsGrid');
+  if (!b || !t || !g) return;
+  if (!period || period.total === 0) { b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  const s = document.getElementById('periodValueSelect');
+  const pn = periodMode === 'custom' ? customStart + ' to ' + customEnd : (s && s.options[s.selectedIndex] ? s.options[s.selectedIndex].text : 'Selected Period');
+  const sp = [];
+  if (goldOnly) sp.push('Gold Couriers');
+  sp.push(marketFilter === 'all' ? 'All Markets' : marketFilter);
+  if (courierFilter) sp.push('Courier: ' + courierFilter);
+  document.getElementById('execSummaryScope').textContent = pn + ' | ' + sp.join(' | ');
+  const q1 = computeQ1Metrics(getAllQ1Responses());
+  const tq = q1.total || period.total;
+  const op = q1.total > 0 ? q1.posQ1Pct : period.posQ1Pct;
+  const on = q1.total > 0 ? q1.negQ1Pct : period.negQ1Pct;
+  const nd = Math.round((period.negQ1Pct - allTime.negQ1Pct) * 10) / 10;
+  const dw = nd > 0 ? '<span style="color:var(--red,#e74c3c);font-weight:700;">▲ ' + nd + ' pp higher</span> than' : (nd < 0 ? '<span style="color:var(--green,#27ae60);font-weight:700;">▼ ' + Math.abs(nd) + ' pp lower</span> than' : 'in line with');
+  let tp = 'None', tc = 0, tn = 0;
+  Object.entries(period.pillars || {}).forEach(([p, x]) => { if (p !== 'General / Minimal' && x.neg > tc) { tp = p; tc = x.neg; tn = x.negPct; } });
+  if (tp === 'None' && period.pillars) { Object.entries(period.pillars).forEach(([p, x]) => { if (x.total > tc) { tp = p; tc = x.total; tn = x.negPct; } }); }
+  const me = Object.entries(period.marketNeg || {});
+  const tm = me.length ? me[0][0] : 'N/A';
+  const ts = me.length ? me[0][1].pct : 0;
+  const tmn = me.length ? me[0][1].neg : 0;
+  const rd = Math.round((period.resPct - allTime.resPct) * 10) / 10;
+  const rt = (rd >= 0 ? '+' : '') + rd + ' pp vs avg';
+  t.innerHTML = 'During <strong>' + pn + '</strong>, <strong>' + tq.toLocaleString() + ' couriers</strong> submitted Q1 ratings (<strong>' + op + '% positive</strong> / <strong>' + on + '% negative</strong>), alongside <strong>' + period.total.toLocaleString() + ' qualitative Q3 transcripts</strong>. Transcript negative sentiment (' + period.negQ1Pct + '%) is ' + dw + ' the all-time baseline (' + allTime.negQ1Pct + '%).';
+  g.innerHTML = '<div class="exec-insight-item"><span class="exec-insight-label">Primary Pain Point</span><strong>' + tp + '</strong> (' + tc.toLocaleString() + ' negative mentions, ' + tn + '% negative rate)</div><div class="exec-insight-item"><span class="exec-insight-label">Top Negative Market</span><strong>' + tm + '</strong> accounts for <strong>' + ts + '%</strong> of negative Q3 feedback (' + tmn.toLocaleString() + ' transcripts)</div><div class="exec-insight-item"><span class="exec-insight-label">Support Resolution</span><strong>' + period.resPct + '%</strong> resolved (' + period.resCount.toLocaleString() + ' of ' + period.total.toLocaleString() + ' transcripts, ' + rt + ')</div>';
+}
 function render() {
   const periodTranscripts = getPeriodTranscripts();
   const allTranscripts = getFilteredTranscripts();
   const period = computeMetrics(periodTranscripts);
-  const allTime = computeMetrics(allTranscripts);
+  const allTime = computeMetrics(allTranscripts); updateExecutiveSummary(period, allTime);
 
   // Renamed Dashboard Header Title
   const baseTitle = goldOnly
