@@ -214,13 +214,19 @@ def process_and_assemble(df_raw, gold_ids):
 
     def parse_q1(val):
         s = str(val).strip()
-        if s in ("1", "2", "1-2", "1-2★") or s.startswith("1") or s.startswith("2"):
-            return "1-2★", True
-        return "3-5★", False
+        num = 5
+        for ch in s:
+            if ch in "12345":
+                num = int(ch)
+                break
+        if num <= 2 or s in ("1-2", "1-2★"):
+            return "1-2★", True, num
+        return "3-5★", False, num
 
-    q1_vals = piv[q1_col].apply(parse_q1) if q1_col else [("3-5★", False)] * len(piv)
+    q1_vals = piv[q1_col].apply(parse_q1) if q1_col else [("3-5★", False, 5)] * len(piv)
     piv["q1"] = [v[0] for v in q1_vals]
     piv["is_neg"] = [v[1] for v in q1_vals]
+    piv["score"] = [v[2] for v in q1_vals]
 
     piv["q2"] = piv[q2_col].apply(lambda v: "Yes" if str(v).strip().lower() in ("1", "yes", "true") else "No") if q2_col else "No"
 
@@ -263,6 +269,7 @@ def process_and_assemble(df_raw, gold_ids):
             "m": r["m"],
             "p": r["p"],
             "q1": r["q1"],
+        "s": int(r.get("score", 1 if r["q1"]=="1-2★" else 5)),
             "q2": r["q2"],
             "c": r["c"],
             "t": str(r.get(q3_col, ""))[:300],
@@ -275,7 +282,7 @@ def process_and_assemble(df_raw, gold_ids):
     transcripts_gold = [t for t in transcripts_all if t["c"] in gold_ids]
 
     q1_only_all = [
-        {"d": r["d"], "m": r["m"], "p": r["p"], "q": r["q1"], "c": r["c"], "w": r["w"], "n": bool(r["is_neg"])}
+        {"d": r["d"], "m": r["m"], "p": r["p"], "q": r["q1"], "s": int(r.get("score", 1 if r["is_neg"] else 5)), "c": r["c"], "w": r["w"], "n": bool(r["is_neg"])}
         for _, r in df_q1_only.iterrows()
     ]
     q1_only_gold = [q for q in q1_only_all if q["c"] in gold_ids]
