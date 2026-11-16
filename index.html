@@ -785,7 +785,7 @@ function computeMetrics(dataRows) {
     negQ1Pct: Math.round(negCount/total*1000)/10,
     posQ1Pct: Math.round(posCount/total*1000)/10,
     resPct: Math.round(resCount/total*1000)/10,
-    marketNeg: marketData, marketPos: marketPosData, avgCsat, pillars: pillarData, avgCsat,
+    marketNeg: marketData, marketPos: marketPosData, pillars: pillarData, avgCsat,
   };
 }
 
@@ -819,14 +819,14 @@ function getAllQ1Responses() {
   return periodTranscripts.concat(norm);
 }
 
-function computeQ1Metrics(data_rows) { const _s = data_rows.reduce((a,r)=>a+(Number(r.s)||((r.q1===Q1_NEG||r.neg||r.n)?1.5:4.5)),0); const avgCsat = data_rows.length ? Math.round((_s/data_rows.length)*100)/100 : 0;
+function computeQ1Metrics(data_rows) {
   const total = data_rows.length;
-  if (total === 0) return { avgCsat, total:0, negQ1:0, posQ1:0, resCount:0, negQ1Pct:0, posQ1Pct:0, resPct:0, marketNeg:{}, marketPos:{} };
+  if (total === 0) return { avgCsat: 0, total:0, negQ1:0, posQ1:0, resCount:0, negQ1Pct:0, posQ1Pct:0, resPct:0, marketNeg:{}, marketPos:{} };
   const negCount = data_rows.filter(r => r.q1 === Q1_NEG || r.neg).length;
   const posCount = data_rows.filter(r => r.q1 === Q1_POS || r.pos).length;
   const resCount = data_rows.filter(r => r.q2 === 'Yes').length; const scoreSum = data_rows.reduce((a,r)=>a+(Number(r.s)||((r.q1===Q1_NEG||r.neg)?1.5:4.5)),0); const avgCsat = total>0 ? Math.round((scoreSum/total)*100)/100 : 0;
   const marketNeg = {}, marketPos = {}, marketTotal = {};
-  data_rows.slice(0, 200).forEach(r => {
+  data_rows.forEach(r => {
     const m = r.m || '';
     marketTotal[m] = (marketTotal[m] || 0) + 1;
     if (r.q1 === Q1_NEG || r.neg) marketNeg[m] = (marketNeg[m] || 0) + 1;
@@ -1171,7 +1171,7 @@ function renderQ1Only() {
   }
 
   let html = '<thead><tr><th>Date</th><th>Market</th><th>Platform</th><th>Q1 Rating</th><th>Sentiment</th><th>Courier ID</th></tr></thead><tbody>';
-  rows.forEach(r => {
+  rows.slice(0, 200).forEach(r => {
     const q1Class = r.neg ? 'neg' : 'pos';
     const sentLabel = r.neg ? 'Negative' : 'Positive';
     const sentColor = r.neg ? 'var(--red)' : 'var(--green)';
