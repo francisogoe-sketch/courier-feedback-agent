@@ -1100,14 +1100,14 @@ function renderComparison(period, allTime) {
   html += row('Classified Q3 Transcripts', period.total, allTime.total, num, true);
   html += row('Negative Q1 %', period.negQ1Pct, allTime.negQ1Pct, pct, false);
   html += row('Positive Q1 %', period.posQ1Pct, allTime.posQ1Pct, pct, true);
-  html += row('Resolution Rate', period.resPct, allTime.resPct, pct, true); html += row('Avg CSAT Score (Q3)', period.avgCsat ? period.avgCsat : 0, allTime.avgCsat ? allTime.avgCsat : 0, v => v.toFixed(2) + '\\u2605', true); const _csatFmt = v => v.toFixed(2) + '\u2605'; html += row('Avg CSAT Score (Q3)', period.avgCsat || 0, allTime.avgCsat || 0, _csatFmt, true);
+  html += row('Resolution Rate', period.resPct, allTime.resPct, pct, true); const _cf = v => v.toFixed(2) + '\u2605'; html += row('Avg CSAT Score (Q3)', period.avgCsat ? period.avgCsat : 0, allTime.avgCsat ? allTime.avgCsat : 0, _cf, true);
   getPillarOrder().forEach(pl => {
     const pP = (period.pillars[pl] || {}).negPct || 0;
     const aP = (allTime.pillars[pl] || {}).negPct || 0;
     html += row(pl + ' Neg%', pP, aP, pct, false);
   });
   html += '</tbody>';
-  if (rows.length > 200) html = html.replace("</tbody>", "<tr><td colspan=6 style=text-align:center;padding:8px;color:var(--text-secondary);font-size:12px>Showing first 200 of " + rows.length.toLocaleString() + " rows (all included in stats above)</td></tr></tbody>"); table.innerHTML = html;
+  table.innerHTML = html;
 }
 
 function onQ1PeriodModeChange() {
