@@ -234,6 +234,29 @@ input[type="text"]:focus, input[type="date"]:focus { outline: none; border-color
 .hidden { display: none !important; }
 .filter-active { background: rgba(41,128,185,.1) !important; border-color: var(--blue) !important; }
 .exec-summary-card{background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-left:4px solid var(--blue,#2980b9);border-radius:10px;padding:16px 20px;margin-bottom:18px;box-shadow:0 2px 6px rgba(0,0,0,.04)}.exec-summary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.exec-summary-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue,#2980b9)}.exec-summary-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:rgba(41,128,185,.1);color:var(--blue,#2980b9)}.exec-summary-body{font-size:14px;line-height:1.55;color:var(--text-primary,#1e293b)}.exec-insights-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#e2e8f0)}.exec-insight-item{font-size:12.5px;color:var(--text-secondary,#475569)}.exec-insight-label{font-weight:700;color:var(--text-primary,#1e293b);display:block;margin-bottom:2px}
+
+/* VISUAL UPGRADES */
+.controls { position: sticky; top: 53px; z-index: 90; box-shadow: 0 2px 6px rgba(0,0,0,.04); }
+.kpi-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; }
+.kpi-top .kpi-label { margin-bottom: 0; }
+.kpi-scope { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 6px; letter-spacing: .4px; text-transform: uppercase; background: rgba(122,139,214,.14); color: var(--navy); white-space: nowrap; }
+[data-theme="dark"] .kpi-scope { color: #9fb3ff; background: rgba(122,139,214,.2); }
+.csat-gauge { height: 5px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.csat-gauge-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--red), var(--orange), var(--green)); transition: width .4s ease; }
+.pillars-row.l2-grid { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1100px) { .pillars-row.l2-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 700px) { .pillars-row.l2-grid { grid-template-columns: repeat(2, 1fr); } }
+.pillar-bar { display: flex; height: 6px; border-radius: 4px; overflow: hidden; background: var(--border); margin: 8px 0 10px; }
+.pillar-bar-neg { background: var(--red); height: 100%; }
+.pillar-bar-pos { background: var(--green); height: 100%; }
+.nav-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; background: var(--card-bg); padding: 8px 12px; border-radius: var(--radius); box-shadow: var(--shadow); align-items: center; }
+.nav-tab { padding: 7px 14px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--text-secondary); font-weight: 600; font-size: 12.5px; cursor: pointer; transition: all .15s; }
+.nav-tab:hover { background: var(--hover-bg); color: var(--text); }
+.nav-tab.active { background: var(--navy); color: #fff; }
+[data-theme="dark"] .nav-tab.active { background: #2a4a6a; color: #fff; }
+.header-exports { display: flex; gap: 8px; align-items: center; }
+.btn-sm { font-size: 11.5px; padding: 5px 10px; border-radius: 7px; }
+
 </style>
 </head>
 <body>
@@ -313,34 +336,43 @@ input[type="text"]:focus, input[type="date"]:focus { outline: none; border-color
   <div class="section exec-summary-card hidden" id="execSummaryBanner"><div class="exec-summary-header"><div class="exec-summary-title">Executive Summary &amp; Period Analysis</div><span class="exec-summary-badge" id="execSummaryScope">All Markets</span></div><div class="exec-summary-body" id="execSummaryText"></div><div class="exec-insights-grid" id="execInsightsGrid"></div></div>
   <div class="section cards-row hidden" id="cardsRow">
     <div class="kpi-card neg">
-      <div class="kpi-label">Negative Q1</div>
+      <div class="kpi-top"><div class="kpi-label">Negative Q1</div><span class="kpi-scope">All Q1</span></div>
       <div class="kpi-value" id="negQ1Val">—</div>
       <div class="kpi-sub" id="negQ1Sub">—</div>
     </div>
     <div class="kpi-card pos">
-      <div class="kpi-label">Positive Q1</div>
+      <div class="kpi-top"><div class="kpi-label">Positive Q1</div><span class="kpi-scope">All Q1</span></div>
       <div class="kpi-value" id="posQ1Val">—</div>
       <div class="kpi-sub" id="posQ1Sub">—</div>
     </div>
     <div class="kpi-card res">
-      <div class="kpi-label">Resolution Rate</div>
+      <div class="kpi-top"><div class="kpi-label">Resolution Rate</div><span class="kpi-scope">Q3 Only</span></div>
       <div class="kpi-value" id="resVal">—</div>
       <div class="kpi-sub" id="resSub">—</div>
     </div>
-    <div class="kpi-card" style="border-top-color: var(--blue);"><div class="kpi-label">Avg CSAT Score</div><div class="kpi-value" id="avgCsatVal" style="color: var(--blue);">-</div><div class="kpi-sub" id="avgCsatSub">-</div></div>
+    <div class="kpi-card" style="border-top-color: var(--blue);"><div class="kpi-top"><div class="kpi-label">Avg CSAT Score</div><span class="kpi-scope">Q1 + Q3</span></div><div class="kpi-value" id="avgCsatVal" style="color: var(--blue);">-</div><div class="csat-gauge"><div class="csat-gauge-fill" id="avgCsatBar" style="width:0%"></div></div><div class="kpi-sub" id="avgCsatSub">-</div></div>
     <div class="kpi-card count">
-      <div class="kpi-label">Q3 Transcripts</div>
+      <div class="kpi-top"><div class="kpi-label">Q3 Transcripts</div><span class="kpi-scope">Written</span></div>
       <div class="kpi-value" id="countVal">—</div>
       <div class="kpi-sub" id="countSub">—</div>
     </div>
     <div class="kpi-card" style="border-top-color: var(--orange);">
-      <div class="kpi-label">Q1 Respondents</div>
+      <div class="kpi-top"><div class="kpi-label">Q1 Respondents</div><span class="kpi-scope">Total</span></div>
       <div class="kpi-value" id="q1CountVal" style="color: var(--orange);">—</div>
       <div class="kpi-sub" id="q1CountSub">—</div>
     </div>
   </div>
 
-  <div class="section dual-row hidden" id="dualRow">
+  
+    <div class="nav-tabs hidden" id="sectionTabs">
+      <button class="nav-tab active" data-tab="overview" onclick="switchDashTab('overview')">Overview &amp; Pillars</button>
+      <button class="nav-tab" data-tab="transcripts" onclick="switchDashTab('transcripts')">Q3 Transcripts</button>
+      <button class="nav-tab" data-tab="q1only" onclick="switchDashTab('q1only')">Q1-Only vs Q1+Q3</button>
+      <button class="nav-tab" data-tab="compare" onclick="switchDashTab('compare')">Period vs Overall</button>
+      <button class="nav-tab" data-tab="all" onclick="switchDashTab('all')">All Sections</button>
+    </div>
+
+    <div class="section dual-row hidden" id="dualRow">
     <div class="chart-card">
       <div class="chart-title">Market Contribution to Negative Q1</div>
       <div id="marketChart"></div>
@@ -355,7 +387,7 @@ input[type="text"]:focus, input[type="date"]:focus { outline: none; border-color
     <div class="pillars-row" id="pillarsRow"></div>
   </div>
 
-  <div class="section download-row hidden" id="downloadRow">
+  <div class="section download-row hidden" id="downloadRow" style="display:none!important;">
     <button class="btn-primary btn-download" onclick="downloadPeriodCSV()">Download This Period CSV</button>
     <button class="btn-primary btn-download" onclick="downloadAllCSV()">Download All Transcripts CSV</button>
   </div>
@@ -883,6 +915,26 @@ function updateExecutiveSummary(period, allTime) {
   t.innerHTML = 'During <strong>' + pn + '</strong>, <strong>' + tq.toLocaleString() + ' couriers</strong> submitted Q1 ratings (<strong>' + op + '% positive</strong> / <strong>' + on + '% negative</strong>), alongside <strong>' + period.total.toLocaleString() + ' qualitative Q3 transcripts</strong>. Transcript negative sentiment (' + period.negQ1Pct + '%) is ' + dw + ' the all-time baseline (' + allTime.negQ1Pct + '%).';
   g.innerHTML = '<div class="exec-insight-item"><span class="exec-insight-label">Primary Pain Point</span><strong>' + tp + '</strong> (' + tc.toLocaleString() + ' negative mentions, ' + tn + '% negative rate)</div><div class="exec-insight-item"><span class="exec-insight-label">Top Negative Market</span><strong>' + tm + '</strong> accounts for <strong>' + ts + '%</strong> of negative Q3 feedback (' + tmn.toLocaleString() + ' transcripts)</div><div class="exec-insight-item"><span class="exec-insight-label">Support Resolution</span><strong>' + period.resPct + '%</strong> resolved (' + period.resCount.toLocaleString() + ' of ' + period.total.toLocaleString() + ' transcripts, ' + rt + ')</div>';
 }
+
+let activeDashTab = 'overview';
+function switchDashTab(tab) {
+  activeDashTab = tab;
+  document.querySelectorAll('#sectionTabs .nav-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  const map = {
+    dualRow: ['overview', 'all'],
+    pillarsSection: ['overview', 'all'],
+    transcriptsSection: ['transcripts', 'all'],
+    compareSection: ['compare', 'all'],
+    q1OnlySection: ['q1only', 'all']
+  };
+  Object.entries(map).forEach(([fid, allowed]) => {
+    const el = document.getElementById(fid);
+    if (el) el.classList.toggle('hidden', !allowed.includes(tab));
+  });
+}
+
 function render() {
   const periodTranscripts = getPeriodTranscripts();
   const allTranscripts = getFilteredTranscripts();
@@ -924,7 +976,7 @@ function render() {
   renderCard('res', period.resPct, allTime.resPct, 'pp', true);
   const q1OnlyRowsPeriod = allQ1Period.slice(period.total);
   const q1OnlyAvgPeriod = q1OnlyRowsPeriod.length ? (q1OnlyRowsPeriod.reduce((a,r)=>a+(Number(r.s)||(r.neg?1.5:4.5)),0)/q1OnlyRowsPeriod.length) : 0;
-  document.getElementById('avgCsatVal').textContent = (q1PeriodMetrics.avgCsat||0).toFixed(2) + '\u2605';
+  const _csatVal = q1PeriodMetrics.avgCsat||0; document.getElementById('avgCsatVal').textContent = _csatVal.toFixed(2) + '\u2605'; const _bar = document.getElementById('avgCsatBar'); if (_bar) _bar.style.width = Math.min(100, Math.max(0, (_csatVal / 5) * 100)).toFixed(1) + '%';
   document.getElementById('avgCsatSub').innerHTML = 'Q1-only: <strong>' + q1OnlyAvgPeriod.toFixed(2) + '\u2605</strong> \u2022 Q3: <strong>' + (period.avgCsat||0).toFixed(2) + '\u2605</strong> (all-time ' + (q1AllTimeMetrics.avgCsat||0).toFixed(2) + '\u2605)';
 
   // Q3 Transcripts Card (Only couriers who submitted written feedback)
@@ -974,7 +1026,7 @@ function renderMarketChart(marketData, type) {
 }
 
 function renderPillars(pillars, totalTranscripts) {
-  const container = document.getElementById('pillarsRow');
+  const container = document.getElementById('pillarsRow'); container.classList.toggle('l2-grid', currentView === 'L2');
   container.innerHTML = '';
   getPillarOrder().forEach(pl => {
     const p = pillars[pl] || { total:0, share:0, neg:0, pos:0, res:0, negPct:0, posPct:0, resPct:0, avgCsat:0 };
