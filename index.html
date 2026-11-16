@@ -822,9 +822,9 @@ function getAllQ1Responses() {
   return periodTranscripts.concat(norm);
 }
 
-function computeQ1Metrics(data_rows) {
+function computeQ1Metrics(data_rows) { const _s = data_rows.reduce((a,r)=>a+(Number(r.s)||((r.q1===Q1_NEG||r.neg||r.n)?1.5:4.5)),0); const avgCsat = data_rows.length ? Math.round((_s/data_rows.length)*100)/100 : 0;
   const total = data_rows.length;
-  if (total === 0) return { total:0, negQ1:0, posQ1:0, resCount:0, negQ1Pct:0, posQ1Pct:0, resPct:0, marketNeg:{}, marketPos:{} };
+  if (total === 0) return { avgCsat, total:0, negQ1:0, posQ1:0, resCount:0, negQ1Pct:0, posQ1Pct:0, resPct:0, marketNeg:{}, marketPos:{} };
   const negCount = data_rows.filter(r => r.q1 === Q1_NEG || r.neg).length;
   const posCount = data_rows.filter(r => r.q1 === Q1_POS || r.pos).length;
   const resCount = data_rows.filter(r => r.q2 === 'Yes').length; const scoreSum = data_rows.reduce((a,r)=>a+(Number(r.s)||((r.q1===Q1_NEG||r.neg)?1.5:4.5)),0); const avgCsat = total>0 ? Math.round((scoreSum/total)*100)/100 : 0;
