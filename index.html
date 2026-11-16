@@ -826,7 +826,7 @@ function computeQ1Metrics(data_rows) { const _s = data_rows.reduce((a,r)=>a+(Num
   const posCount = data_rows.filter(r => r.q1 === Q1_POS || r.pos).length;
   const resCount = data_rows.filter(r => r.q2 === 'Yes').length; const scoreSum = data_rows.reduce((a,r)=>a+(Number(r.s)||((r.q1===Q1_NEG||r.neg)?1.5:4.5)),0); const avgCsat = total>0 ? Math.round((scoreSum/total)*100)/100 : 0;
   const marketNeg = {}, marketPos = {}, marketTotal = {};
-  data_rows.forEach(r => {
+  data_rows.slice(0, 200).forEach(r => {
     const m = r.m || '';
     marketTotal[m] = (marketTotal[m] || 0) + 1;
     if (r.q1 === Q1_NEG || r.neg) marketNeg[m] = (marketNeg[m] || 0) + 1;
@@ -1000,12 +1000,12 @@ function renderTranscriptsDynamic(periodTranscripts) {
     section.className = 'transcript-section';
     let tableHTML = '<div class="transcript-body"><div style="padding:0 4px 4px 18px;font-size:11px;color:var(--text-secondary);">' + plRows.length + ' Q3 transcript' + (plRows.length > 1 ? 's' : '') + ' \u2014 click any row.</div>';
     tableHTML += '<table class="transcript-table"><thead><tr><th>Date</th><th>Mkt</th><th>Plat</th><th>Q1</th><th>Q2</th><th>Courier ID</th><th>Q3 Text</th></tr></thead><tbody>';
-    plRows.forEach(t => {
+    plRows.slice(0, 150).forEach(t => {
       const q1Class = t.q1 === Q1_NEG ? 'neg' : 'pos';
       const q2Class = t.q2 === 'Yes' ? 'yes' : 'no';
       tableHTML += '<tr><td style="white-space:nowrap;">' + t.d + '</td><td><strong>' + t.m + '</strong></td><td>' + t.p + '</td><td><span class="q1-badge ' + q1Class + '">' + t.q1 + '</span></td><td><span class="q2-badge ' + q2Class + '">' + t.q2 + '</span></td><td><div class="courier-id" title="' + t.c + '">' + t.c + '</div></td><td class="q3-text">' + escapeHTML(t.t) + '</td></tr>';
     });
-    tableHTML += '</tbody></table></div>';
+    if (plRows.length > 150) tableHTML += '<tr><td colspan=7 style=text-align:center;padding:8px;color:var(--text-secondary);font-size:12px>Showing first 150 of ' + plRows.length.toLocaleString() + ' transcripts (download CSV for full list)</td></tr>'; tableHTML += '</tbody></table></div>';
     section.innerHTML = '<div class="transcript-header" onclick="this.parentElement.classList.toggle(\'expanded\')"><div class="transcript-dot" style="background:' + color + ';"></div><div class="transcript-name">' + pl + '</div><span class="transcript-badge" style="background:' + color + '22;color:' + color + ';">' + negPct + '% neg</span><span class="transcript-count">' + plRows.length + ' transcript' + (plRows.length > 1 ? 's' : '') + '</span><span class="transcript-chevron">\u25BC</span></div>' + tableHTML;
     container.appendChild(section);
   });
@@ -1055,7 +1055,7 @@ function renderComparison(period, allTime) {
     html += row(pl + ' Neg%', pP, aP, pct, false);
   });
   html += '</tbody>';
-  table.innerHTML = html;
+  if (rows.length > 200) html = html.replace("</tbody>", "<tr><td colspan=6 style=text-align:center;padding:8px;color:var(--text-secondary);font-size:12px>Showing first 200 of " + rows.length.toLocaleString() + " rows (all included in stats above)</td></tr></tbody>"); table.innerHTML = html;
 }
 
 function onQ1PeriodModeChange() {
