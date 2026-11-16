@@ -1100,7 +1100,7 @@ function renderComparison(period, allTime) {
   html += row('Classified Q3 Transcripts', period.total, allTime.total, num, true);
   html += row('Negative Q1 %', period.negQ1Pct, allTime.negQ1Pct, pct, false);
   html += row('Positive Q1 %', period.posQ1Pct, allTime.posQ1Pct, pct, true);
-  html += row('Resolution Rate', period.resPct, allTime.resPct, pct, true); const _csatFmt = v => v.toFixed(2) + '\u2605'; html += row('Avg CSAT Score (Q3)', period.avgCsat || 0, allTime.avgCsat || 0, _csatFmt, true);
+  html += row('Resolution Rate', period.resPct, allTime.resPct, pct, true); html += row('Avg CSAT Score (Q3)', period.avgCsat ? period.avgCsat : 0, allTime.avgCsat ? allTime.avgCsat : 0, v => v.toFixed(2) + '\\u2605', true); const _csatFmt = v => v.toFixed(2) + '\u2605'; html += row('Avg CSAT Score (Q3)', period.avgCsat || 0, allTime.avgCsat || 0, _csatFmt, true);
   getPillarOrder().forEach(pl => {
     const pP = (period.pillars[pl] || {}).negPct || 0;
     const aP = (allTime.pillars[pl] || {}).negPct || 0;
@@ -1204,7 +1204,7 @@ function renderQ1Only() {
     rows = rows.filter(r => r.pos);
   }
 
-  rows = rows.slice().sort((a, b) => b.d.localeCompare(a.d));
+  rows = rows.slice().sort((a, b) => (b.d > a.d ? 1 : b.d < a.d ? -1 : 0));
 
   const negCount = rows.filter(r => r.neg).length;
   const posCount = rows.filter(r => r.pos).length; const q1Avg = rows.length ? (rows.reduce((a,r)=>a+(Number(r.s)||(r.neg?1.5:4.5)),0)/rows.length).toFixed(2) : "0.00";
