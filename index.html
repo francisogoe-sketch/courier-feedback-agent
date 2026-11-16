@@ -73,20 +73,17 @@ input[type="text"]:focus, input[type="date"]:focus { outline: none; border-color
 .section { margin-bottom: 20px; }
 
 /* SUMMARY CARDS */
-.cards-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.cards-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; } @media (max-width: 1150px) { .cards-row { grid-template-columns: repeat(3, 1fr); } } @media (max-width: 650px) { .cards-row { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 1200px) { .cards-row { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 800px) { .cards-row { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 500px) { .cards-row { grid-template-columns: 1fr; } }
-.kpi-card {
-  background: var(--card-bg); border-radius: var(--radius); padding: 18px;
-  box-shadow: var(--shadow); border-top: 3px solid var(--border);
-}
+.kpi-card { background: var(--card-bg, #fff); border-radius: var(--radius, 10px); padding: 14px 14px; box-shadow: var(--shadow); border-top: 3px solid var(--border); min-width: 0; }
 .kpi-card.neg { border-top-color: var(--red); }
 .kpi-card.pos { border-top-color: var(--green); }
 .kpi-card.res { border-top-color: var(--teal); }
 .kpi-card.count { border-top-color: var(--purple); }
 .kpi-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
-.kpi-value { font-size: 30px; font-weight: 700; color: var(--text); }
+.kpi-value { font-size: 24px; font-weight: 800; margin: 4px 0; line-height: 1.15; }
 .kpi-card.neg .kpi-value { color: var(--red); }
 .kpi-card.pos .kpi-value { color: var(--green); }
 .kpi-card.res .kpi-value { color: var(--teal); }
