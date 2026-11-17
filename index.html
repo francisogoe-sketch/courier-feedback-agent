@@ -2063,6 +2063,7 @@ function render() {
   if (showPrevDeltas) computePrevPeriodBaselines();
   renderActiveFilterChips();
   syncStateToUrl();
+  if (showPrevDeltas) computePrevPeriodBaselines();
   computeTrailing4PeriodSpikes(period.pillars || {});
   renderExecutiveBrief(period, allTime, q1PeriodMetrics, q1AllTimeMetrics);
   renderTrendAndStars(Object.assign({}, q1PeriodMetrics, {rows: allQ1Period}), q1AllTimeMetrics);
