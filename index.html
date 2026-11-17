@@ -1192,7 +1192,7 @@ function render() {
   renderMarketChart(q1PeriodMetrics.marketPos || {}, 'pos');
   renderPillars(period.pillars || {}, period.total);
   renderTranscriptsDynamic(periodTranscripts);
-  try { renderComparison(period, allTime); } catch (e) { console.error('renderComparison:', e); }
+  try { renderComparison(period, allTime, q1PeriodMetrics, q1AllTimeMetrics); } catch (e) { console.error('renderComparison:', e); }
   try { renderQ1Only(); } catch (e) { console.error('renderQ1Only:', e); }
   if (periodMode !== 'custom') updateNavButtons();
 }
@@ -1268,7 +1268,7 @@ function renderTranscriptsDynamic(periodTranscripts, fromFilter) {
   }
 }
 
-function renderComparison(period, allTime) {
+function renderComparison(period, allTime, q1PeriodMetrics, q1AllTimeMetrics) {
   const table = document.getElementById('compareTable');
   let periodLabel;
   if (periodMode === 'weekly') {
