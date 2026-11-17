@@ -1567,7 +1567,8 @@ function renderMarketPillarHeatmap(periodTranscripts) {
   html += '</tr></thead><tbody>';
 
   markets.forEach(m => {
-    html += '<tr><td class="hm-market">' + m + '</td>';
+    const rowTot = pillars.reduce((s, pl) => s + (grid[m][pl]?.tot || 0), 0);
+    html += '<tr><td class="hm-market">' + m + ' <span style="font-weight:500;font-size:11px;color:var(--text-secondary);">(' + rowTot.toLocaleString() + ')</span></td>';
     pillars.forEach(pl => {
       const cell = grid[m][pl];
       if (!cell.tot) {
