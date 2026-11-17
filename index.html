@@ -1192,8 +1192,8 @@ function render() {
   renderMarketChart(q1PeriodMetrics.marketPos || {}, 'pos');
   renderPillars(period.pillars || {}, period.total);
   renderTranscriptsDynamic(periodTranscripts);
-  renderComparison(period, allTime);
-  renderQ1Only();
+  try { renderComparison(period, allTime); } catch (e) { console.error('renderComparison:', e); }
+  try { renderQ1Only(); } catch (e) { console.error('renderQ1Only:', e); }
   if (periodMode !== 'custom') updateNavButtons();
 }
 
@@ -1302,7 +1302,7 @@ function renderComparison(period, allTime) {
   html += row('Classified Q3 Transcripts', period.total, allTime.total, num, true);
   html += row('Negative Q1 %', period.negQ1Pct, allTime.negQ1Pct, pct, false);
   html += row('Positive Q1 %', period.posQ1Pct, allTime.posQ1Pct, pct, true);
-  html += row('Resolution Rate', period.resPct, allTime.resPct, pct, true); const _cf2 = v => v.toFixed(2) + '\u2605'; html += row('Combined CSAT Score (Q1+Q3)', q1PeriodMetrics.avgCsat || 0, q1AllTimeMetrics.avgCsat || 0, _cf2, true); const _cf = v => v.toFixed(2) + '\u2605'; html += row('Avg CSAT Score (Q3)', period.avgCsat ? period.avgCsat : 0, allTime.avgCsat ? allTime.avgCsat : 0, _cf, true);
+  html += row('Resolution Rate', period.resPct, allTime.resPct, pct, true); const _cf2 = v => v.toFixed(2) + '\u2605'; html += row('Combined CSAT Score (Q1+Q3)', q1PeriodMetrics.avgCsat || 0, q1AllTimeMetrics.avgCsat || 0, _cf2, true); const _cf = v => v.toFixed(2) + '\u2605'; const _cfQ3 = v => v.toFixed(2) + '★'; html += row('Avg CSAT Score (Q3)', period.avgCsat || 0, allTime.avgCsat || 0, _cfQ3, true);
   getPillarOrder().forEach(pl => {
     const pP = (period.pillars[pl] || {}).negPct || 0;
     const aP = (allTime.pillars[pl] || {}).negPct || 0;
