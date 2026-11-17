@@ -957,6 +957,7 @@ function populateMarketFilter() {
   const markets = [...new Set(ds.transcripts.map(t => t.m))].filter(Boolean).sort();
   const sel = document.getElementById('marketFilter');
   sel.innerHTML = '<option value="all">All Markets</option>';
+  const maxRowTot = Math.max(1, ...markets.map(mk => pillars.reduce((s, pl) => s + (grid[mk][pl]?.tot || 0), 0)));
   markets.forEach(m => {
     const opt = document.createElement('option');
     opt.value = m;
@@ -1568,7 +1569,8 @@ function renderMarketPillarHeatmap(periodTranscripts) {
 
   markets.forEach(m => {
     const rowTot = pillars.reduce((s, pl) => s + (grid[m][pl]?.tot || 0), 0);
-    html += '<tr><td class="hm-market">' + m + ' <span style="font-weight:500;font-size:11px;color:var(--text-secondary);">(' + rowTot.toLocaleString() + ')</span></td>';
+    const barW = Math.max(4, Math.round((rowTot / maxRowTot) * 64));
+    html += '<tr><td class="hm-market"><div style="display:flex;align-items:center;gap:6px;"><span>' + m + '</span><span style="background:rgba(59,130,246,0.12);color:var(--blue,#2563eb);border:1px solid rgba(59,130,246,0.28);border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700;">' + rowTot.toLocaleString() + '</span></div><div style="width:64px;height:3px;background:rgba(148,163,184,0.25);border-radius:2px;margin-top:4px;overflow:hidden;"><div style="width:' + barW + 'px;height:100%;background:var(--blue,#2563eb);border-radius:2px;"></div></div></td>';
     pillars.forEach(pl => {
       const cell = grid[m][pl];
       if (!cell.tot) {
