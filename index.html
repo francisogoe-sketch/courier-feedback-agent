@@ -458,6 +458,66 @@ body.presentation-mode .glossary-card {
   border-color: var(--blue);
 }
 
+
+/* ANOMALY SPIKE ALERTS & SAVED VIEW PRESETS */
+.spike-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+body.dark-mode .spike-badge {
+  background: rgba(239, 68, 68, 0.22);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.45);
+}
+.saved-view-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 7px;
+  padding: 3px 6px;
+}
+.saved-view-select {
+  background: transparent;
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  max-width: 150px;
+}
+.saved-view-select option {
+  color: #0f172a;
+  background: #fff;
+}
+.btn-save-preset {
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-save-preset:hover {
+  background: rgba(255,255,255,0.3);
+}
+
 </style>
 </head>
 <body>
@@ -1374,11 +1434,17 @@ function renderTrendAndStars(q1PeriodMetrics, q1AllTimeMetrics) {
     const pathD = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c.x.toFixed(1) + ',' + c.y.toFixed(1)).join(' ');
     svg += '<path d="' + pathD + '" fill="none" stroke="' + color + '" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>';
 
-    coords.forEach(c => {
+    coords.forEach((c, i) => {
       const isCur = c.key === currentPeriod;
       const shortLbl = c.key.length > 7 ? c.key.slice(5) : c.key;
       svg += '<g style="cursor:pointer;" onclick="currentPeriod=\'' + c.key + '\';const s=document.getElementById(\'periodValueSelect\');if(s)s.value=\'' + c.key + '\';render();">';
-      svg += '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) + '" r="' + (isCur ? 5.5 : 3.5) + '" fill="' + (isCur ? '#0f172a' : color) + '" stroke="#fff" stroke-width="1.2"><title>' + c.key + ': ' + fmtFn(c.val) + ' (' + c.total.toLocaleString() + ' responses)</title></circle>';
+      const prevSlice = i >= 2 ? coords.slice(Math.max(0, i - 4), i).filter(x => x.total >= 10) : [];
+      const prevAvg = prevSlice.length ? (prevSlice.reduce((s, x) => s + x.val, 0) / prevSlice.length) : null;
+      const isSpike = (color === '#e74c3c' && c.total >= 10 && prevAvg !== null && (c.val - prevAvg) > 10);
+      if (isSpike) {
+        svg += '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) + '" r="8.5" fill="rgba(231,76,60,0.22)" stroke="#e74c3c" stroke-width="1.2"/>';
+      }
+      svg += '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) + '" r="' + (isCur ? 5.5 : (isSpike ? 4.8 : 3.5)) + '" fill="' + (isCur ? '#0f172a' : color) + '" stroke="#fff" stroke-width="1.2"><title>' + c.key + ': ' + fmtFn(c.val) + ' (' + c.total.toLocaleString() + ' responses)' + (isSpike ? ' — SPIKE: +' + (c.val - prevAvg).toFixed(1) + 'pp vs trailing 4-period avg' : '') + '</title></circle>';
       svg += '<text x="' + c.x.toFixed(1) + '" y="' + (c.y - 8).toFixed(1) + '" text-anchor="middle" font-size="9.5" font-weight="700" fill="' + color + '">' + fmtFn(c.val) + '</text>';
       svg += '<text x="' + c.x.toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="9.5" font-weight="' + (isCur ? '700' : '400') + '" fill="' + (isCur ? 'var(--navy)' : '#64748b') + '">' + shortLbl + '</text>';
       svg += '</g>';
@@ -1771,6 +1837,161 @@ function restoreStateFromUrl() {
   } catch (e) {}
 }
 
+
+var trailing4PillarNeg = {};
+var trailing4PillarSpikes = {};
+
+function computeTrailing4PeriodSpikes(currentPillars) {
+  trailing4PillarNeg = {};
+  trailing4PillarSpikes = {};
+  const sel = document.getElementById('periodValueSelect');
+  if (!sel || periodMode === 'custom') return;
+  const idx = sel.selectedIndex;
+  if (idx < 2) return; // Need at least 2 prior periods for a baseline
+
+  const prevKeys = [];
+  for (let i = Math.max(0, idx - 4); i < idx; i++) {
+    prevKeys.push(sel.options[i].value);
+  }
+  if (!prevKeys.length) return;
+  const keySet = new Set(prevKeys);
+
+  const ds = getDataset();
+  const pField = getPillarField();
+  let rows = (ds.transcripts || []).filter(t => {
+    const k = periodMode === 'weekly' ? t.w : periodMode === 'monthly' ? t.d.substring(0, 7) : periodMode === 'quarterly' ? getQuarter(t.d) : t.d.substring(0, 4);
+    return keySet.has(k);
+  });
+  if (marketFilter && marketFilter !== 'all') rows = rows.filter(t => t.m === marketFilter);
+  if (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') rows = rows.filter(t => t.p === platformFilter);
+  if (courierFilter) rows = rows.filter(t => t.c === courierFilter);
+
+  const agg = {};
+  rows.forEach(t => {
+    const pl = t[pField];
+    if (!pl) return;
+    if (!agg[pl]) agg[pl] = { tot: 0, neg: 0 };
+    agg[pl].tot++;
+    if (t.q1 === Q1_NEG) agg[pl].neg++;
+  });
+
+  Object.entries(agg).forEach(([pl, c]) => {
+    if (c.tot >= 10) {
+      const avgNeg = (c.neg / c.tot) * 100;
+      trailing4PillarNeg[pl] = avgNeg;
+      const cur = currentPillars[pl];
+      if (cur && cur.total >= 10 && (cur.negPct - avgNeg) > 10) {
+        trailing4PillarSpikes[pl] = cur.negPct - avgNeg;
+      }
+    }
+  });
+}
+
+function getSavedPresets() {
+  try {
+    return JSON.parse(localStorage.getItem('csatSavedViewPresets') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function renderSavedViewsDropdown(selectedName) {
+  const sel = document.getElementById('savedViewsSelect');
+  const delBtn = document.getElementById('delPresetBtn');
+  if (!sel) return;
+  const presets = getSavedPresets();
+  sel.innerHTML = '<option value="">&#9733; Saved Views (' + presets.length + ')</option>';
+  presets.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.name;
+    opt.textContent = p.name;
+    if (selectedName && p.name === selectedName) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  if (delBtn) delBtn.style.display = sel.value ? 'inline-block' : 'none';
+}
+
+function promptSaveCurrentView() {
+  const defaultName = [
+    marketFilter && marketFilter !== 'all' ? marketFilter : 'All Markets',
+    (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') ? platformFilter : '',
+    goldOnly ? 'Gold' : '',
+    courierFilter ? ('Courier ' + courierFilter) : ''
+  ].filter(Boolean).join(' + ');
+
+  const name = prompt('Name this Executive Watch view preset:', defaultName);
+  if (!name || !name.trim()) return;
+  const cleanName = name.trim();
+  const activeTab = document.querySelector('.nav-tab.active')?.dataset?.tab || 'overview';
+
+  const preset = {
+    name: cleanName,
+    mode: periodMode,
+    market: marketFilter || 'all',
+    platform: (typeof platformFilter !== 'undefined' ? platformFilter : 'all'),
+    gold: !!goldOnly,
+    courier: courierFilter || '',
+    view: currentView || 'l1',
+    tab: activeTab
+  };
+
+  const presets = getSavedPresets().filter(p => p.name !== cleanName);
+  presets.push(preset);
+  try { localStorage.setItem('csatSavedViewPresets', JSON.stringify(presets)); } catch (e) {}
+  renderSavedViewsDropdown(cleanName);
+}
+
+function applySavedViewPreset(name) {
+  const delBtn = document.getElementById('delPresetBtn');
+  if (delBtn) delBtn.style.display = name ? 'inline-block' : 'none';
+  if (!name) return;
+  const preset = getSavedPresets().find(p => p.name === name);
+  if (!preset) return;
+
+  periodMode = preset.mode || 'weekly';
+  const pm = document.getElementById('periodModeSelect');
+  if (pm) pm.value = periodMode;
+  if (typeof updatePeriodDropdown === 'function') updatePeriodDropdown();
+
+  marketFilter = preset.market || 'all';
+  const mf = document.getElementById('marketFilter');
+  if (mf) mf.value = marketFilter;
+
+  if (typeof platformFilter !== 'undefined') {
+    platformFilter = preset.platform || 'all';
+    const pf = document.getElementById('platformFilter');
+    if (pf) pf.value = platformFilter;
+  }
+
+  goldOnly = !!preset.gold;
+  const go = document.getElementById('goldOnly');
+  if (go) go.checked = goldOnly;
+
+  courierFilter = preset.courier || '';
+  const cf = document.getElementById('courierFilter');
+  if (cf) cf.value = courierFilter;
+  const cc = document.getElementById('courierClear');
+  if (cc) cc.classList.toggle('hidden', !courierFilter);
+
+  currentView = preset.view || 'l1';
+  const vs = document.getElementById('viewSelect');
+  if (vs) vs.value = currentView;
+
+  if (preset.tab && typeof switchDashTab === 'function') {
+    switchDashTab(preset.tab);
+  }
+  render();
+}
+
+function deleteSelectedPreset() {
+  const sel = document.getElementById('savedViewsSelect');
+  if (!sel || !sel.value) return;
+  const target = sel.value;
+  const presets = getSavedPresets().filter(p => p.name !== target);
+  try { localStorage.setItem('csatSavedViewPresets', JSON.stringify(presets)); } catch (e) {}
+  renderSavedViewsDropdown('');
+}
+
 function render() {
   const periodTranscripts = getPeriodTranscripts();
   const allTranscripts = getFilteredTranscripts();
@@ -1827,6 +2048,7 @@ function render() {
   if (showPrevDeltas) computePrevPeriodBaselines();
   renderActiveFilterChips();
   syncStateToUrl();
+  computeTrailing4PeriodSpikes(period.pillars || {});
   renderExecutiveBrief(period, allTime, q1PeriodMetrics, q1AllTimeMetrics);
   renderTrendAndStars(Object.assign({}, q1PeriodMetrics, {rows: allQ1Period}), q1AllTimeMetrics);
   renderMarketPillarHeatmap(periodTranscripts);
