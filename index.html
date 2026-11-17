@@ -510,6 +510,12 @@ body.presentation-mode .glossary-card {
       <option value="all">All Markets</option>
     </select>
   </div>
+    <div class="control-group">
+      <span class="control-label">Platform</span>
+      <select id="platformFilter" onchange="platformFilter=this.value;render();">
+        <option value="all">All Platforms</option>
+      </select>
+    </div>
   <div class="control-group">
     <label class="checkbox-wrap">
       <input type="checkbox" id="goldOnly"> <span style="font-weight:600;">Gold Only</span>
@@ -1608,9 +1614,9 @@ function downloadSelectedData() {
 }
 
 
-let platformFilter = 'all';
-let showPrevDeltas = false;
-let prevPeriodPillarNeg = {};
+var platformFilter = 'all';
+var showPrevDeltas = false;
+var prevPeriodPillarNeg = {};
 
 function toggleShowDeltas() {
   showPrevDeltas = !showPrevDeltas;
@@ -1687,7 +1693,7 @@ function renderRepeatFrictionCouriers(transcripts) {
   }
   let html = '<span style="font-size:11.5px;font-weight:700;color:var(--text-secondary);">Repeat-Friction Couriers (2+ Neg):</span>';
   repeats.forEach(([cid, cnt]) => {
-    html += '<span class="courier-badge" title="Click to filter entire dashboard to courier ' + cid + '" onclick="filterByCourierId(\'' + cid + '\')">' + cid + ' (' + cnt + 'x)</span>';
+    html += '<span class="courier-badge" data-cid="' + cid + '" onclick="filterByCourierId(this.dataset.cid)">' + cid + ' (' + cnt + 'x)</span>';
   });
   box.innerHTML = html;
 }
