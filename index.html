@@ -1093,7 +1093,7 @@ function renderTrendAndStars(q1PeriodMetrics, q1AllTimeMetrics) {
   }
 
   const pts = keys.map(k => {
-    const m = computeQ1Metrics(k, mode);
+    const kRows = (typeof getAllQ1Responses === "function" ? getAllQ1Responses() : []).filter(r => mode === "weekly" ? r.w === k : mode === "monthly" ? r.d.startsWith(k) : mode === "quarterly" ? getQuarter(r.d) === k : r.d.startsWith(k)); const m = computeQ1Metrics(kRows);
     return { key: k, csat: m.avgCsat || 0, neg: m.negQ1Pct || 0, total: m.total || 0 };
   });
 
@@ -1187,7 +1187,7 @@ function render() {
   document.getElementById('q1CountSub').textContent = 'of ' + q1AllTimeMetrics.total.toLocaleString() + ' all-time';
 
   renderActiveFilterChips();
-  renderTrendAndStars(q1PeriodMetrics, q1AllTimeMetrics);
+  renderTrendAndStars(Object.assign({}, q1PeriodMetrics, {rows: allQ1Period}), q1AllTimeMetrics);
   renderMarketChart(q1PeriodMetrics.marketNeg || {}, 'neg');
   renderMarketChart(q1PeriodMetrics.marketPos || {}, 'pos');
   renderPillars(period.pillars || {}, period.total);
