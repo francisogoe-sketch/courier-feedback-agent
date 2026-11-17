@@ -957,7 +957,6 @@ function populateMarketFilter() {
   const markets = [...new Set(ds.transcripts.map(t => t.m))].filter(Boolean).sort();
   const sel = document.getElementById('marketFilter');
   sel.innerHTML = '<option value="all">All Markets</option>';
-  const maxRowTot = Math.max(1, ...markets.map(mk => pillars.reduce((s, pl) => s + (grid[mk][pl]?.tot || 0), 0)));
   markets.forEach(m => {
     const opt = document.createElement('option');
     opt.value = m;
@@ -1567,6 +1566,7 @@ function renderMarketPillarHeatmap(periodTranscripts) {
   });
   html += '</tr></thead><tbody>';
 
+  const maxRowTot = Math.max(1, ...markets.map(mk => pillars.reduce((s, pl) => s + (grid[mk][pl]?.tot || 0), 0)));
   markets.forEach(m => {
     const rowTot = pillars.reduce((s, pl) => s + (grid[m][pl]?.tot || 0), 0);
     const barW = Math.max(4, Math.round((rowTot / maxRowTot) * 64));
