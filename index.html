@@ -1226,10 +1226,6 @@ function renderActiveFilterChips() {
   const bar = document.getElementById('activeFilterChips');
   if (!bar) return;
   let chips = [];
-  if (platformFilter && platformFilter !== 'all') {
-    periodTranscripts = periodTranscripts.filter(t => t.p === platformFilter);
-    allTimeTranscripts = allTimeTranscripts.filter(t => t.p === platformFilter);
-  }
   if (marketFilter && marketFilter !== 'all') {
     chips.push('<span class="filter-chip" onclick="document.getElementById(\'marketFilter\').value=\'all\';marketFilter=\'all\';render();">Market: ' + marketFilter + ' &#10005;</span>');
   }
