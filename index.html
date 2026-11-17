@@ -529,6 +529,13 @@ body.dark-mode .spike-badge {
       <span id="dateRange"></span>
       <span>•</span>
       <span id="transcriptLabel"></span>
+      <span class="saved-view-group" title="Save or load recurring filter presets">
+        <select class="saved-view-select" id="savedViewsSelect" onchange="applySavedViewPreset(this.value)">
+          <option value="">&#9733; Saved Views (0)</option>
+        </select>
+        <button class="btn-save-preset" onclick="promptSaveCurrentView()" title="Bookmark current filter setup">+ Save</button>
+        <button class="btn-save-preset" id="delPresetBtn" onclick="deleteSelectedPreset()" style="display:none;" title="Remove selected preset">&#10005;</button>
+      </span>
     </div>
   </div>
 </div>
@@ -816,6 +823,14 @@ async function loadData() {
     }
     D.q1NoQ3.all = (D.q1NoQ3.all || []).map(norm);
     D.q1NoQ3.gold = (D.q1NoQ3.gold || []).map(norm);
+    const normPlat = p => (String(p || '').trim().toLowerCase() === 'and' ? 'Android' : String(p || '').trim());
+    ['all', 'gold'].forEach(k => {
+      if (D[k] && Array.isArray(D[k].transcripts)) {
+        D[k].transcripts.forEach(t => { t.p = normPlat(t.p); });
+      }
+    });
+    (D.q1NoQ3.all || []).forEach(r => { r.p = normPlat(r.p); });
+    (D.q1NoQ3.gold || []).forEach(r => { r.p = normPlat(r.p); });
     init();
   } catch(e) {
     document.getElementById('loading').innerHTML = '<div style="color:var(--red);">Failed to load data. ' + e.message + '</div>';
