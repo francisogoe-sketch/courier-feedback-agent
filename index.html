@@ -404,6 +404,60 @@ body.presentation-mode .glossary-card {
   border-color: var(--blue);
 }
 
+
+/* PRO ANALYTICAL UPGRADES */
+.delta-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.delta-worse { background: rgba(231,76,60,0.16); color: #c0392b; }
+.delta-better { background: rgba(39,174,96,0.16); color: #1e8449; }
+.delta-flat { background: rgba(148,163,184,0.18); color: var(--text-secondary); }
+.watchlist-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.courier-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(231,76,60,0.1);
+  border: 1px solid rgba(231,76,60,0.28);
+  color: #c0392b;
+  cursor: pointer;
+  transition: all .15s;
+}
+.courier-badge:hover {
+  background: #e74c3c;
+  color: #fff;
+}
+.toggle-delta-btn {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+.toggle-delta-btn.active {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+
 </style>
 </head>
 <body>
@@ -538,7 +592,7 @@ body.presentation-mode .glossary-card {
     <div class="section heatmap-card hidden" id="heatmapSection">
       <div class="trend-header">
         <div class="chart-title" style="margin-bottom:0;">Market &times; Pillar Pain-Point Matrix (Negative Q1 % &amp; Volume)</div>
-        <div style="font-size:11.5px;color:var(--text-secondary);">Click any cell to filter that market &amp; inspect its pillar transcripts</div>
+        <div style="display:flex;gap:10px;align-items:center;"><button class="toggle-delta-btn" id="toggleDeltaBtn" onclick="toggleShowDeltas()">Show Prev-Period Deltas</button><span style="font-size:11.5px;color:var(--text-secondary);">Click cell to drill down</span></div>
       </div>
       <div id="heatmapContainer"></div>
     </div>
@@ -580,6 +634,7 @@ body.presentation-mode .glossary-card {
       <button class="btn-primary btn-sm" onclick="toggleAllTxAccordions(false)">Collapse All</button>
       <button class="btn-export-selected" onclick="downloadSelectedData()">&#11015; Export Filtered CSV</button>
       <div class="keyword-pills-row" id="txKeywordPills"></div>
+      <div class="watchlist-row" id="txRepeatCouriers"></div>
     </div>
 
     <div class="section hidden" id="transcriptsSection"></div>
@@ -665,6 +720,8 @@ let currentView = 'L1';
 let periodMode = 'weekly';
 let courierFilter = null;
 let marketFilter = 'all';
+  platformFilter = 'all';
+  const pf = document.getElementById('platformFilter'); if (pf) pf.value = 'all';
 let customStart = null;
 let q1PeriodMode = 'all';
 let q1PeriodValue = null;
@@ -1169,8 +1226,15 @@ function renderActiveFilterChips() {
   const bar = document.getElementById('activeFilterChips');
   if (!bar) return;
   let chips = [];
+  if (platformFilter && platformFilter !== 'all') {
+    periodTranscripts = periodTranscripts.filter(t => t.p === platformFilter);
+    allTimeTranscripts = allTimeTranscripts.filter(t => t.p === platformFilter);
+  }
   if (marketFilter && marketFilter !== 'all') {
     chips.push('<span class="filter-chip" onclick="document.getElementById(\'marketFilter\').value=\'all\';marketFilter=\'all\';render();">Market: ' + marketFilter + ' &#10005;</span>');
+  }
+  if (platformFilter && platformFilter !== 'all') {
+    chips.push('<span class="filter-chip" onclick="document.getElementById(\'platformFilter\').value=\'all\';platformFilter=\'all\';render();">Platform: ' + platformFilter + ' &#10005;</span>');
   }
   if (goldOnly) {
     chips.push('<span class="filter-chip" onclick="document.getElementById(\'goldOnly\').checked=false;goldOnly=false;render();">Gold Only &#10005;</span>');
@@ -1547,6 +1611,164 @@ function downloadSelectedData() {
   document.body.removeChild(link);
 }
 
+
+let platformFilter = 'all';
+let showPrevDeltas = false;
+let prevPeriodPillarNeg = {};
+
+function toggleShowDeltas() {
+  showPrevDeltas = !showPrevDeltas;
+  const btn = document.getElementById('toggleDeltaBtn');
+  if (btn) btn.classList.toggle('active', showPrevDeltas);
+  render();
+}
+
+function populatePlatformFilter() {
+  const sel = document.getElementById('platformFilter');
+  if (!sel || sel.options.length > 1) return;
+  const ds = getDataset();
+  const q1No = D.q1NoQ3 || { all: [] };
+  const platforms = new Set();
+  (ds.transcripts || []).forEach(t => { if (t.p) platforms.add(t.p); });
+  (q1No.all || []).forEach(r => { if (r.p) platforms.add(r.p); });
+  [...platforms].sort().forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    sel.appendChild(opt);
+  });
+}
+
+function getPreviousPeriodKey() {
+  const sel = document.getElementById('periodValueSelect');
+  if (!sel || sel.selectedIndex <= 0) return null;
+  return sel.options[sel.selectedIndex - 1].value;
+}
+
+function computePrevPeriodBaselines() {
+  prevPeriodPillarNeg = {};
+  const prevKey = getPreviousPeriodKey();
+  if (!prevKey || periodMode === 'custom') return;
+  const ds = getDataset();
+  const pField = getPillarField();
+  let rows = ds.transcripts || [];
+  rows = rows.filter(t => {
+    if (periodMode === 'weekly') return t.w === prevKey;
+    if (periodMode === 'monthly') return t.d.startsWith(prevKey);
+    if (periodMode === 'quarterly') return getQuarter(t.d) === prevKey;
+    return t.d.startsWith(prevKey);
+  });
+  if (marketFilter && marketFilter !== 'all') rows = rows.filter(t => t.m === marketFilter);
+  if (platformFilter && platformFilter !== 'all') rows = rows.filter(t => t.p === platformFilter);
+  if (courierFilter) rows = rows.filter(t => t.c === courierFilter);
+
+  const counts = {};
+  rows.forEach(t => {
+    const pl = t[pField];
+    if (!pl) return;
+    if (!counts[pl]) counts[pl] = { tot: 0, neg: 0 };
+    counts[pl].tot++;
+    if (t.q1 === Q1_NEG) counts[pl].neg++;
+  });
+  Object.entries(counts).forEach(([pl, c]) => {
+    prevPeriodPillarNeg[pl] = c.tot ? (c.neg / c.tot) * 100 : 0;
+  });
+}
+
+function renderRepeatFrictionCouriers(transcripts) {
+  const box = document.getElementById('txRepeatCouriers');
+  if (!box) return;
+  const counts = {};
+  (transcripts || []).forEach(t => {
+    if (t.q1 === Q1_NEG && t.c) {
+      counts[t.c] = (counts[t.c] || 0) + 1;
+    }
+  });
+  const repeats = Object.entries(counts).filter(([, cnt]) => cnt >= 2).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (repeats.length === 0) {
+    box.innerHTML = '';
+    return;
+  }
+  let html = '<span style="font-size:11.5px;font-weight:700;color:var(--text-secondary);">Repeat-Friction Couriers (2+ Neg):</span>';
+  repeats.forEach(([cid, cnt]) => {
+    html += '<span class="courier-badge" title="Click to filter entire dashboard to courier ' + cid + '" onclick="filterByCourierId(\'' + cid + '\')">' + cid + ' (' + cnt + 'x)</span>';
+  });
+  box.innerHTML = html;
+}
+
+function filterByCourierId(cid) {
+  courierFilter = cid;
+  const cf = document.getElementById('courierFilter');
+  if (cf) cf.value = cid;
+  const cc = document.getElementById('courierClear');
+  if (cc) cc.classList.remove('hidden');
+  render();
+}
+
+function syncStateToUrl() {
+  try {
+    const params = new URLSearchParams();
+    if (periodMode) params.set('mode', periodMode);
+    if (currentPeriod) params.set('period', currentPeriod);
+    if (marketFilter && marketFilter !== 'all') params.set('market', marketFilter);
+    if (platformFilter && platformFilter !== 'all') params.set('platform', platformFilter);
+    if (goldOnly) params.set('gold', '1');
+    if (courierFilter) params.set('courier', courierFilter);
+    if (currentView) params.set('view', currentView);
+    const activeTab = document.querySelector('.nav-tab.active')?.dataset?.tab;
+    if (activeTab && activeTab !== 'overview') params.set('tab', activeTab);
+    const qs = params.toString();
+    history.replaceState(null, '', qs ? ('?' + qs) : location.pathname);
+  } catch (e) {}
+}
+
+function restoreStateFromUrl() {
+  try {
+    const params = new URLSearchParams(location.search);
+    if (params.has('mode')) {
+      periodMode = params.get('mode');
+      const pm = document.getElementById('periodModeSelect');
+      if (pm) pm.value = periodMode;
+      if (typeof updatePeriodDropdown === 'function') updatePeriodDropdown();
+    }
+    if (params.has('period')) {
+      currentPeriod = params.get('period');
+      const pv = document.getElementById('periodValueSelect');
+      if (pv) pv.value = currentPeriod;
+    }
+    if (params.has('market')) {
+      marketFilter = params.get('market');
+      const mf = document.getElementById('marketFilter');
+      if (mf) mf.value = marketFilter;
+    }
+    if (params.has('platform')) {
+      platformFilter = params.get('platform');
+      const pf = document.getElementById('platformFilter');
+      if (pf) pf.value = platformFilter;
+    }
+    if (params.get('gold') === '1') {
+      goldOnly = true;
+      const go = document.getElementById('goldOnly');
+      if (go) go.checked = true;
+    }
+    if (params.has('courier')) {
+      courierFilter = params.get('courier');
+      const cf = document.getElementById('courierFilter');
+      if (cf) cf.value = courierFilter;
+      const cc = document.getElementById('courierClear');
+      if (cc) cc.classList.remove('hidden');
+    }
+    if (params.has('view')) {
+      currentView = params.get('view');
+      const vs = document.getElementById('viewSelect');
+      if (vs) vs.value = currentView;
+    }
+    if (params.has('tab') && typeof switchDashTab === 'function') {
+      switchDashTab(params.get('tab'));
+    }
+  } catch (e) {}
+}
+
 function render() {
   const periodTranscripts = getPeriodTranscripts();
   const allTranscripts = getFilteredTranscripts();
@@ -1599,7 +1821,10 @@ function render() {
   document.getElementById('q1CountVal').textContent = q1PeriodMetrics.total.toLocaleString();
   document.getElementById('q1CountSub').textContent = 'of ' + q1AllTimeMetrics.total.toLocaleString() + ' all-time';
 
+  populatePlatformFilter();
+  if (showPrevDeltas) computePrevPeriodBaselines();
   renderActiveFilterChips();
+  syncStateToUrl();
   renderExecutiveBrief(period, allTime, q1PeriodMetrics, q1AllTimeMetrics);
   renderTrendAndStars(Object.assign({}, q1PeriodMetrics, {rows: allQ1Period}), q1AllTimeMetrics);
   renderMarketPillarHeatmap(periodTranscripts);
@@ -1646,6 +1871,13 @@ function renderPillars(pillars, totalTranscripts) {
   container.innerHTML = '';
   getPillarOrder().forEach(pl => {
     const p = pillars[pl] || { total:0, share:0, neg:0, pos:0, res:0, negPct:0, posPct:0, resPct:0, avgCsat:0 };
+    let deltaHtml = '';
+    if (showPrevDeltas && prevPeriodPillarNeg[pl] !== undefined) {
+      const d = p.negPct - prevPeriodPillarNeg[pl];
+      const cls = d > 0.5 ? 'delta-worse' : d < -0.5 ? 'delta-better' : 'delta-flat';
+      const sign = d > 0 ? '+' : '';
+      deltaHtml = '<span class="delta-pill ' + cls + '" title="vs. previous period">' + sign + d.toFixed(1) + 'pp</span>';
+    }
     const color = getPillarColors()[pl];
     const card = document.createElement('div');
     card.className = 'pillar-card'; card.title = 'Click to inspect Q3 transcripts for ' + pl; card.onclick = () => openPillarTranscripts(pl);
@@ -1656,7 +1888,7 @@ function renderPillars(pillars, totalTranscripts) {
 }
 
 function renderTranscriptsDynamic(periodTranscripts, fromFilter) {
-  if (!fromFilter) { latestPeriodTranscripts = periodTranscripts; renderKeywordPills(periodTranscripts); }
+  if (!fromFilter) { latestPeriodTranscripts = periodTranscripts; renderKeywordPills(periodTranscripts); renderRepeatFrictionCouriers(periodTranscripts); }
   latestDisplayedTranscripts = periodTranscripts;
   const container = document.getElementById('transcriptsSection');
   container.innerHTML = '';
