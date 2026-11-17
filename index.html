@@ -1577,7 +1577,7 @@ function renderMarketPillarHeatmap(periodTranscripts) {
         const bg = negPct >= 75 ? 'rgba(231,76,60,0.28)' : negPct >= 55 ? 'rgba(243,156,18,0.24)' : 'rgba(39,174,96,0.22)';
         const fg = negPct >= 75 ? '#c0392b' : negPct >= 55 ? '#d35400' : '#1e8449';
         const safePl = pl.replace(/'/g, "\\'");
-        html += '<td><span class="hm-cell" style="background:' + bg + ';color:' + fg + ';" title="' + m + ' \u2022 ' + pl + ': ' + negPct.toFixed(1) + '% Neg (' + cell.neg + '/' + cell.tot + ') — Click to inspect" onclick="drillMarketPillar(\'' + m + '\', \'' + safePl + '\')">' + negPct.toFixed(0) + '% <span style="font-weight:400;font-size:10.5px;">(' + cell.tot + ')</span></span></td>';
+        html += '<td><span class="hm-cell" style="background:' + bg + ';color:' + fg + ';" title="' + m + ' \u2022 ' + pl + ': ' + negPct.toFixed(1) + '% Neg (' + cell.neg + '/' + cell.tot + ') — Click to inspect" onclick="drillMarketPillar(\'' + m + '\', \'' + safePl + '\')">' + negPct.toFixed(0) + '% <span style="font-weight:400;font-size:10.5px;">(' + cell.tot + ')</span>' + ((showPrevDeltas && prevPeriodMarketPillarNeg[m + '||' + pl] !== undefined) ? (() => { const d = negPct - prevPeriodMarketPillarNeg[m + '||' + pl]; const cls = d > 0.5 ? 'delta-worse' : d < -0.5 ? 'delta-better' : 'delta-flat'; return '<span class="delta-pill ' + cls + '">' + (d > 0 ? '+' : '') + d.toFixed(0) + 'pp</span>'; })() : '') + '</span></td>';
       }
     });
     html += '</tr>';
@@ -1698,11 +1698,12 @@ function downloadSelectedData() {
 var platformFilter = 'all';
 var showPrevDeltas = false;
 var prevPeriodPillarNeg = {};
+var prevPeriodMarketPillarNeg = {};
 
 function toggleShowDeltas() {
   showPrevDeltas = !showPrevDeltas;
   const btn = document.getElementById('toggleDeltaBtn');
-  if (btn) btn.classList.toggle('active', showPrevDeltas);
+  if (btn) { btn.classList.toggle('active', showPrevDeltas); btn.textContent = showPrevDeltas ? 'Hide Prev-Period Deltas' : 'Show Prev-Period Deltas'; }
   render();
 }
 
@@ -1755,6 +1756,19 @@ function computePrevPeriodBaselines() {
   });
   Object.entries(counts).forEach(([pl, c]) => {
     prevPeriodPillarNeg[pl] = c.tot ? (c.neg / c.tot) * 100 : 0;
+  });
+  prevPeriodMarketPillarNeg = {};
+  const mpCounts = {};
+  rows.forEach(t => {
+    const m = t.m, pl = t[pField];
+    if (!m || !pl) return;
+    const k = m + '||' + pl;
+    if (!mpCounts[k]) mpCounts[k] = { tot: 0, neg: 0 };
+    mpCounts[k].tot++;
+    if (t.q1 === Q1_NEG) mpCounts[k].neg++;
+  });
+  Object.entries(mpCounts).forEach(([k, c]) => {
+    prevPeriodMarketPillarNeg[k] = c.tot ? (c.neg / c.tot) * 100 : 0;
   });
 }
 
