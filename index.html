@@ -563,6 +563,44 @@ body.dark-mode .exec-brief-banner [style*="color:#1e293b"] {
 header, .top-header, .header-bar {
   border-top: 3px solid #FF8000 !important;
 }
+
+  /* Sticky Filter Bar */
+  .controls-bar, .filter-bar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    backdrop-filter: blur(8px);
+  }
+  .hm-cell-n {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    opacity: 0.78;
+    margin-top: 1px;
+    line-height: 1.1;
+  }
+  .hm-cell-low-n {
+    opacity: 0.62;
+  }
+  .export-csv-btn {
+    padding: 5px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: border-color .15s, background .15s;
+  }
+  .export-csv-btn:hover {
+    border-color: var(--orange);
+    color: var(--orange);
+  }
+
 </style>
 </head>
 <body>
@@ -1268,6 +1306,9 @@ function updateExecutiveSummary(period, allTime) {
   const pn = periodMode === 'custom' ? customStart + ' to ' + customEnd : (s && s.options[s.selectedIndex] ? s.options[s.selectedIndex].text : 'Selected Period');
   const sp = [];
   if (goldOnly) sp.push('Gold Couriers');
+  if (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') {
+    sp.push(platformFilter.toLowerCase() === 'ios' ? 'iOS' : 'Android');
+  }
   sp.push(marketFilter === 'all' ? 'All Markets' : marketFilter);
   if (courierFilter) sp.push('Courier: ' + courierFilter);
   document.getElementById('execSummaryScope').textContent = pn + ' | ' + sp.join(' | ');
@@ -1474,7 +1515,7 @@ function renderTrendAndStars(q1PeriodMetrics, q1AllTimeMetrics) {
   });
 
   const baseCsat = q1AllTimeMetrics.avgCsat || 2.97;
-  const baseNeg = q1AllTimeMetrics.negQ1Pct || 48.7;
+  const baseNeg = (q1AllTimeMetrics && q1AllTimeMetrics.total > 0) ? q1AllTimeMetrics.negQ1Pct : 48.7;
   if (baseLbl) {
     baseLbl.innerHTML = 'All-time baselines: <strong style="color:var(--blue);">' + baseCsat.toFixed(2) + '&#9733; CSAT</strong> &nbsp;|&nbsp; <strong style="color:var(--red);">' + baseNeg.toFixed(1) + '% Neg Q1</strong> &nbsp;(click any point to inspect period)';
   }
@@ -2164,7 +2205,9 @@ function render() {
 
   // Q1 Respondents Card (Total volume who rated Q1, with or without feedback)
   document.getElementById('q1CountVal').textContent = q1PeriodMetrics.total.toLocaleString();
-  let q1SubText = 'of ' + q1AllTimeMetrics.total.toLocaleString() + ' all-time';
+  const _platTag = (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all')
+    ? (' ' + (platformFilter.toLowerCase() === 'ios' ? 'iOS' : 'Android')) : '';
+  let q1SubText = 'of ' + q1AllTimeMetrics.total.toLocaleString() + ' all-time' + _platTag;
   if (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') {
     const allTot = _getAllQ1PeriodForPlat('all');
     const andTot = _getAllQ1PeriodForPlat('android');
@@ -2541,6 +2584,161 @@ loadData();
 })();
 
 
+
+
+// --- Executive Enhancements: Gold Share Pill, Heatmap Volume Sub-Labels, CSV Export & Arrow-Key Nav ---
+function exportFilteredTranscriptsCSV() {
+  const rows = (typeof latestDisplayedTranscripts !== 'undefined' && Array.isArray(latestDisplayedTranscripts))
+    ? latestDisplayedTranscripts
+    : [];
+  if (!rows.length) {
+    alert('No Q3 transcripts in the current filtered view to export.');
+    return;
+  }
+  const pCol = typeof getPillarField === 'function' ? getPillarField() : 'pillar';
+  const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const header = ['Date', 'Market', 'Platform', 'Gold', 'Courier ID', 'Q1 Rating', 'Pillar', 'Sub-Theme', 'Resolved', 'Transcript'];
+  const lines = [header.map(esc).join(',')];
+  rows.forEach(t => {
+    lines.push([
+      t.d || t.date || '',
+      t.m || '',
+      t.p || '',
+      (t.g === true || t.g === 1 || t.g === 'Yes') ? 'Yes' : 'No',
+      t.c || '',
+      t.q1 || '',
+      t[pCol] || '',
+      t.sub || t.l2 || '',
+      (t.res === true || t.res === 1 || t.res === 'Yes') ? 'Yes' : 'No',
+      t.txt || t.text || t.comment || ''
+    ].map(esc).join(','));
+  });
+  const scopeRaw = (document.getElementById('execSummaryScope')?.textContent || 'filtered')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_|_$/g, '').slice(0, 60);
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'courier_q3_transcripts_' + scopeRaw + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+(function initExecutiveDashboardUpgrades() {
+  // Ensure parent filter container is sticky even if class name differs
+  const makeFilterSticky = () => {
+    const mf = document.getElementById('marketFilter');
+    if (!mf) return;
+    const bar = mf.closest('.controls, .controls-bar, .filter-bar, .toolbar') || mf.parentElement?.parentElement;
+    if (bar && bar.tagName !== 'BODY') {
+      bar.style.position = 'sticky';
+      bar.style.top = '0';
+      bar.style.zIndex = '40';
+    }
+  };
+
+  // Append Gold cohort share pill to Executive Summary when Gold Only is unchecked
+  const syncGoldSharePill = () => {
+    const exEl = document.getElementById('execSummaryText');
+    if (!exEl) return;
+    const oldPill = document.getElementById('execGoldSharePill');
+    if (oldPill) oldPill.remove();
+    if (typeof goldOnly !== 'undefined' && goldOnly) return;
+
+    const pool = (typeof latestPeriodTranscripts !== 'undefined' && Array.isArray(latestPeriodTranscripts))
+      ? latestPeriodTranscripts : [];
+    if (!pool.length) return;
+    const goldCnt = pool.filter(r => r && (r.g === true || r.g === 1 || r.g === 'Yes' || r.gold === true)).length;
+    if (goldCnt <= 0) return;
+
+    const pct = ((goldCnt / pool.length) * 100).toFixed(1);
+    const pill = document.createElement('span');
+    pill.id = 'execGoldSharePill';
+    pill.style.cssText = 'display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(245,158,11,0.14);color:#b45309;vertical-align:middle;';
+    pill.textContent = 'Gold couriers: ' + pct + '% of Q3';
+    exEl.appendChild(pill);
+  };
+
+  // Add n=XX volume sub-labels inside Market x Pillar heatmap cells from their title/tooltip count
+  const enhanceHeatmapCells = () => {
+    const hm = document.getElementById('heatmapContainer');
+    if (!hm) return;
+    hm.querySelectorAll('td').forEach(td => {
+      if (td.querySelector('.hm-cell-n')) return;
+      const txt = (td.textContent || '').trim();
+      if (!txt.endsWith('%')) return;
+      const title = td.getAttribute('title') || '';
+      const m = title.match(/(\d+)\s*(?:total|transcripts|responses|of\s+(\d+))/i) || title.match(/\(\d+\s*\/\s*(\d+)\)/);
+      const nVal = m ? (m[2] || m[1]) : null;
+      if (nVal !== null) {
+        const span = document.createElement('span');
+        span.className = 'hm-cell-n' + (Number(nVal) < 5 ? ' hm-cell-low-n' : '');
+        span.textContent = 'n=' + nVal;
+        td.appendChild(span);
+      }
+    });
+  };
+
+  // Inject Export CSV button on Q3 Transcripts section header
+  const attachExportBtn = () => {
+    if (document.getElementById('exportQ3CsvBtn')) return;
+    const tSec = document.getElementById('transcriptsSection');
+    if (!tSec) return;
+    const card = tSec.closest('.card, .section-card, section') || tSec.parentElement;
+    if (!card) return;
+    const hdr = card.querySelector('.section-header, .card-header, h2, h3');
+    if (!hdr) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'exportQ3CsvBtn';
+    btn.className = 'export-csv-btn';
+    btn.title = 'Download current filtered Q3 transcripts as CSV';
+    btn.innerHTML = '⬇ Export CSV';
+    btn.onclick = exportFilteredTranscriptsCSV;
+    if (hdr.parentElement && getComputedStyle(hdr.parentElement).display.includes('flex')) {
+      hdr.parentElement.appendChild(btn);
+    } else {
+      hdr.style.display = 'flex';
+      hdr.style.alignItems = 'center';
+      hdr.style.justifyContent = 'space-between';
+      hdr.appendChild(btn);
+    }
+  };
+
+  const runPostRenderHooks = () => {
+    makeFilterSticky();
+    syncGoldSharePill();
+    enhanceHeatmapCells();
+    attachExportBtn();
+  };
+
+  if (typeof render === 'function') {
+    const _origRender = render;
+    render = function() {
+      const res = _origRender.apply(this, arguments);
+      runPostRenderHooks();
+      return res;
+    };
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', runPostRenderHooks);
+  else runPostRenderHooks();
+  setTimeout(runPostRenderHooks, 500);
+
+  // Left / Right arrow keys step through periods when not typing in an input
+  document.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    if (e.key === 'ArrowLeft') {
+      const prevBtn = document.querySelector('button[onclick*="stepPeriod(-1)"], button[onclick*="prevPeriod"], #prevPeriodBtn');
+      if (prevBtn && !prevBtn.disabled) { e.preventDefault(); prevBtn.click(); }
+    } else if (e.key === 'ArrowRight') {
+      const nextBtn = document.querySelector('button[onclick*="stepPeriod(1)"], button[onclick*="nextPeriod"], #nextPeriodBtn');
+      if (nextBtn && !nextBtn.disabled) { e.preventDefault(); nextBtn.click(); }
+    }
+  });
+})();
 
 </script>
 </body>
