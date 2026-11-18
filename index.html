@@ -640,7 +640,6 @@ header, .top-header, .header-bar {
       <option value="L2" hidden disabled style="display:none;">L2: 12 Pillars</option>
     </select>
   </div>
-    <div class="control-group"><span class="control-label">&nbsp;</span><button type="button" id="clearFiltersBtn" onclick="resetAllFilters()" style="display:none;padding:6px 12px;border-radius:6px;border:1px solid var(--border-color,#cbd5e1);background:var(--card-bg,#fff);color:var(--text-primary,#1e293b);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" title="Reset all active filters">&#10005; Clear Filters</button></div>
   <div class="control-group" style="margin-left:auto;">
     <span id="periodLabel" style="font-size:12px;font-weight:600;color:var(--text-secondary);"></span>
   </div>
@@ -1375,6 +1374,10 @@ function renderActiveFilterChips() {
 function resetAllFilters() {
   marketFilter = 'all';
   const mf = document.getElementById('marketFilter'); if (mf) mf.value = 'all';
+  if (typeof platformFilter !== 'undefined') {
+    platformFilter = 'all';
+    const pf = document.getElementById('platformFilter'); if (pf) pf.value = 'all';
+  }
   goldOnly = false;
   const go = document.getElementById('goldOnly'); if (go) go.checked = false;
   courierFilter = '';
@@ -2143,7 +2146,32 @@ function render() {
 
   // Q1 Respondents Card (Total volume who rated Q1, with or without feedback)
   document.getElementById('q1CountVal').textContent = q1PeriodMetrics.total.toLocaleString();
-  document.getElementById('q1CountSub').textContent = 'of ' + q1AllTimeMetrics.total.toLocaleString() + ' all-time';
+  let q1SubText = 'of ' + q1AllTimeMetrics.total.toLocaleString() + ' all-time';
+  if (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') {
+    try {
+      const dsAll = typeof getDataset === 'function' ? getDataset() : {};
+      const q1NoAll = (typeof D !== 'undefined' && D.q1NoQ3 && D.q1NoQ3.all) ? D.q1NoQ3.all : [];
+      const q3All = dsAll.transcripts || [];
+      const curPeriod = document.getElementById('periodSelect') ? document.getElementById('periodSelect').value : null;
+      const andSet = new Set(), iosSet = new Set();
+      const scanRec = (rec, isQ3) => {
+        if (!rec || !rec.c) return;
+        if (marketFilter && marketFilter !== 'all' && rec.m !== marketFilter) return;
+        if (courierFilter && rec.c !== courierFilter) return;
+        if (curPeriod && periodMode === 'weekly' && rec.w !== curPeriod) return;
+        if (curPeriod && periodMode === 'monthly' && rec.mo !== curPeriod) return;
+        const pLow = (rec.p || '').toLowerCase();
+        if (pLow === 'android') andSet.add(rec.c);
+        else if (pLow === 'ios') iosSet.add(rec.c);
+      };
+      q1NoAll.forEach(r => scanRec(r, false));
+      q3All.forEach(t => scanRec(t, true));
+      let bothCount = 0;
+      andSet.forEach(cid => { if (iosSet.has(cid)) bothCount++; });
+      if (bothCount > 0) q1SubText += ' · ' + bothCount.toLocaleString() + ' used both Android & iOS';
+    } catch (e) {}
+  }
+  document.getElementById('q1CountSub').textContent = q1SubText;
 
   populatePlatformFilter();
   if (showPrevDeltas) computePrevPeriodBaselines();
@@ -2510,21 +2538,6 @@ loadData();
 })();
 
 
-(function() {
-  function syncClearFiltersBtn() {
-    var btn = document.getElementById('clearFiltersBtn');
-    if (!btn) return;
-    var hasFilter = (typeof marketFilter !== 'undefined' && marketFilter && marketFilter !== 'all') ||
-                    (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') ||
-                    (typeof goldOnly !== 'undefined' && !!goldOnly) ||
-                    (typeof courierFilter !== 'undefined' && !!courierFilter);
-    btn.style.display = hasFilter ? 'inline-flex' : 'none';
-  }
-  document.addEventListener('DOMContentLoaded', syncClearFiltersBtn);
-  document.addEventListener('change', syncClearFiltersBtn);
-  document.addEventListener('input', syncClearFiltersBtn);
-  document.addEventListener('click', function() { setTimeout(syncClearFiltersBtn, 0); });
-})();
 
 </script>
 </body>
