@@ -3027,7 +3027,25 @@ function copyExecutiveSummaryToClipboard(btn) {
       });
     }
 
-    // 2. Side-by-side Android vs iOS breakdown when Platform = All Platforms
+    // 2a. Update Executive Summary title dynamically with active filters
+    const titleEl = document.querySelector('.exec-summary-title');
+    if (titleEl) {
+      const mLabel = (typeof marketFilter !== 'undefined' && marketFilter && marketFilter !== 'all')
+        ? marketFilter : 'All Markets';
+      const pLabel = (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all')
+        ? (platformFilter.toLowerCase() === 'ios' ? 'iOS' : 'Android') : 'All Platforms';
+      const parts = [];
+      if (typeof goldOnly !== 'undefined' && goldOnly) parts.push('Gold Couriers');
+      if (typeof courierFilter !== 'undefined' && courierFilter) parts.push('Courier ' + courierFilter);
+      if (mLabel === 'All Markets' && pLabel === 'All Platforms' && parts.length === 0) {
+        titleEl.textContent = 'Executive Summary & Period Analysis — All Platforms & All Markets';
+      } else {
+        parts.push(mLabel, pLabel);
+        titleEl.textContent = 'Executive Summary & Period Analysis — ' + parts.join(' · ');
+      }
+    }
+
+    // 2b. Side-by-side Android vs iOS breakdown when Platform = All Platforms
     if (exEl && exEl.parentElement) {
       let splitEl = document.getElementById('execPlatformSplitLine');
       if (!splitEl) {
@@ -3037,39 +3055,20 @@ function copyExecutiveSummaryToClipboard(btn) {
         exEl.insertAdjacentElement('afterend', splitEl);
       }
       const isAllPlatforms = (typeof platformFilter === 'undefined' || !platformFilter || platformFilter === 'all');
-      const rows = (typeof getAllQ1Responses === 'function')
-        ? getAllQ1Responses()
-        : ((typeof latestPeriodTranscripts !== 'undefined' && Array.isArray(latestPeriodTranscripts)) ? latestPeriodTranscripts : []);
+      const rows = (typeof getAllQ1Responses === 'function') ? getAllQ1Responses() : [];
 
-      if (isAllPlatforms && rows.length > 0) {
-        const calcPlat = (target) => {
-          const sub = rows.filter(r => String(r && r.p || '').toLowerCase() === target);
-          if (!sub.length) return null;
-          let sum = 0, rated = 0, neg = 0;
-          sub.forEach(r => {
-            const v = Number(r.q1 ?? r.rating ?? r.score);
-            if (v >= 1 && v <= 5) {
-              sum += v;
-              rated++;
-              if (v <= 2) neg++;
-            }
-          });
-          if (!rated) return null;
-          return {
-            n: rated,
-            csat: (sum / rated).toFixed(2),
-            negPct: ((neg / rated) * 100).toFixed(1)
-          };
-        };
-        const andStats = calcPlat('android');
-        const iosStats = calcPlat('ios');
-        if (andStats && iosStats) {
+      if (isAllPlatforms && rows.length > 0 && typeof computeQ1Metrics === 'function') {
+        const andRows = rows.filter(r => String(r && r.p || '').toLowerCase() === 'android');
+        const iosRows = rows.filter(r => String(r && r.p || '').toLowerCase() === 'ios');
+        const andM = computeQ1Metrics(andRows);
+        const iosM = computeQ1Metrics(iosRows);
+        if (andM.total > 0 && iosM.total > 0) {
           splitEl.style.display = 'flex';
           splitEl.innerHTML =
             '<span><strong>Platform split:</strong></span>' +
-            '<span>Android <strong>' + andStats.csat + '&#9733;</strong> (' + andStats.negPct + '% neg, n=' + andStats.n.toLocaleString() + ')</span>' +
+            '<span>Android <strong>' + andM.avgCsat.toFixed(2) + '&#9733;</strong> (' + andM.negQ1Pct.toFixed(1) + '% neg, n=' + andM.total.toLocaleString() + ')</span>' +
             '<span>&middot;</span>' +
-            '<span>iOS <strong>' + iosStats.csat + '&#9733;</strong> (' + iosStats.negPct + '% neg, n=' + iosStats.n.toLocaleString() + ')</span>';
+            '<span>iOS <strong>' + iosM.avgCsat.toFixed(2) + '&#9733;</strong> (' + iosM.negQ1Pct.toFixed(1) + '% neg, n=' + iosM.total.toLocaleString() + ')</span>';
         } else {
           splitEl.style.display = 'none';
         }
