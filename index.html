@@ -558,6 +558,7 @@ body.dark-mode .exec-brief-banner [style*="color:#1e293b"] {
 .hm-market {
   font-variant-numeric: tabular-nums !important;
 }
+.hm-table th { white-space: normal !important; line-height: 1.25 !important; max-width: 140px; }
 </style>
 </head>
 <body>
@@ -638,7 +639,7 @@ body.dark-mode .exec-brief-banner [style*="color:#1e293b"] {
   <div class="control-group" style="margin-left:auto;">
     <span id="periodLabel" style="font-size:12px;font-weight:600;color:var(--text-secondary);"></span>
   </div>
-  <button class="icon-btn" id="themeToggle" title="Toggle dark mode">🌙</button>
+  <button class="icon-btn" id="themeToggle" id="themeToggleBtn" title="Switch to Dark Mode">🌙</button>
 </div>
 
 <div class="main" id="main">
@@ -1601,7 +1602,7 @@ function renderMarketPillarHeatmap(periodTranscripts) {
 
   let html = '<table class="heatmap-table"><thead><tr><th>Market</th>';
   pillars.forEach(pl => {
-    const shortName = pl.length > 24 ? pl.slice(0, 23) + '\u2026' : pl;
+    const shortName = pl;
     html += '<th title="' + pl + '">' + shortName + '</th>';
   });
   html += '</tr></thead><tbody>';
