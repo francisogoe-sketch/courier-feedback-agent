@@ -1414,7 +1414,7 @@ function renderActiveFilterChips() {
 
 function resetAllFilters() {
   marketFilter = 'all';
-  const mf = document.getElementById('marketFilter'); if (mf) mf.value = 'all';
+  const mf = document.getElementById('periodNavGroup') || document.getElementById('marketFilter'); if (mf) mf.value = 'all';
   if (typeof platformFilter !== 'undefined') {
     platformFilter = 'all';
     const pf = document.getElementById('platformFilter'); if (pf) pf.value = 'all';
@@ -2633,7 +2633,7 @@ function exportFilteredTranscriptsCSV() {
     if (bar && bar.tagName !== 'BODY') {
       bar.style.position = 'sticky';
       bar.style.top = '0';
-      bar.style.zIndex = '40';
+      bar.style.zIndex = '40'; bar.style.background = 'var(--card-bg, #ffffff)'; bar.style.boxShadow = '0 4px 12px rgba(15, 23, 42, 0.08)';
     }
   };
 
@@ -2731,10 +2731,10 @@ function exportFilteredTranscriptsCSV() {
     const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
     if (e.key === 'ArrowLeft') {
-      const prevBtn = document.querySelector('button[onclick*="stepPeriod(-1)"], button[onclick*="prevPeriod"], #prevPeriodBtn');
+      const prevBtn = document.querySelector('button[onclick*="stepPeriod(-1)"], button[onclick*="prevPeriod"], #prevBtn, #prevPeriodBtn');
       if (prevBtn && !prevBtn.disabled) { e.preventDefault(); prevBtn.click(); }
     } else if (e.key === 'ArrowRight') {
-      const nextBtn = document.querySelector('button[onclick*="stepPeriod(1)"], button[onclick*="nextPeriod"], #nextPeriodBtn');
+      const nextBtn = document.querySelector('button[onclick*="stepPeriod(1)"], button[onclick*="nextPeriod"], #nextBtn, #nextPeriodBtn');
       if (nextBtn && !nextBtn.disabled) { e.preventDefault(); nextBtn.click(); }
     }
   });
