@@ -2149,26 +2149,31 @@ function render() {
   let q1SubText = 'of ' + q1AllTimeMetrics.total.toLocaleString() + ' all-time';
   if (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') {
     try {
-      const dsAll = typeof getDataset === 'function' ? getDataset() : {};
-      const q1NoAll = (typeof D !== 'undefined' && D.q1NoQ3 && D.q1NoQ3.all) ? D.q1NoQ3.all : [];
-      const q3All = dsAll.transcripts || [];
-      const curPeriod = document.getElementById('periodSelect') ? document.getElementById('periodSelect').value : null;
-      const andSet = new Set(), iosSet = new Set();
-      const scanRec = (rec, isQ3) => {
-        if (!rec || !rec.c) return;
-        if (marketFilter && marketFilter !== 'all' && rec.m !== marketFilter) return;
-        if (courierFilter && rec.c !== courierFilter) return;
-        if (curPeriod && periodMode === 'weekly' && rec.w !== curPeriod) return;
-        if (curPeriod && periodMode === 'monthly' && rec.mo !== curPeriod) return;
-        const pLow = (rec.p || '').toLowerCase();
-        if (pLow === 'android') andSet.add(rec.c);
-        else if (pLow === 'ios') iosSet.add(rec.c);
+      const savedPlat = platformFilter;
+      const calcTotalForPlat = (targetPlat) => {
+        const dsT = (typeof getDataset === 'function' ? getDataset().transcripts : []) || [];
+        const q1No = (typeof D !== 'undefined' && D.q1NoQ3 && D.q1NoQ3.all) ? D.q1NoQ3.all : [];
+        const pKey = typeof currentPeriod !== 'undefined' ? currentPeriod : null;
+        const matchRec = (r) => {
+          if (marketFilter && marketFilter !== 'all' && r.m !== marketFilter) return false;
+          if (courierFilter && r.c !== courierFilter) return false;
+          if (targetPlat !== 'all' && (r.p || '').toLowerCase() !== targetPlat) return false;
+          if (pKey && periodMode === 'weekly' && r.w !== pKey) return false;
+          if (pKey && periodMode === 'monthly' && (r.mo || (r.d || '').slice(0, 7)) !== pKey) return false;
+          return true;
+        };
+        const q3Match = dsT.filter(matchRec);
+        const q1Match = goldOnly ? [] : q1No.filter(matchRec);
+        return q3Match.length + q1Match.length;
       };
-      q1NoAll.forEach(r => scanRec(r, false));
-      q3All.forEach(t => scanRec(t, true));
-      let bothCount = 0;
-      andSet.forEach(cid => { if (iosSet.has(cid)) bothCount++; });
-      if (bothCount > 0) q1SubText += ' · ' + bothCount.toLocaleString() + ' used both Android & iOS';
+      const allTot = calcTotalForPlat('all');
+      const andTot = calcTotalForPlat('android');
+      const iosTot = calcTotalForPlat('ios');
+      const bothCount = (andTot + iosTot) - allTot;
+      if (bothCount > 0) {
+        q1SubText += ' · ' + bothCount.toLocaleString() + ' used both Android & iOS';
+      }
+      platformFilter = savedPlat;
     } catch (e) {}
   }
   document.getElementById('q1CountSub').textContent = q1SubText;
