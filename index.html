@@ -637,6 +637,75 @@ header, .top-header, .header-bar {
     transition: all .15s ease;
   }
 
+
+  .low-sample-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(234, 88, 12, 0.11);
+    color: #c2410c;
+    border: 1px solid rgba(234, 88, 12, 0.3);
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  [data-theme="dark"] .low-sample-badge, body.dark-mode .low-sample-badge, body.dark .low-sample-badge {
+    background: rgba(251, 146, 60, 0.15);
+    color: #fb923c;
+    border-color: rgba(251, 146, 60, 0.35);
+  }
+  .hm-low-sample {
+    opacity: 0.56 !important;
+    border-style: dashed !important;
+  }
+  .exec-platform-split {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-secondary, #64748b);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .copy-summary-btn {
+    padding: 2px 9px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    border: 1px solid var(--border, #e2e8f0);
+    background: var(--card-bg, #ffffff);
+    color: var(--text-secondary, #475569);
+    cursor: pointer;
+    margin-left: 6px;
+    vertical-align: middle;
+    transition: all .15s ease;
+  }
+  .copy-summary-btn:hover {
+    border-color: #ff8000;
+    color: #ff8000;
+  }
+  .csat-bias-hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1px solid currentColor;
+    opacity: 0.65;
+    cursor: help;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .csat-bias-hint:hover {
+    opacity: 1;
+  }
+
 </style>
 </head>
 <body>
@@ -2884,6 +2953,169 @@ function exportFilteredTranscriptsCSV() {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyGoldAccents);
   else applyGoldAccents();
   setTimeout(applyGoldAccents, 400);
+})();
+
+
+// --- Final Executive Polish: Low-Sample Guardrails, Platform Split, Selection-Bias Tooltip & Copy Summary ---
+function copyExecutiveSummaryToClipboard(btn) {
+  const scope = (document.getElementById('execSummaryScope')?.innerText || '').trim();
+  const narrative = (document.getElementById('execSummaryText')?.innerText || '').trim();
+  const platLine = (document.getElementById('execPlatformSplitLine')?.innerText || '').trim();
+  const grid = document.getElementById('execInsightsGrid');
+  const insights = grid
+    ? Array.from(grid.children).map(el => el.innerText.replace(/\s*\n+\s*/g, ': ').trim()).filter(Boolean)
+    : [];
+
+  const lines = [
+    'Courier CSAT Readout' + (scope ? ' (' + scope + ')' : ''),
+    narrative,
+    platLine,
+    ...insights.map(item => '• ' + item)
+  ].filter(Boolean);
+
+  const text = lines.join('\n');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied';
+        setTimeout(() => { btn.textContent = orig; }, 1600);
+      }
+    });
+  }
+}
+
+(function initExecutiveGuardrailsAndCopy() {
+  const biasTooltipText = 'Written Q3 feedback naturally skews lower than Q1-only ratings because couriers leave comments primarily when reporting friction.';
+
+  const applyExecutivePolish = () => {
+    const exEl = document.getElementById('execSummaryText');
+
+    // 1a. Low-sample guardrail badge in Executive Summary when Q1 respondents < 30
+    if (exEl) {
+      const oldLow = document.getElementById('execLowSampleBadge');
+      if (oldLow) oldLow.remove();
+      const m = (exEl.textContent || '').match(/,\s*([\d,]+)\s+couriers\s+submitted/i);
+      const q1N = m ? parseInt(m[1].replace(/,/g, ''), 10) : null;
+      if (q1N !== null && q1N > 0 && q1N < 30) {
+        const badge = document.createElement('span');
+        badge.id = 'execLowSampleBadge';
+        badge.className = 'low-sample-badge';
+        badge.title = 'Small sample size (n < 30): single responses can cause large percentage swings.';
+        badge.textContent = 'Low sample (n=' + q1N + ')';
+        exEl.appendChild(badge);
+      }
+    }
+
+    // 1b. Soften heatmap cells where volume count "(n)" is < 5
+    const hm = document.getElementById('heatmapContainer');
+    if (hm) {
+      hm.querySelectorAll('td span, td div, td').forEach(el => {
+        if (el.children.length > 0) return;
+        const txt = (el.textContent || '').trim();
+        const cm = txt.match(/^\d+%\s*\((\d+)\)$/);
+        if (cm) {
+          const n = parseInt(cm[1], 10);
+          const pill = el.tagName === 'TD' ? el : el;
+          if (n > 0 && n < 5) {
+            pill.classList.add('hm-low-sample');
+            if (!pill.title) pill.title = 'Low sample (n=' + n + ') — interpret percentage with caution';
+          } else {
+            pill.classList.remove('hm-low-sample');
+          }
+        }
+      });
+    }
+
+    // 2. Side-by-side Android vs iOS breakdown when Platform = All Platforms
+    if (exEl && exEl.parentElement) {
+      let splitEl = document.getElementById('execPlatformSplitLine');
+      if (!splitEl) {
+        splitEl = document.createElement('div');
+        splitEl.id = 'execPlatformSplitLine';
+        splitEl.className = 'exec-platform-split';
+        exEl.insertAdjacentElement('afterend', splitEl);
+      }
+      const isAllPlatforms = (typeof platformFilter === 'undefined' || !platformFilter || platformFilter === 'all');
+      const rows = (typeof allQ1Period !== 'undefined' && Array.isArray(allQ1Period) && allQ1Period.length)
+        ? allQ1Period
+        : ((typeof latestPeriodTranscripts !== 'undefined' && Array.isArray(latestPeriodTranscripts)) ? latestPeriodTranscripts : []);
+
+      if (isAllPlatforms && rows.length > 0) {
+        const calcPlat = (target) => {
+          const sub = rows.filter(r => String(r && r.p || '').toLowerCase() === target);
+          if (!sub.length) return null;
+          let sum = 0, rated = 0, neg = 0;
+          sub.forEach(r => {
+            const v = Number(r.q1 ?? r.rating ?? r.score);
+            if (v >= 1 && v <= 5) {
+              sum += v;
+              rated++;
+              if (v <= 2) neg++;
+            }
+          });
+          if (!rated) return null;
+          return {
+            n: rated,
+            csat: (sum / rated).toFixed(2),
+            negPct: ((neg / rated) * 100).toFixed(1)
+          };
+        };
+        const andStats = calcPlat('android');
+        const iosStats = calcPlat('ios');
+        if (andStats && iosStats) {
+          splitEl.style.display = 'flex';
+          splitEl.innerHTML =
+            '<span><strong>Platform split:</strong></span>' +
+            '<span>Android <strong>' + andStats.csat + '&#9733;</strong> (' + andStats.negPct + '% neg, n=' + andStats.n.toLocaleString() + ')</span>' +
+            '<span>&middot;</span>' +
+            '<span>iOS <strong>' + iosStats.csat + '&#9733;</strong> (' + iosStats.negPct + '% neg, n=' + iosStats.n.toLocaleString() + ')</span>';
+        } else {
+          splitEl.style.display = 'none';
+        }
+      } else {
+        splitEl.style.display = 'none';
+      }
+    }
+
+    // 3. Selection-bias tooltip on AVG CSAT SCORE card & Q1-Only vs Q1+Q3 tab
+    document.querySelectorAll('.kpi-title, .card-title, button, [role="tab"]').forEach(el => {
+      const t = (el.textContent || '').trim();
+      if ((t === 'AVG CSAT SCORE' || t === 'Q1-Only vs Q1+Q3') && !el.querySelector('.csat-bias-hint')) {
+        const hint = document.createElement('span');
+        hint.className = 'csat-bias-hint';
+        hint.title = biasTooltipText;
+        hint.textContent = 'i';
+        el.appendChild(hint);
+      }
+    });
+
+    // 4. One-click Copy Summary button next to execSummaryScope
+    const scopeEl = document.getElementById('execSummaryScope');
+    if (scopeEl && scopeEl.parentElement && !document.getElementById('copyExecSummaryBtn')) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'copyExecSummaryBtn';
+      btn.className = 'copy-summary-btn';
+      btn.title = 'Copy executive summary to clipboard';
+      btn.textContent = 'Copy Summary';
+      btn.onclick = () => copyExecutiveSummaryToClipboard(btn);
+      scopeEl.insertAdjacentElement('afterend', btn);
+    }
+  };
+
+  if (typeof render === 'function') {
+    const _origRender = render;
+    render = function() {
+      const res = _origRender.apply(this, arguments);
+      applyExecutivePolish();
+      return res;
+    };
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyExecutivePolish);
+  else applyExecutivePolish();
+  setTimeout(applyExecutivePolish, 450);
 })();
 
 </script>
