@@ -2116,6 +2116,24 @@ function render() {
   document.getElementById('periodLabel').textContent = period.total.toLocaleString() + ' Q3 transcripts this period';
 
   // Total Q1 respondents = Q3 transcripts + Q1-only ratings
+  const _getAllQ1PeriodForPlat = (targetPlat) => {
+    const _prevPlat = typeof platformFilter !== 'undefined' ? platformFilter : 'all';
+    platformFilter = targetPlat;
+    const allQ1Period = getAllQ1Responses();
+  const allQ1AllTime = allTranscripts.concat(
+    (goldOnly ? (D.q1NoQ3.gold || []) : (D.q1NoQ3.all || []))
+      .filter(r => !courierFilter || r.c === courierFilter)
+      .filter(r => marketFilter === 'all' || r.m === marketFilter)
+      .map(r => ({
+        q1: r.q1 || r.q || '',
+        neg: r.neg !== undefined ? r.neg : (r.n || false),
+        pos: r.pos !== undefined ? r.pos : !(r.neg !== undefined ? r.neg : (r.n || false)),
+        m: r.m, q2: 'No'
+      }))
+  );
+    platformFilter = _prevPlat;
+    return allQ1Period.length;
+  };
   const allQ1Period = getAllQ1Responses();
   const allQ1AllTime = allTranscripts.concat(
     (goldOnly ? (D.q1NoQ3.gold || []) : (D.q1NoQ3.all || []))
@@ -2148,33 +2166,13 @@ function render() {
   document.getElementById('q1CountVal').textContent = q1PeriodMetrics.total.toLocaleString();
   let q1SubText = 'of ' + q1AllTimeMetrics.total.toLocaleString() + ' all-time';
   if (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') {
-    try {
-      const savedPlat = platformFilter;
-      const calcTotalForPlat = (targetPlat) => {
-        const dsT = (typeof getDataset === 'function' ? getDataset().transcripts : []) || [];
-        const q1No = (typeof D !== 'undefined' && D.q1NoQ3 && D.q1NoQ3.all) ? D.q1NoQ3.all : [];
-        const pKey = typeof currentPeriod !== 'undefined' ? currentPeriod : null;
-        const matchRec = (r) => {
-          if (marketFilter && marketFilter !== 'all' && r.m !== marketFilter) return false;
-          if (courierFilter && r.c !== courierFilter) return false;
-          if (targetPlat !== 'all' && (r.p || '').toLowerCase() !== targetPlat) return false;
-          if (pKey && periodMode === 'weekly' && r.w !== pKey) return false;
-          if (pKey && periodMode === 'monthly' && (r.mo || (r.d || '').slice(0, 7)) !== pKey) return false;
-          return true;
-        };
-        const q3Match = dsT.filter(matchRec);
-        const q1Match = goldOnly ? [] : q1No.filter(matchRec);
-        return q3Match.length + q1Match.length;
-      };
-      const allTot = calcTotalForPlat('all');
-      const andTot = calcTotalForPlat('android');
-      const iosTot = calcTotalForPlat('ios');
-      const bothCount = (andTot + iosTot) - allTot;
-      if (bothCount > 0) {
-        q1SubText += ' · ' + bothCount.toLocaleString() + ' used both Android & iOS';
-      }
-      platformFilter = savedPlat;
-    } catch (e) {}
+    const allTot = _getAllQ1PeriodForPlat('all');
+    const andTot = _getAllQ1PeriodForPlat('android');
+    const iosTot = _getAllQ1PeriodForPlat('ios');
+    const bothCount = (andTot + iosTot) - allTot;
+    if (bothCount > 0) {
+      q1SubText += ' · ' + bothCount.toLocaleString() + ' used both Android & iOS';
+    }
   }
   document.getElementById('q1CountSub').textContent = q1SubText;
 
