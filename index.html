@@ -601,6 +601,42 @@ header, .top-header, .header-bar {
     color: var(--orange);
   }
 
+
+  :root {
+    --gold-bg: rgba(245, 158, 11, 0.13);
+    --gold-bg-active: rgba(245, 158, 11, 0.22);
+    --gold-text: #b45309;
+    --gold-border: rgba(217, 119, 6, 0.38);
+  }
+  [data-theme="dark"], body.dark-mode, body.dark {
+    --gold-bg: rgba(251, 191, 36, 0.14);
+    --gold-bg-active: rgba(251, 191, 36, 0.24);
+    --gold-text: #fbbf24;
+    --gold-border: rgba(251, 191, 36, 0.35);
+  }
+  .gold-pill-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--gold-bg);
+    color: var(--gold-text);
+    border: 1px solid var(--gold-border);
+    vertical-align: middle;
+    line-height: 1.45;
+  }
+  .gold-filter-active {
+    background: var(--gold-bg-active) !important;
+    color: var(--gold-text) !important;
+    border: 1px solid var(--gold-border) !important;
+    border-radius: 999px;
+    padding: 2px 10px 2px 7px;
+    transition: all .15s ease;
+  }
+
 </style>
 </head>
 <body>
@@ -2747,6 +2783,107 @@ function exportFilteredTranscriptsCSV() {
       if (nextBtn && !nextBtn.disabled) { e.preventDefault(); nextBtn.click(); }
     }
   });
+})();
+
+
+// --- Theme-Safe Gold Courier Accents ---
+(function initGoldCourierAccents() {
+  const isGoldRecord = (r) => {
+    if (!r) return false;
+    return r.g === true || r.g === 1 || r.g === '1' || r.g === 'Yes' || r.g === 'Gold'
+        || r.gold === true || r.gold === 1 || r.gold === 'Yes'
+        || r.gold_status === true || r.gold_status === 1 || String(r.gold_status || '').toLowerCase() === 'gold'
+        || String(r.tier || '').toLowerCase() === 'gold';
+  };
+
+  const applyGoldAccents = () => {
+    const isGoldActive = (typeof goldOnly !== 'undefined' && Boolean(goldOnly));
+
+    // 1. Highlight the "Gold Only" filter control when checked
+    const goldChk = document.getElementById('goldOnly');
+    const goldLbl = goldChk ? goldChk.closest('label') : null;
+    if (goldLbl) {
+      goldLbl.classList.toggle('gold-filter-active', isGoldActive);
+    }
+
+    // 2. Style "Gold Couriers" inside the top-right Executive Summary scope badge
+    const scopeEl = document.getElementById('execSummaryScope');
+    if (scopeEl && scopeEl.textContent.includes('Gold Couriers') && !scopeEl.querySelector('.gold-pill-badge')) {
+      scopeEl.innerHTML = scopeEl.textContent.replace(
+        'Gold Couriers',
+        '<span class="gold-pill-badge" style="margin:-1px 2px;">&#9733; Gold Couriers</span>'
+      );
+    }
+
+    // 3. Add subtle Gold cohort badge inside the Executive Summary write-up
+    const exEl = document.getElementById('execSummaryText');
+    if (exEl) {
+      const oldPill = document.getElementById('execGoldSharePill');
+      if (oldPill) oldPill.remove();
+
+      const pool = (typeof latestPeriodTranscripts !== 'undefined' && Array.isArray(latestPeriodTranscripts))
+        ? latestPeriodTranscripts : [];
+      const goldCnt = isGoldActive ? pool.length : pool.filter(isGoldRecord).length;
+
+      if (isGoldActive || goldCnt > 0) {
+        const pill = document.createElement('span');
+        pill.id = 'execGoldSharePill';
+        pill.className = 'gold-pill-badge';
+        pill.style.marginLeft = '8px';
+        if (isGoldActive) {
+          pill.innerHTML = '&#9733; Gold Courier Cohort' + (goldCnt > 0 ? ' (' + goldCnt.toLocaleString() + ' Q3)' : '');
+        } else {
+          const pct = ((goldCnt / pool.length) * 100).toFixed(1);
+          pill.innerHTML = '&#9733; Gold couriers: ' + pct + '% of Q3';
+        }
+        exEl.appendChild(pill);
+      }
+    }
+
+    // 4. Tag individual Gold courier transcript cards in Q3 Transcripts
+    const tSec = document.getElementById('transcriptsSection');
+    const rows = (typeof latestDisplayedTranscripts !== 'undefined' && Array.isArray(latestDisplayedTranscripts))
+      ? latestDisplayedTranscripts : [];
+    if (tSec && rows.length) {
+      const goldCouriers = new Set(
+        rows.filter(r => isGoldActive || isGoldRecord(r))
+            .map(r => String(r.c || '').trim())
+            .filter(Boolean)
+      );
+      if (goldCouriers.size > 0) {
+        tSec.querySelectorAll('.transcript-item, .transcript-card, .quote-card, [data-courier]').forEach(card => {
+          if (card.querySelector('.gold-card-tag')) return;
+          const txt = card.textContent || '';
+          for (const cid of goldCouriers) {
+            if (txt.includes(cid)) {
+              const meta = card.querySelector('.transcript-meta, .card-meta, .meta, header, div');
+              if (meta) {
+                const tag = document.createElement('span');
+                tag.className = 'gold-pill-badge gold-card-tag';
+                tag.style.marginLeft = '6px';
+                tag.innerHTML = '&#9733; Gold';
+                meta.appendChild(tag);
+              }
+              break;
+            }
+          }
+        });
+      }
+    }
+  };
+
+  if (typeof render === 'function') {
+    const _origRender = render;
+    render = function() {
+      const res = _origRender.apply(this, arguments);
+      applyGoldAccents();
+      return res;
+    };
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyGoldAccents);
+  else applyGoldAccents();
+  setTimeout(applyGoldAccents, 400);
 })();
 
 </script>
