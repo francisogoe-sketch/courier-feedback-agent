@@ -643,7 +643,7 @@ header, .top-header, .header-bar {
   <div class="control-group" style="margin-left:auto;">
     <span id="periodLabel" style="font-size:12px;font-weight:600;color:var(--text-secondary);"></span>
   </div>
-  <button class="icon-btn" id="themeToggle" id="themeToggleBtn" title="Switch to Dark Mode">🌙</button>
+  <button class="icon-btn" id="themeToggle" title="Switch to Dark Mode">🌙</button>
 </div>
 
 <div class="main" id="main">
@@ -2488,7 +2488,7 @@ loadData();
 
 (function() {
   function syncThemeTooltip() {
-    var tb = document.getElementById('themeToggleBtn');
+    var tb = document.getElementById('themeToggle');
     if (!tb) return;
     var isDark = document.body.classList.contains('dark-mode') || document.documentElement.getAttribute('data-theme') === 'dark';
     tb.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
@@ -2496,7 +2496,7 @@ loadData();
   }
   document.addEventListener('DOMContentLoaded', syncThemeTooltip);
   document.addEventListener('click', function(e) {
-    if (e.target && e.target.closest('#themeToggleBtn')) {
+    if (e.target && e.target.closest('#themeToggle')) {
       setTimeout(syncThemeTooltip, 0);
     }
   });
