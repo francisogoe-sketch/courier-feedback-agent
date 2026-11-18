@@ -3037,8 +3037,8 @@ function copyExecutiveSummaryToClipboard(btn) {
         exEl.insertAdjacentElement('afterend', splitEl);
       }
       const isAllPlatforms = (typeof platformFilter === 'undefined' || !platformFilter || platformFilter === 'all');
-      const rows = (typeof allQ1Period !== 'undefined' && Array.isArray(allQ1Period) && allQ1Period.length)
-        ? allQ1Period
+      const rows = (typeof getAllQ1Responses === 'function')
+        ? getAllQ1Responses()
         : ((typeof latestPeriodTranscripts !== 'undefined' && Array.isArray(latestPeriodTranscripts)) ? latestPeriodTranscripts : []);
 
       if (isAllPlatforms && rows.length > 0) {
@@ -3116,6 +3116,20 @@ function copyExecutiveSummaryToClipboard(btn) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyExecutivePolish);
   else applyExecutivePolish();
   setTimeout(applyExecutivePolish, 450);
+
+  // Keep state synced if browser restores cached form values on refresh
+  const syncFormStateOnLoad = () => {
+    const mf = document.getElementById('marketFilter');
+    const pf = document.getElementById('platformFilter');
+    const gc = document.getElementById('goldOnly');
+    let changed = false;
+    if (mf && mf.value && mf.value !== marketFilter) { marketFilter = mf.value; changed = true; }
+    if (pf && pf.value && pf.value !== platformFilter) { platformFilter = pf.value; changed = true; }
+    if (gc && Boolean(gc.checked) !== Boolean(goldOnly)) { goldOnly = Boolean(gc.checked); changed = true; }
+    if (changed && typeof render === 'function') render();
+  };
+  setTimeout(syncFormStateOnLoad, 550);
+
 })();
 
 </script>
