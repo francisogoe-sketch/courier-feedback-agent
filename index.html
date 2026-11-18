@@ -2627,13 +2627,21 @@ function exportFilteredTranscriptsCSV() {
 (function initExecutiveDashboardUpgrades() {
   // Ensure parent filter container is sticky even if class name differs
   const makeFilterSticky = () => {
-    const mf = document.getElementById('marketFilter');
+    const hdr = document.querySelector('header, .header, .top-bar');
+    const mf = document.getElementById('periodNavGroup') || document.getElementById('marketFilter');
     if (!mf) return;
-    const bar = mf.closest('.controls, .controls-bar, .filter-bar, .toolbar') || mf.parentElement?.parentElement;
+    // Walk up to the direct bar that holds all filter controls (the sibling right after header)
+    let bar = mf.parentElement;
+    while (bar && bar.parentElement && bar.parentElement.tagName !== 'BODY' && !bar.querySelector('#goldOnly')) {
+      bar = bar.parentElement;
+    }
     if (bar && bar.tagName !== 'BODY') {
+      const topOffset = hdr ? hdr.offsetHeight : 57;
       bar.style.position = 'sticky';
-      bar.style.top = '0';
-      bar.style.zIndex = '40'; bar.style.background = 'var(--card-bg, #ffffff)'; bar.style.boxShadow = '0 4px 12px rgba(15, 23, 42, 0.08)';
+      bar.style.top = topOffset + 'px';
+      bar.style.zIndex = '90';
+      bar.style.background = 'var(--card-bg, #ffffff)';
+      bar.style.boxShadow = '0 2px 8px rgba(15, 23, 42, 0.06)';
     }
   };
 
@@ -2724,6 +2732,7 @@ function exportFilteredTranscriptsCSV() {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', runPostRenderHooks);
   else runPostRenderHooks();
   setTimeout(runPostRenderHooks, 500);
+  window.addEventListener('resize', makeFilterSticky);
 
   // Left / Right arrow keys step through periods when not typing in an input
   document.addEventListener('keydown', (e) => {
