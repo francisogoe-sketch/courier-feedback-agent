@@ -2502,27 +2502,6 @@ loadData();
   });
 })();
 
-
-(function() {
-  function updateThemeBtnTitle() {
-    var tb = document.getElementById('themeToggleBtn');
-    if (!tb) return;
-    var isDark = document.body.classList.contains('dark-mode') ||
-                 document.body.classList.contains('dark') ||
-                 document.documentElement.classList.contains('dark') ||
-                 document.documentElement.getAttribute('data-theme') === 'dark' ||
-                 document.body.getAttribute('data-theme') === 'dark';
-    var label = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
-    tb.title = label;
-    tb.setAttribute('aria-label', label);
-  }
-  updateThemeBtnTitle();
-  document.addEventListener('DOMContentLoaded', updateThemeBtnTitle);
-  var obs = new MutationObserver(updateThemeBtnTitle);
-  obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
-  if (document.body) obs.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-theme'] });
-})();
-
 </script>
 </body>
 </html>
