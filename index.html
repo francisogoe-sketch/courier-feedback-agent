@@ -2171,7 +2171,7 @@ function render() {
     const iosTot = _getAllQ1PeriodForPlat('ios');
     const bothCount = (andTot + iosTot) - allTot;
     if (bothCount > 0) {
-      q1SubText += ' · ' + bothCount.toLocaleString() + ' used both Android & iOS';
+      q1SubText += ' · ' + bothCount.toLocaleString() + ' this period used both Android & iOS';
     }
   }
   document.getElementById('q1CountSub').textContent = q1SubText;
