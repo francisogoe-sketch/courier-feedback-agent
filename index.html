@@ -634,13 +634,13 @@ header, .top-header, .header-bar {
     </label>
   </div>
   <div class="control-group">
-    <span class="control-label">View</span>
-    <select id="viewToggle">
+    <span class="control-label" style="display:none;">View</span>
+    <select id="viewToggle" style="display:none;">
       <option value="L1">L1: 5 Pillars</option>
       <option value="L2" hidden disabled style="display:none;">L2: 12 Pillars</option>
     </select>
   </div>
-    <div class="control-group"><span class="control-label">&nbsp;</span><button type="button" id="clearFiltersBtn" onclick="resetAllFilters()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border-color,#cbd5e1);background:var(--card-bg,#fff);color:var(--text-primary,#1e293b);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" title="Reset all active filters">&#10005; Clear Filters</button></div>
+    <div class="control-group"><span class="control-label">&nbsp;</span><button type="button" id="clearFiltersBtn" onclick="resetAllFilters()" style="display:none;padding:6px 12px;border-radius:6px;border:1px solid var(--border-color,#cbd5e1);background:var(--card-bg,#fff);color:var(--text-primary,#1e293b);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;" title="Reset all active filters">&#10005; Clear Filters</button></div>
   <div class="control-group" style="margin-left:auto;">
     <span id="periodLabel" style="font-size:12px;font-weight:600;color:var(--text-secondary);"></span>
   </div>
@@ -2507,6 +2507,23 @@ loadData();
       setTimeout(syncThemeTooltip, 0);
     }
   });
+})();
+
+
+(function() {
+  function syncClearFiltersBtn() {
+    var btn = document.getElementById('clearFiltersBtn');
+    if (!btn) return;
+    var hasFilter = (typeof marketFilter !== 'undefined' && marketFilter && marketFilter !== 'all') ||
+                    (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') ||
+                    (typeof goldOnly !== 'undefined' && !!goldOnly) ||
+                    (typeof courierFilter !== 'undefined' && !!courierFilter);
+    btn.style.display = hasFilter ? 'inline-flex' : 'none';
+  }
+  document.addEventListener('DOMContentLoaded', syncClearFiltersBtn);
+  document.addEventListener('change', syncClearFiltersBtn);
+  document.addEventListener('input', syncClearFiltersBtn);
+  document.addEventListener('click', function() { setTimeout(syncClearFiltersBtn, 0); });
 })();
 
 </script>
