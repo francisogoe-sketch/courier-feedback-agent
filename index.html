@@ -1571,7 +1571,7 @@ function renderExecutiveBrief(period, allTime, q1PeriodMetrics, q1AllTimeMetrics
     }
   });
 
-  el.innerHTML = '<div><strong>Executive Brief:</strong> Combined CSAT is <strong>' + csat.toFixed(2) + '\u2605</strong> (' + csatDir + ' all-time baseline of ' + baseCsat.toFixed(2) + '\u2605) across <strong>' + (q1PeriodMetrics.total || 0).toLocaleString() + '</strong> responses. <strong>' + topPillar + '</strong> drives <strong>' + topPillarShare.toFixed(0) + '%</strong> of negative Q3 transcripts (' + topPillarNeg.toLocaleString() + '), while <strong>' + topMarket + '</strong> leads negative Q1 share at <strong>' + topMarketPct.toFixed(1) + '%</strong>.</div>';
+  el.style.display = 'none'; return; el.innerHTML = '<div><strong>Executive Brief:</strong> Combined CSAT is <strong>' + csat.toFixed(2) + '\u2605</strong> (' + csatDir + ' all-time baseline of ' + baseCsat.toFixed(2) + '\u2605) across <strong>' + (q1PeriodMetrics.total || 0).toLocaleString() + '</strong> responses. <strong>' + topPillar + '</strong> drives <strong>' + topPillarShare.toFixed(0) + '%</strong> of negative Q3 transcripts (' + topPillarNeg.toLocaleString() + '), while <strong>' + topMarket + '</strong> leads negative Q1 share at <strong>' + topMarketPct.toFixed(1) + '%</strong>.</div>';
 }
 
 function renderMarketPillarHeatmap(periodTranscripts) {
@@ -2261,7 +2261,8 @@ function renderComparison(period, allTime, q1PeriodMetrics, q1AllTimeMetrics) {
   const pct = v => v.toFixed(1) + '%';
   const num = v => v.toLocaleString();
   let html = '<thead><tr><th>Metric</th><th>' + periodLabel + '</th><th>All-time</th><th>vs All-time</th></tr></thead><tbody>';
-  html += row('Classified Q3 Transcripts', period.total, allTime.total, num, true);
+  const volShare = allTime.total ? ((period.total / allTime.total) * 100).toFixed(1) + '% of all-time' : '—';
+  html += '<tr><td>Classified Q3 Transcripts</td><td>' + num(period.total) + '</td><td>' + num(allTime.total) + '</td><td style="color:var(--text-secondary);font-weight:600;">' + volShare + '</td></tr>';
   html += row('Negative Q1 %', period.negQ1Pct, allTime.negQ1Pct, pct, false);
   html += row('Positive Q1 %', period.posQ1Pct, allTime.posQ1Pct, pct, true);
   html += row('Resolution Rate', period.resPct, allTime.resPct, pct, true); const _cf2 = v => v.toFixed(2) + '\u2605'; html += row('Combined CSAT Score (Q1+Q3)', q1PeriodMetrics.avgCsat || 0, q1AllTimeMetrics.avgCsat || 0, _cf2, true); const _cf = v => v.toFixed(2) + '\u2605'; const _cfQ3 = v => v.toFixed(2) + '★'; html += row('Avg CSAT Score (Q3)', period.avgCsat || 0, allTime.avgCsat || 0, _cfQ3, true);
