@@ -907,13 +907,13 @@ header, .top-header, .header-bar {
     white-space: nowrap;
   }
   .baseline-toggle-btn.active {
-    background: var(--card-bg, #ffffff);
-    color: #0f172a;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+    background: #0f2744 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(15, 39, 68, 0.25);
   }
   [data-theme="dark"] .baseline-toggle-btn.active, body.dark-mode .baseline-toggle-btn.active, body.dark .baseline-toggle-btn.active {
-    background: #1e293b;
-    color: #f8fafc;
+    background: #ff8000 !important;
+    color: #ffffff !important;
   }
   .notable-movers-strip {
     display: flex;
@@ -4090,54 +4090,109 @@ function copyExecutiveSummaryToClipboard(btn) {
     });
   };
 
+  const getAggregatedPeriodStats = (pKey) => {
+    if (!pKey || typeof DATA === 'undefined' || !DATA) return null;
+    const mode = typeof periodMode !== 'undefined' ? periodMode : 'weekly';
+    const buckets = [
+      DATA[mode],
+      DATA.periods && DATA.periods[mode],
+      DATA.periods,
+      DATA.weeks,
+      DATA.weekly,
+      DATA.monthly,
+      DATA.quarterly,
+      DATA.yearly
+    ].filter(Boolean);
+
+    let slice = null;
+    for (const b of buckets) {
+      if (Array.isArray(b)) {
+        slice = b.find(item => (item.period || item.key || item.week || item.month || item.id) === pKey);
+      } else if (typeof b === 'object' && b[pKey]) {
+        slice = b[pKey];
+      }
+      if (slice) break;
+    }
+    if (!slice) return null;
+
+    // Drill into market/platform/gold sub-slice if nested
+    const mkt = (typeof marketFilter !== 'undefined' && marketFilter && marketFilter !== 'all') ? marketFilter : null;
+    const plt = (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') ? platformFilter : null;
+    const gld = (typeof goldOnly !== 'undefined' && goldOnly);
+
+    if (gld && slice.gold) slice = slice.gold;
+    if (mkt && slice.by_market && slice.by_market[mkt]) slice = slice.by_market[mkt];
+    else if (mkt && slice.markets && slice.markets[mkt]) slice = slice.markets[mkt];
+    if (plt && slice.by_platform && slice.by_platform[plt]) slice = slice.by_platform[plt];
+    else if (plt && slice.platforms && slice.platforms[plt]) slice = slice.platforms[plt];
+
+    // Normalize metric fields regardless of schema naming
+    const q1Total = Number(slice.q1_total ?? slice.total_q1 ?? slice.q1_count ?? slice.respondents ?? 0);
+    const q1Neg = Number(slice.q1_neg ?? slice.neg_q1 ?? slice.negative_q1 ?? 0);
+    const q1Pos = Number(slice.q1_pos ?? slice.pos_q1 ?? slice.positive_q1 ?? 0);
+    const negPct = slice.neg_q1_pct ?? slice.negative_pct ?? slice.neg_pct ?? (q1Total > 0 ? (q1Neg / q1Total) * 100 : null);
+    const posPct = slice.pos_q1_pct ?? slice.positive_pct ?? slice.pos_pct ?? (q1Total > 0 ? (q1Pos / q1Total) * 100 : (negPct !== null ? 100 - negPct : null));
+
+    const q3Total = Number(slice.q3_total ?? slice.total_q3 ?? slice.transcripts_count ?? (Array.isArray(slice.transcripts) ? slice.transcripts.length : 0));
+    const q3Res = Number(slice.resolved_count ?? slice.q3_resolved ?? 0);
+    const resPct = slice.resolution_rate ?? slice.resolved_pct ?? (q3Total > 0 ? (q3Res / q3Total) * 100 : null);
+
+    const csat = slice.avg_csat ?? slice.combined_csat ?? slice.csat ?? slice.csat_score ?? null;
+
+    return {
+      negPct: negPct !== null && !isNaN(Number(negPct)) ? Number(negPct) : null,
+      posPct: posPct !== null && !isNaN(Number(posPct)) ? Number(posPct) : null,
+      resPct: resPct !== null && !isNaN(Number(resPct)) ? Number(resPct) : null,
+      csat: csat !== null && !isNaN(Number(csat)) ? Number(csat) : null
+    };
+  };
+
   const updateKpiComparisonSubtitles = () => {
-    const { q1All, q3All } = getActiveRecords();
     const prevInfo = getPreviousPeriodKey();
-    const curKey = typeof currentPeriod !== 'undefined' ? currentPeriod : null;
+    const prevStats = prevInfo ? getAggregatedPeriodStats(prevInfo.key) : null;
+    const prevShort = prevInfo ? prevInfo.label.split('–')[0].trim() : 'prev period';
 
     document.querySelectorAll('.cards-row > div, .kpi-card, .card').forEach(card => {
       const labelEl = Array.from(card.querySelectorAll('div, span'))
         .find(el => el.children.length === 0 && ['NEGATIVE Q1', 'POSITIVE Q1', 'RESOLUTION RATE', 'AVG CSAT SCORE'].includes((el.textContent || '').trim().toUpperCase()));
       if (!labelEl) return;
 
+      const key = (labelEl.textContent || '').trim().toUpperCase();
+      const valEl = Array.from(card.querySelectorAll('div, span'))
+        .find(el => el.children.length === 0 && /^\d+(?:\.\d+)?[%★]$/.test((el.textContent || '').trim()));
+      const curVal = valEl ? parseFloat(valEl.textContent) : null;
+
       const subEl = Array.from(card.querySelectorAll('div, span'))
-        .find(el => el.children.length === 0 && (el.textContent || '').includes('vs. all-time'));
+        .find(el => el.children.length === 0 && ((el.textContent || '').includes('vs. all-time') || (el.textContent || '').includes('all-time ') || el.dataset.origHtml));
       if (!subEl) return;
 
       if (!subEl.dataset.origHtml) subEl.dataset.origHtml = subEl.innerHTML;
 
-      if (compareMode === 'all-time' || !prevInfo || (!q1All.length && !q3All.length)) {
+      if (compareMode === 'all-time' || !prevStats || curVal === null) {
         subEl.innerHTML = subEl.dataset.origHtml;
         return;
       }
 
-      const key = (labelEl.textContent || '').trim().toUpperCase();
-      const curQ1 = q1All.filter(r => matchesCohort(r) && matchesPeriod(r, curKey));
-      const prevQ1 = q1All.filter(r => matchesCohort(r) && matchesPeriod(r, prevInfo.key));
-      const curQ3 = q3All.filter(r => matchesCohort(r) && matchesPeriod(r, curKey));
-      const prevQ3 = q3All.filter(r => matchesCohort(r) && matchesPeriod(r, prevInfo.key));
-
-      if (key === 'NEGATIVE Q1' && curQ1.length && prevQ1.length) {
-        const cRate = (curQ1.filter(r => Number(r.rating || r.q1) <= 2).length / curQ1.length) * 100;
-        const pRate = (prevQ1.filter(r => Number(r.rating || r.q1) <= 2).length / prevQ1.length) * 100;
-        const diff = cRate - pRate;
+      if (key === 'NEGATIVE Q1' && prevStats.negPct !== null) {
+        const diff = curVal - prevStats.negPct;
         const color = diff <= 0 ? '#16a34a' : '#dc2626';
         const dir = diff <= 0 ? 'down' : 'up';
-        subEl.innerHTML = 'vs. prev period ' + pRate.toFixed(1) + '%, <span style="color:' + color + ';font-weight:600">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
-      } else if (key === 'POSITIVE Q1' && curQ1.length && prevQ1.length) {
-        const cRate = (curQ1.filter(r => Number(r.rating || r.q1) >= 3).length / curQ1.length) * 100;
-        const pRate = (prevQ1.filter(r => Number(r.rating || r.q1) >= 3).length / prevQ1.length) * 100;
-        const diff = cRate - pRate;
+        subEl.innerHTML = 'vs. prev (' + prevShort + ') ' + prevStats.negPct.toFixed(1) + '%, <span style="color:' + color + ';font-weight:700">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
+      } else if (key === 'POSITIVE Q1' && prevStats.posPct !== null) {
+        const diff = curVal - prevStats.posPct;
         const color = diff >= 0 ? '#16a34a' : '#dc2626';
         const dir = diff >= 0 ? 'up' : 'down';
-        subEl.innerHTML = 'vs. prev period ' + pRate.toFixed(1) + '%, <span style="color:' + color + ';font-weight:600">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
-      } else if (key === 'RESOLUTION RATE' && curQ3.length && prevQ3.length) {
-        const cRate = (curQ3.filter(r => r.resolved === true || String(r.resolution || '').toLowerCase() === 'resolved').length / curQ3.length) * 100;
-        const pRate = (prevQ3.filter(r => r.resolved === true || String(r.resolution || '').toLowerCase() === 'resolved').length / prevQ3.length) * 100;
-        const diff = cRate - pRate;
+        subEl.innerHTML = 'vs. prev (' + prevShort + ') ' + prevStats.posPct.toFixed(1) + '%, <span style="color:' + color + ';font-weight:700">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
+      } else if (key === 'RESOLUTION RATE' && prevStats.resPct !== null) {
+        const diff = curVal - prevStats.resPct;
         const color = diff >= 0 ? '#16a34a' : '#dc2626';
         const dir = diff >= 0 ? 'up' : 'down';
-        subEl.innerHTML = 'vs. prev period ' + pRate.toFixed(1) + '%, <span style="color:' + color + ';font-weight:600">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
+        subEl.innerHTML = 'vs. prev (' + prevShort + ') ' + prevStats.resPct.toFixed(1) + '%, <span style="color:' + color + ';font-weight:700">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
+      } else if (key === 'AVG CSAT SCORE' && prevStats.csat !== null) {
+        const diff = curVal - prevStats.csat;
+        const color = diff >= 0 ? '#16a34a' : '#dc2626';
+        const sign = diff >= 0 ? '+' : '';
+        subEl.innerHTML = 'vs. prev (' + prevShort + ') ' + prevStats.csat.toFixed(2) + '★ (<span style="color:' + color + ';font-weight:700">' + sign + diff.toFixed(2) + '★</span>)';
       }
     });
   };
