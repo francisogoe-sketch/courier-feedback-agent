@@ -3531,11 +3531,30 @@ function copyExecutiveSummaryToClipboard(btn) {
     wrap.className = 'sticky-history-controls';
     wrap.innerHTML =
       '<button type="button" id="stickyBackFilterBtn" class="sticky-nav-btn" title="Revert to previous filter (Ctrl+Z)" disabled>&#8617; Back</button>' +
-      '<button type="button" id="stickyResetAllBtn" class="sticky-nav-btn" title="Reset all active filters">Reset All</button>';
+      '<button type="button" id="stickyResetAllBtn" class="sticky-nav-btn" title="Reset all active filters">Reset All</button>' +
+      '<button type="button" id="stickyShareFilterBtn" class="sticky-nav-btn" title="Copy shareable link with current filters">&#128279; Share Filter</button>';
 
     anchor.insertAdjacentElement('beforebegin', wrap);
 
     document.getElementById('stickyBackFilterBtn').onclick = () => window.revertPreviousFilter();
+
+    const shareBtn = document.getElementById('stickyShareFilterBtn');
+    if (shareBtn) {
+      shareBtn.onclick = () => {
+        const shareUrl = window.location.href;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(shareUrl).then(() => {
+            shareBtn.innerHTML = '&#10003; Link Copied';
+            shareBtn.classList.add('sticky-reset-active');
+            setTimeout(() => {
+              shareBtn.innerHTML = '&#128279; Share Filter';
+              shareBtn.classList.remove('sticky-reset-active');
+            }, 1800);
+          });
+        }
+      };
+    }
+
     document.getElementById('stickyResetAllBtn').onclick = () => {
       if (typeof resetAllFilters === 'function') {
         resetAllFilters();
