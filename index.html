@@ -862,6 +862,28 @@ header, .top-header, .header-bar {
     }
   }
 
+
+  /* 1. Hide redundant scope pill in Executive Summary header (already in dynamic title & opening sentence) */
+  #execSummaryScope {
+    display: none !important;
+  }
+
+  /* 2. Hide duplicate period transcript count in sticky filter bar (already shown in Q3 Transcripts KPI card) */
+  #periodLabel {
+    display: none !important;
+  }
+
+  /* 3. Soften KPI card corner scope tags into borderless lightweight labels */
+  .card-tag, .kpi-tag, .card-badge, .cards-row .badge, .cards-row [class*="tag"], .cards-row [class*="badge"] {
+    border: none !important;
+    background: rgba(148, 163, 184, 0.13) !important;
+    color: var(--text-secondary, #64748b) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em;
+    padding: 2px 7px !important;
+    border-radius: 6px !important;
+  }
+
 </style>
 </head>
 <body>
@@ -3636,6 +3658,7 @@ function copyExecutiveSummaryToClipboard(btn) {
 
     if (backBtn) {
       backBtn.disabled = historyStack.length <= 1;
+      backBtn.style.display = historyStack.length > 1 ? 'inline-flex' : 'none';
       if (historyStack.length > 1) {
         const prev = historyStack[historyStack.length - 2];
         const prevDesc = [
@@ -3654,6 +3677,7 @@ function copyExecutiveSummaryToClipboard(btn) {
       const active = hasActiveFilters(snap);
       resetBtn.classList.toggle('sticky-reset-active', active);
       resetBtn.disabled = !active;
+      resetBtn.style.display = active ? 'inline-flex' : 'none';
       resetBtn.title = active ? 'Clear all active filters' : 'No active filters to reset';
     }
   };
