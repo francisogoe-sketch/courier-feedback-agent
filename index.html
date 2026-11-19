@@ -789,6 +789,23 @@ header, .top-header, .header-bar {
     color: #ffa64d !important;
   }
 
+
+  table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .kbd-pill {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    border-radius: 4px;
+    border: 1px solid var(--border, #cbd5e1);
+    background: var(--bg-subtle, rgba(148, 163, 184, 0.14));
+    color: var(--text-primary, inherit);
+  }
+
 </style>
 </head>
 <body>
@@ -3598,6 +3615,109 @@ function copyExecutiveSummaryToClipboard(btn) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', updateStickyHistoryUI);
   else updateStickyHistoryUI();
   setTimeout(updateStickyHistoryUI, 650);
+})();
+
+
+// --- Shareable Filter URLs (Deep-Linking) + Glossary Keyboard Shortcuts ---
+(function initUrlSyncAndGlossaryShortcuts() {
+  let urlHydrated = false;
+
+  const syncStateToUrl = () => {
+    if (!urlHydrated || !window.history || !window.history.replaceState) return;
+    const params = new URLSearchParams();
+    if (typeof periodMode !== 'undefined' && periodMode && periodMode !== 'weekly') params.set('mode', periodMode);
+    if (typeof currentPeriod !== 'undefined' && currentPeriod) params.set('period', currentPeriod);
+    if (typeof marketFilter !== 'undefined' && marketFilter && marketFilter !== 'all') params.set('market', marketFilter);
+    if (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') params.set('platform', platformFilter);
+    if (typeof goldOnly !== 'undefined' && goldOnly) params.set('gold', '1');
+    if (typeof courierFilter !== 'undefined' && courierFilter) params.set('courier', courierFilter);
+
+    const qs = params.toString();
+    const nextUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+    window.history.replaceState(null, '', nextUrl);
+  };
+
+  const hydrateStateFromUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    let hasParams = false;
+
+    if (params.has('mode') && typeof periodMode !== 'undefined') {
+      periodMode = params.get('mode');
+      const pmSel = document.getElementById('periodModeSelect')
+        || Array.from(document.querySelectorAll('select')).find(s =>
+          Array.from(s.options).some(o => o.value === 'weekly') &&
+          Array.from(s.options).some(o => o.value === 'monthly')
+        );
+      if (pmSel) pmSel.value = periodMode;
+      hasParams = true;
+    }
+    if (params.has('period') && typeof currentPeriod !== 'undefined') {
+      currentPeriod = params.get('period');
+      hasParams = true;
+    }
+    if (params.has('market') && typeof marketFilter !== 'undefined') {
+      marketFilter = params.get('market');
+      const mf = document.getElementById('marketFilter');
+      if (mf) mf.value = marketFilter;
+      hasParams = true;
+    }
+    if (params.has('platform') && typeof platformFilter !== 'undefined') {
+      platformFilter = params.get('platform');
+      const pf = document.getElementById('platformFilter');
+      if (pf) pf.value = platformFilter;
+      hasParams = true;
+    }
+    if (params.get('gold') === '1' && typeof goldOnly !== 'undefined') {
+      goldOnly = true;
+      const gc = document.getElementById('goldOnly');
+      if (gc) gc.checked = true;
+      hasParams = true;
+    }
+    if (params.has('courier') && typeof courierFilter !== 'undefined') {
+      courierFilter = params.get('courier');
+      const cInput = document.getElementById('courierSearch') || document.querySelector('input[placeholder*="courier" i]');
+      if (cInput) cInput.value = courierFilter;
+      hasParams = true;
+    }
+
+    urlHydrated = true;
+    if (hasParams && typeof render === 'function') render();
+  };
+
+  const injectGlossaryShortcuts = () => {
+    if (document.getElementById('glossaryShortcutsNote')) return;
+    const glossaryHeader = Array.from(document.querySelectorAll('div, summary, button, h3, span'))
+      .find(el => el.children.length <= 2 && (el.textContent || '').includes('Dashboard Glossary'));
+    if (!glossaryHeader) return;
+
+    const container = glossaryHeader.closest('.section, .card, details, div[id]') || glossaryHeader.parentElement;
+    if (!container) return;
+
+    const note = document.createElement('div');
+    note.id = 'glossaryShortcutsNote';
+    note.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid var(--border, #e2e8f0);font-size:12px;color:var(--text-secondary, #475569);display:flex;flex-wrap:wrap;gap:14px;align-items:center;';
+    note.innerHTML =
+      '<strong>Keyboard &amp; Quick Actions:</strong>' +
+      '<span><kbd class="kbd-pill">&larr;</kbd> / <kbd class="kbd-pill">&rarr;</kbd> Step previous / next period</span>' +
+      '<span><kbd class="kbd-pill">Ctrl+Z</kbd> or <kbd class="kbd-pill">Alt+&larr;</kbd> Undo last filter</span>' +
+      '<span>Click any <strong>Market bar</strong>, <strong>Pillar card</strong>, or <strong>Courier ID</strong> to cross-filter</span>';
+    container.appendChild(note);
+  };
+
+  if (typeof render === 'function') {
+    const _origRender = render;
+    render = function() {
+      const res = _origRender.apply(this, arguments);
+      syncStateToUrl();
+      injectGlossaryShortcuts();
+      return res;
+    };
+  }
+
+  setTimeout(() => {
+    hydrateStateFromUrl();
+    injectGlossaryShortcuts();
+  }, 700);
 })();
 
 </script>
