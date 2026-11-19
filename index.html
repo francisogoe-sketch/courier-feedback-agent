@@ -3868,16 +3868,21 @@ function copyExecutiveSummaryToClipboard(btn) {
       .find(b => (b.textContent || '').trim() === 'Copy Summary');
     if (!copyBtn || !copyBtn.parentElement) return;
 
+    const actionGroup = document.createElement('div');
+    actionGroup.id = 'execSummaryActionGroup';
+    actionGroup.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-left:auto;';
+
     const pdfBtn = document.createElement('button');
     pdfBtn.type = 'button';
     pdfBtn.id = 'savePdfSummaryBtn';
     pdfBtn.className = copyBtn.className || 'copy-summary-btn';
-    pdfBtn.style.marginLeft = '6px';
     pdfBtn.innerHTML = '&#128196; Save PDF';
     pdfBtn.title = 'Print or Save current view as a clean executive PDF';
     pdfBtn.onclick = () => window.print();
 
-    copyBtn.insertAdjacentElement('afterend', pdfBtn);
+    copyBtn.parentElement.insertBefore(actionGroup, copyBtn);
+    actionGroup.appendChild(copyBtn);
+    actionGroup.appendChild(pdfBtn);
   };
 
   if (typeof render === 'function') {
