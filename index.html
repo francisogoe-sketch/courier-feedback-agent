@@ -4090,109 +4090,66 @@ function copyExecutiveSummaryToClipboard(btn) {
     });
   };
 
-  const getStore = () => {
-    try { if (typeof rawData !== 'undefined' && rawData) return rawData; } catch (e) {}
-    return null;
-  };
+  const getAggregatedPeriodStats = (pKey) => {
+    if (!pKey || typeof DATA === 'undefined' || !DATA) return null;
+    const mode = typeof periodMode !== 'undefined' ? periodMode : 'weekly';
+    const buckets = [
+      DATA[mode],
+      DATA.periods && DATA.periods[mode],
+      DATA.periods,
+      DATA.weeks,
+      DATA.weekly,
+      DATA.monthly,
+      DATA.quarterly,
+      DATA.yearly
+    ].filter(Boolean);
 
-  const getPreviousPeriodKey = () => {
-    const pSel = document.getElementById('periodSelect')
-      || Array.from(document.querySelectorAll('select')).find(s =>
-        s.id !== 'marketFilter' && s.id !== 'platformFilter' && s.id !== 'periodModeSelect' &&
-        s.options.length > 1
-      );
-    if (!pSel || pSel.selectedIndex < 0) return null;
-    const idx = pSel.selectedIndex;
-    const curOpt = pSel.options[idx];
-    const candidates = [pSel.options[idx + 1], pSel.options[idx - 1]].filter(Boolean);
-    for (const opt of candidates) {
-      if (opt.value && opt.value < curOpt.value) {
-        return { key: opt.value, label: opt.textContent.trim() };
+    let slice = null;
+    for (const b of buckets) {
+      if (Array.isArray(b)) {
+        slice = b.find(item => (item.period || item.key || item.week || item.month || item.id) === pKey);
+      } else if (typeof b === 'object' && b[pKey]) {
+        slice = b[pKey];
       }
+      if (slice) break;
     }
-    return candidates[0] ? { key: candidates[0].value, label: candidates[0].textContent.trim() } : null;
-  };
+    if (!slice) return null;
 
-  const getPrevPeriodMetrics = (pKey) => {
-    const store = getStore();
-    if (!store || !pKey) return null;
-
-    const cohort = (typeof goldOnly !== 'undefined' && goldOnly && store.gold) ? store.gold : store.all;
-    const q1Cohort = (typeof goldOnly !== 'undefined' && goldOnly && store.q1NoQ3 && store.q1NoQ3.gold)
-      ? store.q1NoQ3.gold
-      : (store.q1NoQ3 && store.q1NoQ3.all ? store.q1NoQ3.all : null);
-
+    // Drill into market/platform/gold sub-slice if nested
     const mkt = (typeof marketFilter !== 'undefined' && marketFilter && marketFilter !== 'all') ? marketFilter : null;
     const plt = (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') ? platformFilter : null;
-    const cid = (typeof courierFilter !== 'undefined' && courierFilter) ? courierFilter.toLowerCase() : null;
-    const mode = typeof periodMode !== 'undefined' ? periodMode : 'weekly';
+    const gld = (typeof goldOnly !== 'undefined' && goldOnly);
 
-    const allWeekKeys = Object.keys((cohort && cohort.byWeek) || {});
-    const matchingWeeks = allWeekKeys.filter(wk => {
-      if (mode === 'weekly') return wk === pKey;
-      if (mode === 'monthly') return wk.startsWith(pKey);
-      if (mode === 'yearly') return wk.startsWith(pKey);
-      if (mode === 'quarterly' && pKey.includes('-Q')) {
-        const parts = pKey.split('-Q');
-        const yr = parts[0];
-        const q = Number(parts[1]);
-        const mo = Number(wk.slice(5, 7));
-        return wk.startsWith(yr) && Math.ceil(mo / 3) === q;
-      }
-      return wk === pKey;
-    });
+    if (gld && slice.gold) slice = slice.gold;
+    if (mkt && slice.by_market && slice.by_market[mkt]) slice = slice.by_market[mkt];
+    else if (mkt && slice.markets && slice.markets[mkt]) slice = slice.markets[mkt];
+    if (plt && slice.by_platform && slice.by_platform[plt]) slice = slice.by_platform[plt];
+    else if (plt && slice.platforms && slice.platforms[plt]) slice = slice.platforms[plt];
 
-    const transcripts = Array.isArray(cohort && cohort.transcripts) ? cohort.transcripts : [];
-    const fQ3 = transcripts.filter(t => {
-      const wk = t.week || String(t.date || '').slice(0, 10);
-      if (!matchingWeeks.includes(wk)) return false;
-      if (mkt && String(t.market || '').toUpperCase() !== mkt.toUpperCase()) return false;
-      if (plt && String(t.platform || '').toLowerCase() !== plt.toLowerCase()) return false;
-      if (cid && !String(t.courier_id || t.courierId || '').toLowerCase().includes(cid)) return false;
-      return true;
-    });
+    // Normalize metric fields regardless of schema naming
+    const q1Total = Number(slice.q1_total ?? slice.total_q1 ?? slice.q1_count ?? slice.respondents ?? 0);
+    const q1Neg = Number(slice.q1_neg ?? slice.neg_q1 ?? slice.negative_q1 ?? 0);
+    const q1Pos = Number(slice.q1_pos ?? slice.pos_q1 ?? slice.positive_q1 ?? 0);
+    const negPct = slice.neg_q1_pct ?? slice.negative_pct ?? slice.neg_pct ?? (q1Total > 0 ? (q1Neg / q1Total) * 100 : null);
+    const posPct = slice.pos_q1_pct ?? slice.positive_pct ?? slice.pos_pct ?? (q1Total > 0 ? (q1Pos / q1Total) * 100 : (negPct !== null ? 100 - negPct : null));
 
-    const resCount = fQ3.filter(t => t.resolved === true || String(t.resolution || '').toLowerCase() === 'resolved').length;
-    const resPct = fQ3.length > 0 ? (resCount / fQ3.length) * 100 : null;
+    const q3Total = Number(slice.q3_total ?? slice.total_q3 ?? slice.transcripts_count ?? (Array.isArray(slice.transcripts) ? slice.transcripts.length : 0));
+    const q3Res = Number(slice.resolved_count ?? slice.q3_resolved ?? 0);
+    const resPct = slice.resolution_rate ?? slice.resolved_pct ?? (q3Total > 0 ? (q3Res / q3Total) * 100 : null);
 
-    let q1Total = 0, q1Neg = 0, ratingSum = 0, ratingN = 0;
-    const addWeekSlice = (srcObj) => {
-      if (!srcObj || !srcObj.byWeek) return;
-      matchingWeeks.forEach(wk => {
-        let s = srcObj.byWeek[wk];
-        if (!s) return;
-        if (mkt && s.byMarket && s.byMarket[mkt]) s = s.byMarket[mkt];
-        else if (mkt && s.markets && s.markets[mkt]) s = s.markets[mkt];
-        if (plt && s.byPlatform && s.byPlatform[plt]) s = s.byPlatform[plt];
-        else if (plt && s.platforms && s.platforms[plt]) s = s.platforms[plt];
+    const csat = slice.avg_csat ?? slice.combined_csat ?? slice.csat ?? slice.csat_score ?? null;
 
-        const n = Number(s.total ?? s.count ?? s.n ?? s.q1_total ?? 0);
-        const neg = Number(s.neg ?? s.negative ?? s.q1_neg ?? 0);
-        const avg = Number(s.avgCsat ?? s.avg_csat ?? s.csat ?? 0);
-        q1Total += n;
-        q1Neg += neg;
-        if (n > 0 && avg > 0) {
-          ratingSum += avg * n;
-          ratingN += n;
-        }
-      });
+    return {
+      negPct: negPct !== null && !isNaN(Number(negPct)) ? Number(negPct) : null,
+      posPct: posPct !== null && !isNaN(Number(posPct)) ? Number(posPct) : null,
+      resPct: resPct !== null && !isNaN(Number(resPct)) ? Number(resPct) : null,
+      csat: csat !== null && !isNaN(Number(csat)) ? Number(csat) : null
     };
-
-    if (!cid) {
-      addWeekSlice(cohort);
-      addWeekSlice(q1Cohort);
-    }
-
-    const negPct = q1Total > 0 ? (q1Neg / q1Total) * 100 : null;
-    const posPct = negPct !== null ? 100 - negPct : null;
-    const csat = ratingN > 0 ? (ratingSum / ratingN) : null;
-
-    return { negPct, posPct, resPct, csat };
   };
 
   const updateKpiComparisonSubtitles = () => {
     const prevInfo = getPreviousPeriodKey();
-    const prevStats = prevInfo ? getPrevPeriodMetrics(prevInfo.key) : null;
+    const prevStats = prevInfo ? getAggregatedPeriodStats(prevInfo.key) : null;
     const prevShort = prevInfo ? prevInfo.label.split('–')[0].trim() : 'prev period';
 
     document.querySelectorAll('.cards-row > div, .kpi-card, .card').forEach(card => {
