@@ -706,6 +706,53 @@ header, .top-header, .header-bar {
     opacity: 1;
   }
 
+
+  .ux-clickable-row, .ux-clickable-pillar {
+    cursor: pointer;
+    transition: transform .14s ease, box-shadow .14s ease, background-color .14s ease;
+  }
+  .ux-clickable-row:hover {
+    background-color: rgba(255, 128, 0, 0.06) !important;
+    border-radius: 6px;
+  }
+  .ux-clickable-pillar:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  }
+  .metric-scope-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(100, 116, 139, 0.12);
+    color: var(--text-secondary, #64748b);
+    vertical-align: middle;
+  }
+  .delta-highlight-pos {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgba(22, 163, 74, 0.12);
+    font-weight: 700;
+  }
+  .delta-highlight-neg {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgba(220, 38, 38, 0.12);
+    font-weight: 700;
+  }
+  .ux-courier-link {
+    cursor: pointer;
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+  }
+  .ux-courier-link:hover {
+    color: #ff8000 !important;
+  }
+
 </style>
 </head>
 <body>
@@ -3129,6 +3176,221 @@ function copyExecutiveSummaryToClipboard(btn) {
   };
   setTimeout(syncFormStateOnLoad, 550);
 
+})();
+
+
+// --- UX & Interactivity Upgrades: Period Sync, Click-to-Filter Bars/Pillars, Q1-Only Formatting & Period Table Clarity ---
+(function initUxAndInteractivityUpgrades() {
+  const knownMarkets = new Set(['UK', 'CA', 'IE', 'IL', 'DE', 'AT', 'SK']);
+  const pillarNames = [
+    'Support Quality',
+    'App / Tech Issues',
+    'Partner and External Delays',
+    'Compensation',
+    'General / Minimal'
+  ];
+
+  // 1. Keep PERIOD dropdown synced with actual periodMode on page load
+  const syncPeriodDropdownOnLoad = () => {
+    const pmSel = document.getElementById('periodModeSelect')
+      || Array.from(document.querySelectorAll('select')).find(s =>
+        Array.from(s.options).some(o => o.value === 'weekly') &&
+        Array.from(s.options).some(o => o.value === 'monthly')
+      );
+    if (pmSel && typeof periodMode !== 'undefined' && periodMode && pmSel.value !== periodMode) {
+      pmSel.value = periodMode;
+    }
+  };
+
+  const applyUxEnhancements = () => {
+    syncPeriodDropdownOnLoad();
+
+    // 2a. Make Market Contribution horizontal bar rows click-to-filter
+    document.querySelectorAll('.section, .card, div').forEach(box => {
+      const hdr = box.querySelector('h3, .section-title, .card-title');
+      if (!hdr) return;
+      const hTxt = (hdr.textContent || '').trim();
+      if (hTxt === 'Market Contribution to Negative Q1' || hTxt === 'Market Contribution to Positive Q1') {
+        box.querySelectorAll('div, tr, li').forEach(row => {
+          if (row.dataset.uxMarketBound) return;
+          const firstCell = row.firstElementChild;
+          const code = firstCell ? (firstCell.textContent || '').trim() : '';
+          if (knownMarkets.has(code) && row.children.length >= 2) {
+            row.dataset.uxMarketBound = '1';
+            row.classList.add('ux-clickable-row');
+            row.title = 'Click to filter dashboard by ' + code;
+            row.addEventListener('click', () => {
+              if (typeof marketFilter !== 'undefined') {
+                marketFilter = (marketFilter === code) ? 'all' : code;
+                const mf = document.getElementById('marketFilter');
+                if (mf) mf.value = marketFilter;
+                if (typeof render === 'function') render();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            });
+          }
+        });
+      }
+    });
+
+    // 2b. Make the 5 Pillar Summary Cards click-to-jump into Q3 Transcripts for that pillar
+    document.querySelectorAll('.pillar-card, .card, div').forEach(card => {
+      if (card.dataset.uxPillarBound || card.children.length < 2 || card.children.length > 6) return;
+      const firstLine = (card.firstElementChild?.textContent || '').trim();
+      if (pillarNames.includes(firstLine) && card.textContent.includes('%')) {
+        card.dataset.uxPillarBound = '1';
+        card.classList.add('ux-clickable-pillar');
+        card.title = 'Click to inspect ' + firstLine + ' transcripts';
+        card.addEventListener('click', () => {
+          // Switch to Q3 Transcripts tab if available
+          const q3Tab = Array.from(document.querySelectorAll('button, [role="tab"]'))
+            .find(b => (b.textContent || '').trim() === 'Q3 Transcripts');
+          if (q3Tab) q3Tab.click();
+
+          setTimeout(() => {
+            const tSec = document.getElementById('transcriptsSection') || document.body;
+            const targetHdr = Array.from(tSec.querySelectorAll('div, button, h4, span'))
+              .find(el => el.children.length <= 3 && (el.textContent || '').includes(firstLine) && (el.textContent || '').includes('transcripts'));
+            if (targetHdr) {
+              targetHdr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              const clickable = targetHdr.closest('[onclick], button, .pillar-header, .accordion-header') || targetHdr;
+              if (clickable && typeof clickable.click === 'function') clickable.click();
+            }
+          }, 120);
+        });
+      }
+    });
+
+    // 3. Format large numbers & make Courier IDs interactive in Q1-Only vs Q1+Q3 view
+    const q1OnlyTitle = Array.from(document.querySelectorAll('h2, h3, .section-title, div'))
+      .find(el => el.children.length === 0 && (el.textContent || '').trim() === 'Couriers Who Answered Q1 But Not Q3');
+    const q1OnlySec = q1OnlyTitle ? q1OnlyTitle.closest('.section, .card, div[id]') || q1OnlyTitle.parentElement?.parentElement : null;
+
+    if (q1OnlySec) {
+      // Format standalone 5-6 digit integers with commas (e.g., 80095 -> 80,095)
+      const walker = document.createTreeWalker(q1OnlySec, NodeFilter.SHOW_TEXT, null);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.parentElement && ['SCRIPT', 'STYLE', 'OPTION'].includes(node.parentElement.tagName)) continue;
+        if (/\b\d{5,6}\b/.test(node.nodeValue)) {
+          node.nodeValue = node.nodeValue.replace(/\b(\d{5,6})\b/g, (_, num) => Number(num).toLocaleString());
+        }
+      }
+
+      // Add a "Sync to Active Period" helper button next to the Q1-Only Period dropdown
+      const q1PeriodSel = Array.from(q1OnlySec.querySelectorAll('select'))
+        .find(s => Array.from(s.options).some(o => (o.textContent || '').includes('All Periods')));
+      if (q1PeriodSel && !document.getElementById('syncQ1OnlyPeriodBtn')) {
+        const syncBtn = document.createElement('button');
+        syncBtn.type = 'button';
+        syncBtn.id = 'syncQ1OnlyPeriodBtn';
+        syncBtn.className = 'copy-summary-btn';
+        syncBtn.textContent = 'Match Active Period';
+        syncBtn.title = 'Match the period selected in the top filter bar';
+        syncBtn.onclick = () => {
+          if (typeof currentPeriod !== 'undefined' && currentPeriod) {
+            const matchOpt = Array.from(q1PeriodSel.options).find(o => o.value === currentPeriod || (o.textContent || '').includes(currentPeriod));
+            if (matchOpt) {
+              q1PeriodSel.value = matchOpt.value;
+              q1PeriodSel.dispatchEvent(new Event('change'));
+            }
+          }
+        };
+        q1PeriodSel.insertAdjacentElement('afterend', syncBtn);
+      }
+
+      // Make Courier IDs in the Q1-Only table clickable to filter by courier
+      q1OnlySec.querySelectorAll('tbody tr').forEach(tr => {
+        const lastTd = tr.lastElementChild;
+        if (!lastTd || lastTd.dataset.uxCourierBound) return;
+        const cid = (lastTd.getAttribute('title') || lastTd.textContent || '').replace(/\.\.\.$/, '').trim();
+        if (cid.length >= 8) {
+          lastTd.dataset.uxCourierBound = '1';
+          lastTd.classList.add('ux-courier-link');
+          lastTd.title = 'Click to filter dashboard by Courier ID: ' + cid;
+          lastTd.addEventListener('click', () => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(cid).catch(() => {});
+            }
+            const cInput = document.getElementById('courierSearch') || document.querySelector('input[placeholder*="courier" i]');
+            if (cInput) {
+              cInput.value = cid;
+              cInput.dispatchEvent(new Event('input', { bubbles: true }));
+              cInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (typeof courierFilter !== 'undefined') {
+              courierFilter = cid;
+              if (typeof render === 'function') render();
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          });
+        }
+      });
+    }
+
+    // 4. Enhance "Selected Period vs Overall" table with active scope header, (Q3)/(Q1+Q3) tags & swing highlights
+    const pvoTitle = Array.from(document.querySelectorAll('h2, h3, .section-title, div'))
+      .find(el => el.children.length === 0 && (el.textContent || '').trim().startsWith('Selected Period vs Overall'));
+    if (pvoTitle) {
+      const mLabel = (typeof marketFilter !== 'undefined' && marketFilter && marketFilter !== 'all') ? marketFilter : 'All Markets';
+      const pLabel = (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all')
+        ? (platformFilter.toLowerCase() === 'ios' ? 'iOS' : 'Android') : 'All Platforms';
+      pvoTitle.textContent = 'Selected Period vs Overall — ' + pLabel + ' · ' + mLabel;
+
+      const pvoTable = pvoTitle.parentElement?.querySelector('table');
+      if (pvoTable) {
+        const scopeMap = {
+          'Negative Q1 %': 'Q3',
+          'Positive Q1 %': 'Q3',
+          'Resolution Rate': 'Q3',
+          'Combined CSAT Score (Q1+Q3)': 'Q1+Q3',
+          'Avg CSAT Score (Q3)': 'Q3'
+        };
+        pvoTable.querySelectorAll('tbody tr').forEach(tr => {
+          const cells = tr.children;
+          if (cells.length < 4) return;
+          const mCell = cells[0];
+          const rawMetric = (mCell.dataset.rawMetric || mCell.textContent || '').trim();
+          mCell.dataset.rawMetric = rawMetric;
+          if (scopeMap[rawMetric] && !mCell.querySelector('.metric-scope-tag')) {
+            const tag = document.createElement('span');
+            tag.className = 'metric-scope-tag';
+            tag.textContent = scopeMap[rawMetric];
+            mCell.appendChild(tag);
+          }
+
+          // Highlight swings >= 5.0pp
+          const dCell = cells[cells.length - 1];
+          const dTxt = (dCell.textContent || '').trim();
+          const dm = dTxt.match(/([+-]?\d+(?:\.\d+)?)pp/);
+          if (dm && !dCell.querySelector('.delta-highlight-pos, .delta-highlight-neg')) {
+            const val = parseFloat(dm[1]);
+            if (Math.abs(val) >= 5.0) {
+              const isGood = dTxt.includes('▼') ? rawMetric.includes('Neg') : !rawMetric.includes('Neg');
+              const span = document.createElement('span');
+              span.className = isGood ? 'delta-highlight-pos' : 'delta-highlight-neg';
+              span.textContent = dTxt;
+              dCell.textContent = '';
+              dCell.appendChild(span);
+            }
+          }
+        });
+      }
+    }
+  };
+
+  if (typeof render === 'function') {
+    const _origRender = render;
+    render = function() {
+      const res = _origRender.apply(this, arguments);
+      applyUxEnhancements();
+      return res;
+    };
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyUxEnhancements);
+  else applyUxEnhancements();
+  setTimeout(applyUxEnhancements, 600);
 })();
 
 </script>
