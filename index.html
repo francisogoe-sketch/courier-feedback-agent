@@ -2600,6 +2600,7 @@ function renderCard(prefix, periodVal, allTimeVal, unit, higherIsBetter) {
   const isGood = higherIsBetter ? diff >= 0 : diff <= 0;
   const cls = diff === 0 ? 'neutral' : (isGood ? 'good' : 'bad');
   document.getElementById(prefix + 'Sub').innerHTML = 'vs. all-time ' + allTimeVal.toFixed(1) + '%, <span class="kpi-change ' + cls + '">' + diffStr + '</span>';
+  document.getElementById(prefix + 'Sub').dataset.allTimeHtml = document.getElementById(prefix + 'Sub').innerHTML;
 }
 
 function renderMarketChart(marketData, type) {
@@ -4168,48 +4169,108 @@ function copyExecutiveSummaryToClipboard(btn) {
     };
   };
 
+  const getNativePrevPeriodBaselines = () => {
+    try {
+      const prevKey = (typeof getPreviousPeriodKey === 'function') ? getPreviousPeriodKey() : null;
+      const ds = (typeof getDataset === 'function') ? getDataset() : null;
+      if (!prevKey || !ds || (typeof periodMode !== 'undefined' && periodMode === 'custom')) return null;
+
+      const mkt = (typeof marketFilter !== 'undefined' && marketFilter && marketFilter !== 'all') ? marketFilter : null;
+      const plt = (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') ? platformFilter : null;
+      const cid = (typeof courierFilter !== 'undefined' && courierFilter) ? courierFilter.trim() : null;
+      const mode = typeof periodMode !== 'undefined' ? periodMode : 'weekly';
+
+      let q3Rows = (ds.transcripts || []).filter(t => {
+        if (mode === 'weekly') return t.w === prevKey;
+        if (mode === 'monthly') return String(t.d || '').startsWith(prevKey);
+        if (mode === 'quarterly' && typeof getQuarter === 'function') return getQuarter(t.d) === prevKey;
+        return String(t.d || '').startsWith(prevKey);
+      });
+      if (mkt) q3Rows = q3Rows.filter(t => t.m === mkt);
+      if (plt) q3Rows = q3Rows.filter(t => t.p === plt);
+      if (cid) q3Rows = q3Rows.filter(t => t.c === cid);
+
+      const resCount = q3Rows.filter(t => t.q2 === 'Yes' || t.q2 === true || t.q2 === 1).length;
+      const resPct = q3Rows.length > 0 ? (resCount / q3Rows.length) * 100 : null;
+
+      if (plt || cid) {
+        if (!q3Rows.length) return { prevKey, negPct: null, posPct: null, resPct, csat: null };
+        const negC = q3Rows.filter(t => t.q1 === (typeof Q1_NEG !== 'undefined' ? Q1_NEG : 'Negative') || Number(t.q1) <= 2).length;
+        const posC = q3Rows.filter(t => t.q1 === (typeof Q1_POS !== 'undefined' ? Q1_POS : 'Positive') || Number(t.q1) >= 3).length;
+        const rated = q3Rows.map(t => Number(t.s)).filter(n => n >= 1 && n <= 5);
+        return {
+          prevKey,
+          negPct: (negC / q3Rows.length) * 100,
+          posPct: (posC / q3Rows.length) * 100,
+          resPct,
+          csat: rated.length ? (rated.reduce((a, b) => a + b, 0) / rated.length) : null
+        };
+      }
+
+      const weekKeys = Object.keys(ds.byWeek || {}).filter(wk => {
+        if (mode === 'weekly') return wk === prevKey;
+        if (mode === 'monthly') return wk.startsWith(prevKey);
+        if (mode === 'quarterly' && typeof getQuarter === 'function') return getQuarter(wk) === prevKey;
+        return wk.startsWith(prevKey);
+      });
+
+      let tot = 0, neg = 0, pos = 0;
+      weekKeys.forEach(wk => {
+        const w = ds.byWeek[wk];
+        if (!w) return;
+        if (mkt && w.marketNeg && w.marketPos) {
+          const mn = Number(w.marketNeg[mkt] || 0);
+          const mp = Number(w.marketPos[mkt] || 0);
+          neg += mn;
+          pos += mp;
+          tot += (mn + mp);
+        } else {
+          tot += Number(w.total || 0);
+          neg += Number(w.negQ1 || 0);
+          pos += Number(w.posQ1 || 0);
+        }
+      });
+
+      return {
+        prevKey,
+        negPct: tot > 0 ? (neg / tot) * 100 : null,
+        posPct: tot > 0 ? (pos / tot) * 100 : null,
+        resPct,
+        csat: null
+      };
+    } catch (e) {
+      return null;
+    }
+  };
+
   const updateKpiComparisonSubtitles = () => {
-    const prevInfo = getPreviousPeriodKey();
-    const prevStats = prevInfo ? getExactPrevStats(prevInfo.key) : null;
-    const prevShort = prevInfo ? prevInfo.label.split('–')[0].trim() : 'prev period';
+    const prev = (compareMode === 'prev-period') ? getNativePrevPeriodBaselines() : null;
+    const map = {
+      neg: prev ? prev.negPct : null,
+      pos: prev ? prev.posPct : null,
+      res: prev ? prev.resPct : null
+    };
+    const higherMap = { neg: false, pos: true, res: true };
 
-    document.querySelectorAll('.cards-row > div, .kpi-card, .card').forEach(card => {
-      const labelEl = Array.from(card.querySelectorAll('div, span'))
-        .find(el => el.children.length === 0 && ['NEGATIVE Q1', 'POSITIVE Q1', 'RESOLUTION RATE'].includes((el.textContent || '').trim().toUpperCase()));
-      if (!labelEl) return;
+    ['neg', 'pos', 'res'].forEach(prefix => {
+      const subEl = document.getElementById(prefix + 'Sub');
+      const valEl = document.getElementById(prefix + 'Val');
+      if (!subEl || !valEl) return;
 
-      const key = (labelEl.textContent || '').trim().toUpperCase();
-      const valEl = Array.from(card.querySelectorAll('div, span'))
-        .find(el => el.children.length === 0 && /^\d+(?:\.\d+)?%$/.test((el.textContent || '').trim()));
-      const curVal = valEl ? parseFloat(valEl.textContent) : null;
-
-      const subEl = Array.from(card.querySelectorAll('div, span'))
-        .find(el => el.children.length === 0 && ((el.textContent || '').includes('vs. all-time') || el.dataset.origHtml));
-      if (!subEl) return;
-
-      if (!subEl.dataset.origHtml) subEl.dataset.origHtml = subEl.innerHTML;
-
-      if (compareMode === 'all-time' || !prevStats || curVal === null) {
-        subEl.innerHTML = subEl.dataset.origHtml;
+      if (!subEl.dataset.allTimeHtml) subEl.dataset.allTimeHtml = subEl.innerHTML;
+      if (compareMode === 'all-time') {
+        subEl.innerHTML = subEl.dataset.allTimeHtml;
         return;
       }
+      if (!prev || map[prefix] === null || isNaN(map[prefix])) return;
 
-      if (key === 'NEGATIVE Q1' && prevStats.negPct !== null) {
-        const diff = curVal - prevStats.negPct;
-        const color = diff <= 0 ? '#16a34a' : '#dc2626';
-        const dir = diff <= 0 ? 'down' : 'up';
-        subEl.innerHTML = 'vs. prev (' + prevShort + ') ' + prevStats.negPct.toFixed(1) + '%, <span style="color:' + color + ';font-weight:700">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
-      } else if (key === 'POSITIVE Q1' && prevStats.posPct !== null) {
-        const diff = curVal - prevStats.posPct;
-        const color = diff >= 0 ? '#16a34a' : '#dc2626';
-        const dir = diff >= 0 ? 'up' : 'down';
-        subEl.innerHTML = 'vs. prev (' + prevShort + ') ' + prevStats.posPct.toFixed(1) + '%, <span style="color:' + color + ';font-weight:700">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
-      } else if (key === 'RESOLUTION RATE' && prevStats.resPct !== null) {
-        const diff = curVal - prevStats.resPct;
-        const color = diff >= 0 ? '#16a34a' : '#dc2626';
-        const dir = diff >= 0 ? 'up' : 'down';
-        subEl.innerHTML = 'vs. prev (' + prevShort + ') ' + prevStats.resPct.toFixed(1) + '%, <span style="color:' + color + ';font-weight:700">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
-      }
+      const periodVal = parseFloat(valEl.textContent);
+      const baseVal = map[prefix];
+      const diff = periodVal - baseVal;
+      const diffStr = (diff > 0 ? 'up ' : diff < 0 ? 'down ' : '') + Math.abs(diff).toFixed(1) + ' pp';
+      const isGood = higherMap[prefix] ? diff >= 0 : diff <= 0;
+      const cls = diff === 0 ? 'neutral' : (isGood ? 'good' : 'bad');
+      subEl.innerHTML = 'vs. prev (' + prev.prevKey + ') ' + baseVal.toFixed(1) + '%, <span class="kpi-change ' + cls + '">' + diffStr + '</span>';
     });
   };
 
