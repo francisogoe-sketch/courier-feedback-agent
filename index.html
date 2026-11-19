@@ -1519,7 +1519,7 @@ function renderActiveFilterChips() {
 
 function resetAllFilters() {
   marketFilter = 'all';
-  const mf = document.getElementById('periodNavGroup') || document.getElementById('marketFilter'); if (mf) mf.value = 'all';
+  const mf = document.getElementById('marketFilter'); if (mf) mf.value = 'all';
   if (typeof platformFilter !== 'undefined') {
     platformFilter = 'all';
     const pf = document.getElementById('platformFilter'); if (pf) pf.value = 'all';
