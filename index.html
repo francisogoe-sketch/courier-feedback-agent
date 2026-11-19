@@ -2582,6 +2582,79 @@ function render() {
   if (showPrevDeltas) computePrevPeriodBaselines();
   computeTrailing4PeriodSpikes(period.pillars || {});
   renderExecutiveBrief(period, allTime, q1PeriodMetrics, q1AllTimeMetrics);
+  try {
+    if (window.__compareMode === 'prev-period') {
+      const _pk = getPreviousPeriodKey();
+      const _ds = getDataset();
+      if (_pk && _ds && periodMode !== 'custom') {
+        const _mkt = (marketFilter && marketFilter !== 'all') ? marketFilter : null;
+        const _plt = (platformFilter && platformFilter !== 'all') ? platformFilter : null;
+        const _cid = courierFilter ? courierFilter.trim() : null;
+
+        let _q3 = (_ds.transcripts || []).filter(t => {
+          if (periodMode === 'weekly') return t.w === _pk;
+          if (periodMode === 'monthly') return String(t.d || '').startsWith(_pk);
+          if (periodMode === 'quarterly') return getQuarter(t.d) === _pk;
+          return String(t.d || '').startsWith(_pk);
+        });
+        if (_mkt) _q3 = _q3.filter(t => t.m === _mkt);
+        if (_plt) _q3 = _q3.filter(t => t.p === _plt);
+        if (_cid) _q3 = _q3.filter(t => t.c === _cid);
+
+        const _resC = _q3.filter(t => t.q2 === 'Yes' || t.q2 === true || t.q2 === 1).length;
+        const _prevRes = _q3.length > 0 ? (_resC / _q3.length) * 100 : null;
+
+        let _prevNeg = null, _prevPos = null;
+        if (_plt || _cid) {
+          if (_q3.length > 0) {
+            const _nC = _q3.filter(t => t.q1 === Q1_NEG || Number(t.q1) <= 2).length;
+            const _pC = _q3.filter(t => t.q1 === Q1_POS || Number(t.q1) >= 3).length;
+            _prevNeg = (_nC / _q3.length) * 100;
+            _prevPos = (_pC / _q3.length) * 100;
+          }
+        } else {
+          const _wks = Object.keys(_ds.byWeek || {}).filter(wk => {
+            if (periodMode === 'weekly') return wk === _pk;
+            if (periodMode === 'monthly') return wk.startsWith(_pk);
+            if (periodMode === 'quarterly') return getQuarter(wk) === _pk;
+            return wk.startsWith(_pk);
+          });
+          let _tot = 0, _neg = 0, _pos = 0;
+          _wks.forEach(wk => {
+            const w = _ds.byWeek[wk];
+            if (!w) return;
+            if (_mkt && w.marketNeg && w.marketPos) {
+              const mn = Number(w.marketNeg[_mkt] || 0);
+              const mp = Number(w.marketPos[_mkt] || 0);
+              _neg += mn; _pos += mp; _tot += (mn + mp);
+            } else {
+              _tot += Number(w.total || 0);
+              _neg += Number(w.negQ1 || 0);
+              _pos += Number(w.posQ1 || 0);
+            }
+          });
+          if (_tot > 0) {
+            _prevNeg = (_neg / _tot) * 100;
+            _prevPos = (_pos / _tot) * 100;
+          }
+        }
+
+        const _applyPrevSub = (prefix, curVal, prevVal, higherIsBetter) => {
+          const el = document.getElementById(prefix + 'Sub');
+          if (!el || prevVal === null || isNaN(prevVal) || isNaN(curVal)) return;
+          const diff = curVal - prevVal;
+          const diffStr = (diff > 0 ? 'up ' : diff < 0 ? 'down ' : '') + Math.abs(diff).toFixed(1) + ' pp';
+          const isGood = higherIsBetter ? diff >= 0 : diff <= 0;
+          const cls = diff === 0 ? 'neutral' : (isGood ? 'good' : 'bad');
+          el.innerHTML = 'vs. prev (' + _pk + ') ' + prevVal.toFixed(1) + '%, <span class="kpi-change ' + cls + '">' + diffStr + '</span>';
+        };
+
+        _applyPrevSub('neg', parseFloat(document.getElementById('negVal')?.textContent), _prevNeg, false);
+        _applyPrevSub('pos', parseFloat(document.getElementById('posVal')?.textContent), _prevPos, true);
+        _applyPrevSub('res', parseFloat(document.getElementById('resVal')?.textContent), _prevRes, true);
+      }
+    }
+  } catch (e) { console.error('prevPeriodToggle:', e); }
   renderTrendAndStars(Object.assign({}, q1PeriodMetrics, {rows: allQ1Period}), q1AllTimeMetrics);
   renderMarketPillarHeatmap(periodTranscripts);
   renderMarketChart(q1PeriodMetrics.marketNeg || {}, 'neg');
@@ -3999,8 +4072,8 @@ function copyExecutiveSummaryToClipboard(btn) {
 
 
 // --- Executive Intelligence: Baseline Toggle (All-Time vs Prev Period), Notable Movers & Matrix Hover Tooltips ---
+window.__compareMode = window.__compareMode || 'all-time';
 (function initExecutiveIntelligence() {
-  let compareMode = 'all-time'; // 'all-time' | 'prev-period'
 
   const getActiveRecords = () => {
     const q1All = (typeof DATA !== 'undefined' && Array.isArray(DATA.q1_records))
@@ -4084,7 +4157,7 @@ function copyExecutiveSummaryToClipboard(btn) {
 
     grp.querySelectorAll('.baseline-toggle-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        compareMode = btn.dataset.mode;
+        window.__compareMode = btn.dataset.mode; if (typeof render === 'function') render();
         grp.querySelectorAll('.baseline-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
         updateKpiComparisonSubtitles();
       });
@@ -4244,7 +4317,7 @@ function copyExecutiveSummaryToClipboard(btn) {
   };
 
   const updateKpiComparisonSubtitles = () => {
-    const prev = (compareMode === 'prev-period') ? getNativePrevPeriodBaselines() : null;
+    const prev = (window.__compareMode === 'prev-period') ? getNativePrevPeriodBaselines() : null;
     const map = {
       neg: prev ? prev.negPct : null,
       pos: prev ? prev.posPct : null,
@@ -4258,7 +4331,7 @@ function copyExecutiveSummaryToClipboard(btn) {
       if (!subEl || !valEl) return;
 
       if (!subEl.dataset.allTimeHtml) subEl.dataset.allTimeHtml = subEl.innerHTML;
-      if (compareMode === 'all-time') {
+      if (window.__compareMode === 'all-time') {
         subEl.innerHTML = subEl.dataset.allTimeHtml;
         return;
       }
