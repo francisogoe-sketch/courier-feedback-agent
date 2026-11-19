@@ -2694,6 +2694,18 @@ function render() {
         // 6. Q1 Respondents
         const curQ1N = parseInt(String(document.getElementById('q1CountVal')?.textContent || '').replace(/,/g, ''), 10);
         _fmtCount('q1CountSub', curQ1N, _prevQ1Tot);
+      } else {
+        ['negQ1Sub', 'posQ1Sub', 'resSub', 'countSub', 'q1CountSub'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.innerHTML = '<span style="color:var(--muted,#64748b)">No prior period available</span>';
+        });
+        const c = document.getElementById('avgCsatSub');
+        if (c) {
+          const orig = c.dataset.allTimeHtml || c.innerHTML;
+          const idx = orig.indexOf('all-time');
+          const base = idx > 0 ? orig.slice(0, idx - 1).trim() : orig.trim();
+          c.innerHTML = base + ' <span style="color:var(--muted,#64748b)">(no prior period)</span>';
+        }
       }
     }
   } catch (e) { console.error('prevPeriodToggle:', e); }
