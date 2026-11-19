@@ -2139,8 +2139,7 @@ function downloadSelectedData() {
       Q1_Rating: t.q1,
       Star_Score: t.s || '',
       Resolved_Q2: t.q2,
-      L1_Pillar: t.l1,
-      L2_Pillar: t.l2,
+      L1_Pillar: t.pl || '',
       Courier_ID: t.c,
       Transcript: (t.t || '').replace(/[\r\n]+/g, ' ')
     }));
