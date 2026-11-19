@@ -884,6 +884,79 @@ header, .top-header, .header-bar {
     border-radius: 6px !important;
   }
 
+
+  .baseline-toggle-group {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-subtle, rgba(148, 163, 184, 0.14));
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 999px;
+    padding: 2px;
+    margin-right: 4px;
+  }
+  .baseline-toggle-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #64748b);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .baseline-toggle-btn.active {
+    background: var(--card-bg, #ffffff);
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  }
+  [data-theme="dark"] .baseline-toggle-btn.active, body.dark-mode .baseline-toggle-btn.active, body.dark .baseline-toggle-btn.active {
+    background: #1e293b;
+    color: #f8fafc;
+  }
+  .notable-movers-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px dashed var(--border, #e2e8f0);
+    font-size: 12px;
+  }
+  .mover-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: transform 0.12s ease;
+  }
+  .mover-pill:hover {
+    transform: translateY(-1px);
+  }
+  .mover-pill-neg {
+    background: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+    border-color: rgba(220, 38, 38, 0.25);
+  }
+  .mover-pill-pos {
+    background: rgba(22, 163, 74, 0.1);
+    color: #16a34a;
+    border-color: rgba(22, 163, 74, 0.25);
+  }
+  [data-theme="dark"] .mover-pill-neg, body.dark-mode .mover-pill-neg, body.dark .mover-pill-neg {
+    color: #f87171;
+  }
+  [data-theme="dark"] .mover-pill-pos, body.dark-mode .mover-pill-pos, body.dark .mover-pill-pos {
+    color: #4ade80;
+  }
+
 </style>
 </head>
 <body>
@@ -3921,6 +3994,294 @@ function copyExecutiveSummaryToClipboard(btn) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectPdfBtn);
   else injectPdfBtn();
   setTimeout(injectPdfBtn, 800);
+})();
+
+
+// --- Executive Intelligence: Baseline Toggle (All-Time vs Prev Period), Notable Movers & Matrix Hover Tooltips ---
+(function initExecutiveIntelligence() {
+  let compareMode = 'all-time'; // 'all-time' | 'prev-period'
+
+  const getActiveRecords = () => {
+    const q1All = (typeof DATA !== 'undefined' && Array.isArray(DATA.q1_records))
+      ? DATA.q1_records
+      : (typeof allQ1Records !== 'undefined' && Array.isArray(allQ1Records) ? allQ1Records : []);
+    const q3All = (typeof DATA !== 'undefined' && Array.isArray(DATA.transcripts))
+      ? DATA.transcripts
+      : (typeof allTranscripts !== 'undefined' && Array.isArray(allTranscripts) ? allTranscripts : []);
+    return { q1All, q3All };
+  };
+
+  const getPreviousPeriodKey = () => {
+    const pSel = document.getElementById('periodSelect')
+      || Array.from(document.querySelectorAll('select')).find(s =>
+        s.id !== 'marketFilter' && s.id !== 'platformFilter' && s.id !== 'periodModeSelect' &&
+        s.options.length > 1 && Array.from(s.options).some(o => /\d{4}/.test(o.textContent || o.value))
+      );
+    if (!pSel || pSel.selectedIndex < 0) return null;
+    // Period options are typically sorted newest-first (index + 1 is previous period) or oldest-first
+    const idx = pSel.selectedIndex;
+    if (idx + 1 < pSel.options.length) {
+      const nextVal = pSel.options[idx + 1].value;
+      const curVal = pSel.options[idx].value;
+      if (nextVal < curVal) return { key: nextVal, label: pSel.options[idx + 1].textContent.trim() };
+    }
+    if (idx - 1 >= 0) {
+      const prevVal = pSel.options[idx - 1].value;
+      const curVal = pSel.options[idx].value;
+      if (prevVal < curVal) return { key: prevVal, label: pSel.options[idx - 1].textContent.trim() };
+    }
+    return null;
+  };
+
+  const matchesCohort = (r) => {
+    if (typeof marketFilter !== 'undefined' && marketFilter && marketFilter !== 'all') {
+      if ((r.market || r.country || '').toUpperCase() !== marketFilter.toUpperCase()) return false;
+    }
+    if (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') {
+      if ((r.platform || r.os || '').toLowerCase() !== platformFilter.toLowerCase()) return false;
+    }
+    if (typeof goldOnly !== 'undefined' && goldOnly) {
+      if (!(r.gold || r.is_gold || String(r.gold_status || '').toLowerCase() === 'gold' || r.gold_status === true)) return false;
+    }
+    if (typeof courierFilter !== 'undefined' && courierFilter) {
+      if (!String(r.courier_id || r.courierId || '').toLowerCase().includes(courierFilter.toLowerCase())) return false;
+    }
+    return true;
+  };
+
+  const matchesPeriod = (r, pKey) => {
+    if (!pKey) return true;
+    const mode = typeof periodMode !== 'undefined' ? periodMode : 'weekly';
+    if (mode === 'weekly' && r.week) return r.week === pKey;
+    if (mode === 'monthly' && r.month) return r.month === pKey;
+    if (mode === 'quarterly' && r.quarter) return r.quarter === pKey;
+    if (mode === 'yearly' && r.year) return String(r.year) === String(pKey);
+    const dt = String(r.date || r.created_at || r.timestamp || '');
+    return dt.startsWith(pKey);
+  };
+
+  const injectBaselineToggle = () => {
+    const actionGroup = document.getElementById('execSummaryActionGroup');
+    const copyBtn = Array.from(document.querySelectorAll('button'))
+      .find(b => (b.textContent || '').trim() === 'Copy Summary');
+    const targetParent = actionGroup || (copyBtn ? copyBtn.parentElement : null);
+    if (!targetParent || document.getElementById('baselineToggleGroup')) return;
+
+    const grp = document.createElement('div');
+    grp.id = 'baselineToggleGroup';
+    grp.className = 'baseline-toggle-group';
+    grp.title = 'Switch KPI delta comparison between All-Time baseline and Previous Period';
+    grp.innerHTML =
+      '<button type="button" class="baseline-toggle-btn active" data-mode="all-time">vs. All-Time</button>' +
+      '<button type="button" class="baseline-toggle-btn" data-mode="prev-period">vs. Prev Period</button>';
+
+    if (actionGroup) {
+      actionGroup.insertBefore(grp, actionGroup.firstChild);
+    } else if (copyBtn) {
+      targetParent.insertBefore(grp, copyBtn);
+    }
+
+    grp.querySelectorAll('.baseline-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        compareMode = btn.dataset.mode;
+        grp.querySelectorAll('.baseline-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+        updateKpiComparisonSubtitles();
+      });
+    });
+  };
+
+  const updateKpiComparisonSubtitles = () => {
+    const { q1All, q3All } = getActiveRecords();
+    const prevInfo = getPreviousPeriodKey();
+    const curKey = typeof currentPeriod !== 'undefined' ? currentPeriod : null;
+
+    document.querySelectorAll('.cards-row > div, .kpi-card, .card').forEach(card => {
+      const labelEl = Array.from(card.querySelectorAll('div, span'))
+        .find(el => el.children.length === 0 && ['NEGATIVE Q1', 'POSITIVE Q1', 'RESOLUTION RATE', 'AVG CSAT SCORE'].includes((el.textContent || '').trim().toUpperCase()));
+      if (!labelEl) return;
+
+      const subEl = Array.from(card.querySelectorAll('div, span'))
+        .find(el => el.children.length === 0 && (el.textContent || '').includes('vs. all-time'));
+      if (!subEl) return;
+
+      if (!subEl.dataset.origHtml) subEl.dataset.origHtml = subEl.innerHTML;
+
+      if (compareMode === 'all-time' || !prevInfo || (!q1All.length && !q3All.length)) {
+        subEl.innerHTML = subEl.dataset.origHtml;
+        return;
+      }
+
+      const key = (labelEl.textContent || '').trim().toUpperCase();
+      const curQ1 = q1All.filter(r => matchesCohort(r) && matchesPeriod(r, curKey));
+      const prevQ1 = q1All.filter(r => matchesCohort(r) && matchesPeriod(r, prevInfo.key));
+      const curQ3 = q3All.filter(r => matchesCohort(r) && matchesPeriod(r, curKey));
+      const prevQ3 = q3All.filter(r => matchesCohort(r) && matchesPeriod(r, prevInfo.key));
+
+      if (key === 'NEGATIVE Q1' && curQ1.length && prevQ1.length) {
+        const cRate = (curQ1.filter(r => Number(r.rating || r.q1) <= 2).length / curQ1.length) * 100;
+        const pRate = (prevQ1.filter(r => Number(r.rating || r.q1) <= 2).length / prevQ1.length) * 100;
+        const diff = cRate - pRate;
+        const color = diff <= 0 ? '#16a34a' : '#dc2626';
+        const dir = diff <= 0 ? 'down' : 'up';
+        subEl.innerHTML = 'vs. prev period ' + pRate.toFixed(1) + '%, <span style="color:' + color + ';font-weight:600">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
+      } else if (key === 'POSITIVE Q1' && curQ1.length && prevQ1.length) {
+        const cRate = (curQ1.filter(r => Number(r.rating || r.q1) >= 3).length / curQ1.length) * 100;
+        const pRate = (prevQ1.filter(r => Number(r.rating || r.q1) >= 3).length / prevQ1.length) * 100;
+        const diff = cRate - pRate;
+        const color = diff >= 0 ? '#16a34a' : '#dc2626';
+        const dir = diff >= 0 ? 'up' : 'down';
+        subEl.innerHTML = 'vs. prev period ' + pRate.toFixed(1) + '%, <span style="color:' + color + ';font-weight:600">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
+      } else if (key === 'RESOLUTION RATE' && curQ3.length && prevQ3.length) {
+        const cRate = (curQ3.filter(r => r.resolved === true || String(r.resolution || '').toLowerCase() === 'resolved').length / curQ3.length) * 100;
+        const pRate = (prevQ3.filter(r => r.resolved === true || String(r.resolution || '').toLowerCase() === 'resolved').length / prevQ3.length) * 100;
+        const diff = cRate - pRate;
+        const color = diff >= 0 ? '#16a34a' : '#dc2626';
+        const dir = diff >= 0 ? 'up' : 'down';
+        subEl.innerHTML = 'vs. prev period ' + pRate.toFixed(1) + '%, <span style="color:' + color + ';font-weight:600">' + dir + ' ' + Math.abs(diff).toFixed(1) + ' pp</span>';
+      }
+    });
+  };
+
+  const renderNotableMovers = () => {
+    const execCard = document.querySelector('.exec-summary-card')
+      || Array.from(document.querySelectorAll('.card, .section, div')).find(el => (el.textContent || '').includes('EXECUTIVE SUMMARY & PERIOD ANALYSIS'));
+    if (!execCard) return;
+
+    let strip = document.getElementById('notableMoversStrip');
+    const { q1All, q3All } = getActiveRecords();
+    const prevInfo = getPreviousPeriodKey();
+    const curKey = typeof currentPeriod !== 'undefined' ? currentPeriod : null;
+
+    if (!prevInfo || !curKey || (!q1All.length && !q3All.length)) {
+      if (strip) strip.remove();
+      return;
+    }
+
+    const movers = [];
+    const markets = ['UK', 'CA', 'IE', 'IL', 'DE', 'AT', 'SK'];
+    if ((!marketFilter || marketFilter === 'all') && q1All.length) {
+      markets.forEach(mkt => {
+        const curM = q1All.filter(r => matchesPeriod(r, curKey) && (r.market || r.country || '').toUpperCase() === mkt && matchesCohort(r));
+        const prevM = q1All.filter(r => matchesPeriod(r, prevInfo.key) && (r.market || r.country || '').toUpperCase() === mkt && matchesCohort(r));
+        if (curM.length >= 10 && prevM.length >= 10) {
+          const cNeg = (curM.filter(r => Number(r.rating || r.q1) <= 2).length / curM.length) * 100;
+          const pNeg = (prevM.filter(r => Number(r.rating || r.q1) <= 2).length / prevM.length) * 100;
+          const diff = cNeg - pNeg;
+          if (Math.abs(diff) >= 5.0) {
+            movers.push({
+              type: 'market',
+              key: mkt,
+              label: mkt + ' Neg Q1 ' + (diff > 0 ? '+' : '') + diff.toFixed(1) + 'pp (n=' + curM.length + ')',
+              isWorse: diff > 0,
+              mag: Math.abs(diff)
+            });
+          }
+        }
+      });
+    }
+
+    const pillars = ['Support Quality', 'App / Tech Issues', 'Partner and External Delays', 'Compensation'];
+    if (q3All.length) {
+      pillars.forEach(pil => {
+        const curP = q3All.filter(r => matchesCohort(r) && matchesPeriod(r, curKey) && (r.pillar || r.category) === pil);
+        const prevP = q3All.filter(r => matchesCohort(r) && matchesPeriod(r, prevInfo.key) && (r.pillar || r.category) === pil);
+        if (curP.length >= 8 && prevP.length >= 8) {
+          const cNeg = (curP.filter(r => Number(r.rating || r.q1) <= 2).length / curP.length) * 100;
+          const pNeg = (prevP.filter(r => Number(r.rating || r.q1) <= 2).length / prevP.length) * 100;
+          const diff = cNeg - pNeg;
+          if (Math.abs(diff) >= 5.0) {
+            movers.push({
+              type: 'pillar',
+              key: pil,
+              label: pil + ' ' + (diff > 0 ? '+' : '') + diff.toFixed(1) + 'pp (n=' + curP.length + ')',
+              isWorse: diff > 0,
+              mag: Math.abs(diff)
+            });
+          }
+        }
+      });
+    }
+
+    movers.sort((a, b) => b.mag - a.mag);
+    const topMovers = movers.slice(0, 4);
+
+    if (!topMovers.length) {
+      if (strip) strip.remove();
+      return;
+    }
+
+    if (!strip) {
+      strip = document.createElement('div');
+      strip.id = 'notableMoversStrip';
+      strip.className = 'notable-movers-strip';
+      execCard.appendChild(strip);
+    }
+
+    strip.innerHTML = '<strong style="color:var(--text-secondary,#64748b);font-size:11.5px;">Notable Movers vs. Prev Period:</strong>' +
+      topMovers.map((m, i) =>
+        '<span class="mover-pill ' + (m.isWorse ? 'mover-pill-neg' : 'mover-pill-pos') + '" data-mover-idx="' + i + '" title="Click to inspect ' + m.key + '">' +
+        (m.isWorse ? '&#9650; ' : '&#9660; ') + m.label + '</span>'
+      ).join('');
+
+    strip.querySelectorAll('.mover-pill').forEach(pill => {
+      pill.onclick = () => {
+        const m = topMovers[Number(pill.dataset.moverIdx)];
+        if (!m) return;
+        if (m.type === 'market' && typeof marketFilter !== 'undefined') {
+          marketFilter = m.key;
+          const mf = document.getElementById('marketFilter');
+          if (mf) mf.value = m.key;
+          if (typeof render === 'function') render();
+        } else if (m.type === 'pillar') {
+          const q3Tab = Array.from(document.querySelectorAll('button, [role="tab"]'))
+            .find(b => (b.textContent || '').trim() === 'Q3 Transcripts');
+          if (q3Tab) q3Tab.click();
+        }
+      };
+    });
+  };
+
+  const enrichMatrixMarketTooltips = () => {
+    const { q1All } = getActiveRecords();
+    const curKey = typeof currentPeriod !== 'undefined' ? currentPeriod : null;
+    if (!q1All.length) return;
+
+    const markets = new Set(['UK', 'CA', 'IE', 'IL', 'DE', 'AT', 'SK']);
+    document.querySelectorAll('table tr td:first-child, .matrix-row > div:first-child').forEach(cell => {
+      const code = (cell.textContent || '').trim().split(/\s+/)[0];
+      if (!markets.has(code)) return;
+
+      const mRecs = q1All.filter(r => matchesPeriod(r, curKey) && (r.market || r.country || '').toUpperCase() === code);
+      if (!mRecs.length) return;
+
+      const avg = (arr) => arr.length ? (arr.reduce((s, r) => s + Number(r.rating || r.q1 || 0), 0) / arr.length).toFixed(2) + '★' : 'n/a';
+      const andRecs = mRecs.filter(r => (r.platform || r.os || '').toLowerCase() === 'android');
+      const iosRecs = mRecs.filter(r => (r.platform || r.os || '').toLowerCase() === 'ios');
+      const goldRecs = mRecs.filter(r => r.gold || r.is_gold || String(r.gold_status || '').toLowerCase() === 'gold' || r.gold_status === true);
+
+      cell.title = code + ' Breakdown — Android: ' + avg(andRecs) + ' (n=' + andRecs.length + ') · iOS: ' + avg(iosRecs) + ' (n=' + iosRecs.length + ') · Gold: ' + avg(goldRecs) + ' (n=' + goldRecs.length + ')';
+    });
+  };
+
+  const runAll = () => {
+    injectBaselineToggle();
+    updateKpiComparisonSubtitles();
+    renderNotableMovers();
+    enrichMatrixMarketTooltips();
+  };
+
+  if (typeof render === 'function') {
+    const _origRender = render;
+    render = function() {
+      const res = _origRender.apply(this, arguments);
+      runAll();
+      return res;
+    };
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', runAll);
+  else runAll();
+  setTimeout(runAll, 850);
 })();
 
 </script>
