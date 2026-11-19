@@ -2584,12 +2584,11 @@ function render() {
   renderExecutiveBrief(period, allTime, q1PeriodMetrics, q1AllTimeMetrics);
   try {
     const _isPrevMode = (window.__compareMode === 'prev-period');
-    const _cardIds = ['negSub', 'posSub', 'resSub', 'csatSub', 'q3CountSub', 'q1CountSub'];
+    const _cardIds = ['negQ1Sub', 'posQ1Sub', 'resSub', 'avgCsatSub', 'countSub', 'q1CountSub'];
 
-    // Always snapshot fresh all-time HTML on every render so switching back is instant
     _cardIds.forEach(id => {
       const el = document.getElementById(id);
-      if (el && !el.innerHTML.includes('vs. prev')) {
+      if (el && !el.innerHTML.includes('vs. prev') && !el.innerHTML.includes('prev ')) {
         el.dataset.allTimeHtml = el.innerHTML;
       }
     });
@@ -2606,7 +2605,6 @@ function render() {
         const _mkt = (marketFilter && marketFilter !== 'all') ? marketFilter : null;
         const _plt = (platformFilter && platformFilter !== 'all') ? platformFilter : null;
         const _cid = courierFilter ? courierFilter.trim() : null;
-        const _isGold = (typeof goldOnly !== 'undefined' && goldOnly);
 
         const _inPrev = (dtOrWk) => {
           const s = String(dtOrWk || '');
@@ -2616,71 +2614,38 @@ function render() {
           return s.startsWith(_pk);
         };
 
-        // 1. Q3 transcripts for previous period
-        let _q3 = (_ds.transcripts || []).filter(t => _inPrev(periodMode === 'weekly' ? t.w : t.d));
-        if (_mkt) _q3 = _q3.filter(t => t.m === _mkt);
-        if (_plt) _q3 = _q3.filter(t => t.p === _plt);
-        if (_cid) _q3 = _q3.filter(t => t.c === _cid);
+        // 1. Previous period Q3 transcripts
+        let _prevQ3 = (_ds.transcripts || []).filter(t => _inPrev(periodMode === 'weekly' ? t.w : t.d));
+        if (_mkt) _prevQ3 = _prevQ3.filter(t => t.m === _mkt);
+        if (_plt) _prevQ3 = _prevQ3.filter(t => t.p === _plt);
+        if (_cid) _prevQ3 = _prevQ3.filter(t => t.c === _cid);
 
-        const _q3Tot = _q3.length;
-        const _resC = _q3.filter(t => t.q2 === 'Yes' || t.q2 === true || t.q2 === 1).length;
-        const _prevRes = _q3Tot > 0 ? (_resC / _q3Tot) * 100 : null;
+        const _prevQ3Tot = _prevQ3.length;
+        const _prevResC = _prevQ3.filter(t => t.q2 === 'Yes' || t.q2 === true || t.q2 === 1).length;
+        const _prevResPct = _prevQ3Tot > 0 ? (_prevResC / _prevQ3Tot) * 100 : null;
 
-        // 2. Q1-only ratings from rawData.q1NoQ3 for previous period
-        let _q1Only = [];
-        try {
-          const _q1Src = (typeof rawData !== 'undefined' && rawData && rawData.q1NoQ3)
-            ? (_isGold ? rawData.q1NoQ3.gold : rawData.q1NoQ3.all)
-            : null;
-          if (Array.isArray(_q1Src)) {
-            _q1Only = _q1Src.filter(r => _inPrev(periodMode === 'weekly' ? (r.w || r.d) : r.d));
-          } else if (_q1Src && Array.isArray(_q1Src.rows)) {
-            _q1Only = _q1Src.rows.filter(r => _inPrev(periodMode === 'weekly' ? (r.w || r.d) : r.d));
-          } else if (_q1Src && Array.isArray(_q1Src.transcripts)) {
-            _q1Only = _q1Src.transcripts.filter(r => _inPrev(periodMode === 'weekly' ? (r.w || r.d) : r.d));
-          }
-          if (_mkt) _q1Only = _q1Only.filter(r => r.m === _mkt);
-          if (_plt) _q1Only = _q1Only.filter(r => r.p === _plt);
-          if (_cid) _q1Only = _q1Only.filter(r => r.c === _cid);
-        } catch (errQ1) {}
+        // 2. Previous period Q1-only ratings from D.q1NoQ3
+        const _rawQ1Pool = (typeof D !== 'undefined' && D && D.q1NoQ3)
+          ? (goldOnly ? (D.q1NoQ3.gold || []) : (D.q1NoQ3.all || []))
+          : [];
+        let _prevQ1Only = _rawQ1Pool.filter(r => _inPrev(periodMode === 'weekly' ? (r.w || r.d) : r.d));
+        if (_mkt) _prevQ1Only = _prevQ1Only.filter(r => r.m === _mkt);
+        if (_plt) _prevQ1Only = _prevQ1Only.filter(r => r.p === _plt);
+        if (_cid) _prevQ1Only = _prevQ1Only.filter(r => r.c === _cid);
 
-        // Combine Q3 + Q1-only for ALL Q1 & Combined CSAT
-        const _allQ1 = _q3.concat(_q1Only);
-        let _q1Tot = _allQ1.length;
-        let _prevNeg = null, _prevPos = null, _prevCsat = null;
+        const _mappedQ1Only = _prevQ1Only.map(r => ({
+          q1: r.q1 || r.q || '',
+          s: r.s,
+          neg: r.neg !== undefined ? r.neg : (r.n || false),
+          pos: r.pos !== undefined ? r.pos : !(r.neg !== undefined ? r.neg : (r.n || false)),
+          m: r.m,
+          q2: 'No'
+        }));
 
-        if (_q1Tot > 0) {
-          const _negC = _allQ1.filter(r => r.q1 === Q1_NEG || Number(r.q1) <= 2 || r.s === 'Negative').length;
-          const _posC = _allQ1.filter(r => r.q1 === Q1_POS || Number(r.q1) >= 3 || r.s === 'Positive').length;
-          _prevNeg = (_negC / _q1Tot) * 100;
-          _prevPos = (_posC / _q1Tot) * 100;
-
-          const _stars = _allQ1.map(r => Number(r.s)).filter(n => !isNaN(n) && n >= 1 && n <= 5);
-          if (_stars.length > 0) {
-            _prevCsat = _stars.reduce((a, b) => a + b, 0) / _stars.length;
-          }
-        } else if (!_plt && !_cid && _ds.byWeek) {
-          const _wks = Object.keys(_ds.byWeek).filter(wk => _inPrev(wk));
-          let _tot = 0, _neg = 0, _pos = 0;
-          _wks.forEach(wk => {
-            const w = _ds.byWeek[wk];
-            if (!w) return;
-            if (_mkt && w.marketNeg && w.marketPos) {
-              const mn = Number(w.marketNeg[_mkt] || 0);
-              const mp = Number(w.marketPos[_mkt] || 0);
-              _neg += mn; _pos += mp; _tot += (mn + mp);
-            } else {
-              _tot += Number(w.total || 0);
-              _neg += Number(w.negQ1 || 0);
-              _pos += Number(w.posQ1 || 0);
-            }
-          });
-          if (_tot > 0) {
-            _q1Tot = _tot;
-            _prevNeg = (_neg / _tot) * 100;
-            _prevPos = (_pos / _tot) * 100;
-          }
-        }
+        // Combine Q3 + Q1-only and run native computeQ1Metrics()
+        const _prevAllQ1 = _prevQ3.concat(_mappedQ1Only);
+        const _prevQ1Tot = _prevAllQ1.length;
+        const _prevMetrics = _prevQ1Tot > 0 ? computeQ1Metrics(_prevAllQ1) : null;
 
         const _fmtPp = (elId, curVal, prevVal, higherIsBetter) => {
           const el = document.getElementById(elId);
@@ -2701,32 +2666,35 @@ function render() {
         };
 
         // 1. Negative Q1
-        _fmtPp('negSub', parseFloat(document.getElementById('negVal')?.textContent), _prevNeg, false);
-        // 2. Positive Q1
-        _fmtPp('posSub', parseFloat(document.getElementById('posVal')?.textContent), _prevPos, true);
+        if (_prevMetrics) {
+          _fmtPp('negQ1Sub', parseFloat(document.getElementById('negQ1Val')?.textContent), _prevMetrics.negQ1Pct, false);
+          // 2. Positive Q1
+          _fmtPp('posQ1Sub', parseFloat(document.getElementById('posQ1Val')?.textContent), _prevMetrics.posQ1Pct, true);
+        }
+
         // 3. Resolution Rate
-        _fmtPp('resSub', parseFloat(document.getElementById('resVal')?.textContent), _prevRes, true);
+        _fmtPp('resSub', parseFloat(document.getElementById('resVal')?.textContent), _prevResPct, true);
 
         // 4. Avg CSAT Score
-        const csatEl = document.getElementById('csatSub');
-        const curCsat = parseFloat(document.getElementById('csatVal')?.textContent);
-        if (csatEl && _prevCsat !== null && !isNaN(curCsat)) {
-          const cDiff = curCsat - _prevCsat;
+        const csatEl = document.getElementById('avgCsatSub');
+        const curCsat = parseFloat(document.getElementById('avgCsatVal')?.textContent);
+        if (csatEl && _prevMetrics && _prevMetrics.avgCsat > 0 && !isNaN(curCsat)) {
+          const cDiff = curCsat - _prevMetrics.avgCsat;
           const cCls = cDiff === 0 ? 'neutral' : (cDiff >= 0 ? 'good' : 'bad');
           const cSign = cDiff >= 0 ? '+' : '';
           const origHtml = csatEl.dataset.allTimeHtml || csatEl.innerHTML;
           const cutIdx = origHtml.indexOf('all-time');
           const baseTxt = cutIdx > 0 ? origHtml.slice(0, cutIdx - 1).trim() : origHtml.trim();
-          csatEl.innerHTML = baseTxt + ' (prev ' + _prevCsat.toFixed(2) + '★, <span class="kpi-change ' + cCls + '">' + cSign + cDiff.toFixed(2) + '★</span>)';
+          csatEl.innerHTML = baseTxt + ' (prev ' + _prevMetrics.avgCsat.toFixed(2) + '★, <span class="kpi-change ' + cCls + '">' + cSign + cDiff.toFixed(2) + '★</span>)';
         }
 
         // 5. Q3 Transcripts
-        const curQ3N = parseInt(String(document.getElementById('q3CountVal')?.textContent || '').replace(/,/g, ''), 10);
-        _fmtCount('q3CountSub', curQ3N, _q3Tot);
+        const curQ3N = parseInt(String(document.getElementById('countVal')?.textContent || '').replace(/,/g, ''), 10);
+        _fmtCount('countSub', curQ3N, _prevQ3Tot);
 
         // 6. Q1 Respondents
         const curQ1N = parseInt(String(document.getElementById('q1CountVal')?.textContent || '').replace(/,/g, ''), 10);
-        _fmtCount('q1CountSub', curQ1N, _q1Tot);
+        _fmtCount('q1CountSub', curQ1N, _prevQ1Tot);
       }
     }
   } catch (e) { console.error('prevPeriodToggle:', e); }
