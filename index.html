@@ -806,6 +806,62 @@ header, .top-header, .header-bar {
     color: var(--text-primary, inherit);
   }
 
+
+  /* 1. Unified 4px micro-progress gauge for percentage KPI cards */
+  .kpi-micro-track {
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border, rgba(148, 163, 184, 0.22));
+    overflow: hidden;
+    margin: 7px 0 5px 0;
+  }
+  .kpi-micro-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.28s ease;
+  }
+
+  /* 2. Frosted-glass depth on sticky header and filter bar */
+  .header, .top-bar, .controls-bar, .filter-bar {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .controls-bar, .filter-bar {
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.045);
+  }
+
+  /* 3. Tabular numerals across all cards, matrix cells & tables */
+  .card, .kpi-card, table, .matrix-cell, .exec-summary-card {
+    font-variant-numeric: tabular-nums;
+  }
+  .pvo-num-col {
+    text-align: right !important;
+  }
+
+  /* 4. Clean executive PDF / Print styling */
+  @media print {
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .header, .top-bar, .controls-bar, .filter-bar, table thead th {
+      position: static !important;
+      box-shadow: none !important;
+    }
+    .sticky-history-controls, .copy-summary-btn, #themeToggle, #syncQ1OnlyPeriodBtn, .filter-reset {
+      display: none !important;
+    }
+    div[style*="overflow-y"], .table-scroll, .table-wrap {
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    .card, .kpi-card, .section, .exec-summary-card {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -3737,6 +3793,70 @@ function copyExecutiveSummaryToClipboard(btn) {
     hydrateStateFromUrl();
     injectGlossaryShortcuts();
   }, 700);
+})();
+
+
+// --- Aesthetic Polish: KPI Micro-Progress Gauges & Right-Aligned Period Comparison Numerals ---
+(function initAestheticPolish() {
+  const kpiGaugeConfig = {
+    'NEGATIVE Q1': '#ef4444',
+    'POSITIVE Q1': '#16a34a',
+    'RESOLUTION RATE': '#0d9488'
+  };
+
+  const applyAestheticDetails = () => {
+    // 1. Update or inject 4px micro-progress tracks on NEGATIVE Q1, POSITIVE Q1 & RESOLUTION RATE cards
+    document.querySelectorAll('.cards-row > div, .kpi-card, .card').forEach(card => {
+      const labelEl = Array.from(card.querySelectorAll('div, span'))
+        .find(el => el.children.length === 0 && kpiGaugeConfig[(el.textContent || '').trim().toUpperCase()]);
+      if (!labelEl) return;
+
+      const labelKey = (labelEl.textContent || '').trim().toUpperCase();
+      const fillColor = kpiGaugeConfig[labelKey];
+      const valEl = Array.from(card.querySelectorAll('div, span'))
+        .find(el => el.children.length === 0 && /^\d+(?:\.\d+)?%$/.test((el.textContent || '').trim()));
+      if (!valEl) return;
+
+      const pct = Math.max(0, Math.min(100, parseFloat(valEl.textContent)));
+      let track = card.querySelector('.kpi-micro-track');
+      if (!track) {
+        track = document.createElement('div');
+        track.className = 'kpi-micro-track';
+        track.innerHTML = '<div class="kpi-micro-fill"></div>';
+        valEl.insertAdjacentElement('afterend', track);
+      }
+      const fill = track.querySelector('.kpi-micro-fill');
+      if (fill) {
+        fill.style.width = pct.toFixed(1) + '%';
+        fill.style.backgroundColor = fillColor;
+      }
+    });
+
+    // 2. Right-align numeric columns (cols 2, 3, 4) in "Selected Period vs Overall"
+    const pvoTitle = Array.from(document.querySelectorAll('h2, h3, .section-title, div'))
+      .find(el => el.children.length === 0 && (el.textContent || '').trim().startsWith('Selected Period vs Overall'));
+    const pvoTable = pvoTitle ? pvoTitle.parentElement?.querySelector('table') : null;
+    if (pvoTable) {
+      pvoTable.querySelectorAll('tr').forEach(tr => {
+        Array.from(tr.children).forEach((cell, idx) => {
+          if (idx > 0) cell.classList.add('pvo-num-col');
+        });
+      });
+    }
+  };
+
+  if (typeof render === 'function') {
+    const _origRender = render;
+    render = function() {
+      const res = _origRender.apply(this, arguments);
+      applyAestheticDetails();
+      return res;
+    };
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyAestheticDetails);
+  else applyAestheticDetails();
+  setTimeout(applyAestheticDetails, 750);
 })();
 
 </script>
