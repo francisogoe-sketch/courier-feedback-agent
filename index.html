@@ -1921,7 +1921,7 @@ function renderTrendAndStars(q1PeriodMetrics, q1AllTimeMetrics) {
   }
 
   const leftPanel = buildPanel('Combined CSAT Score (1.00\u2605 – 5.00\u2605)', '#2980b9', 1, 5, baseCsat, v => v.toFixed(2) + '\u2605', p => p.csat);
-  const rightPanel = buildPanel('Negative Q1 Sentiment % (1–2\u2605 Share)', '#e74c3c', 0, 100, baseNeg, v => v.toFixed(0) + '%', p => p.neg);
+  const rightPanel = buildPanel('Negative Q1 Sentiment % (1–2\u2605 Share)', '#e74c3c', 0, 100, baseNeg, v => v.toFixed(1) + '%', p => p.neg);
   container.innerHTML = '<div style="display:flex;gap:14px;flex-wrap:wrap;">' + leftPanel + rightPanel + '</div>';
 }
 
@@ -2994,85 +2994,6 @@ function renderQ1Compare(q1OnlyRows) {
   const bothPosPct = bothTotal > 0 ? (bothPos / bothTotal * 100) : 0;
   let html = '<div class="q1-compare-grid">';
   html += '<div class="q1-compare-card"><div class="q1-compare-title">Negative vs Positive: Q1-Only vs Q1+Q3</div>';
-  // --- Q2 Resolution Rate Mapped Against Q1 Rating (Dynamic Filter-Aware) ---
-  (() => {
-    const host = document.getElementById('q1CompareContainer') || document.querySelector('.q1-compare-card')?.parentElement;
-    if (!host) return;
-    let box = document.getElementById('q2VsQ1Card');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = 'q2VsQ1Card';
-      box.className = 'q1-compare-card';
-      box.style.marginTop = '16px';
-      host.appendChild(box);
-    }
-    const rows = (typeof latestPeriodTranscripts !== 'undefined' && Array.isArray(latestPeriodTranscripts))
-      ? latestPeriodTranscripts : [];
-    const groups = [
-      { key: '1-2*', label: 'Negative Q1 (1–2★)', color: 'var(--red, #dc2626)', match: t => t.q1 === '1-2*' || t.s === 1 || t.s === 2 },
-      { key: '3-5*', label: 'Positive Q1 (3–5★)', color: 'var(--green, #16a34a)', match: t => t.q1 === '3-5*' || (t.s >= 3 && t.s <= 5) }
-    ];
-    const stars = [1, 2, 3, 4, 5];
-
-    const calc = (arr) => {
-      const tot = arr.length;
-      const yes = arr.filter(t => t.q2 === 'Yes').length;
-      const no = tot - yes;
-      const rate = tot > 0 ? (yes / tot) * 100 : 0;
-      return { tot, yes, no, rate };
-    };
-
-    const allStats = calc(rows);
-    const groupRows = groups.map(g => ({ ...g, ...calc(rows.filter(g.match)) }));
-    const starRows = stars.map(s => ({ star: s, ...calc(rows.filter(t => Number(t.s) === s)) }));
-
-    const barHtml = (pct, color) =>
-      '<div style="flex:1;height:8px;background:var(--border,#e2e8f0);border-radius:999px;overflow:hidden;min-width:70px">' +
-        '<div style="width:' + Math.min(100, pct).toFixed(1) + '%;height:100%;background:' + color + ';border-radius:999px"></div>' +
-      '</div>';
-
-    box.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">' +
-        '<div class="q1-compare-title" style="margin:0">Q2 Resolution Rate by Q1 Rating <span style="font-weight:400;font-size:11px;color:var(--muted,#64748b)">(Q1+Q3 Cohort: n=' + allStats.tot.toLocaleString() + ')</span></div>' +
-        '<div style="font-size:12px;color:var(--muted,#64748b)">Overall Resolved: <strong style="color:var(--text,#0f172a)">' + allStats.rate.toFixed(1) + '%</strong> (' + allStats.yes.toLocaleString() + ' Yes / ' + allStats.no.toLocaleString() + ' No)</div>' +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">' +
-        '<div>' +
-          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#64748b);margin-bottom:6px">By Q1 Sentiment Bucket</div>' +
-          '<table class="compare-table" style="width:100%">' +
-            '<thead><tr><th style="text-align:left">Q1 Bucket</th><th style="text-align:right">Tickets</th><th style="text-align:right">Resolved</th><th style="text-align:right">Unresolved</th><th style="text-align:left;padding-left:10px">Resolution Rate</th></tr></thead>' +
-            '<tbody>' +
-              groupRows.map(r =>
-                '<tr>' +
-                  '<td><strong style="color:' + r.color + '">' + r.label + '</strong></td>' +
-                  '<td style="text-align:right">' + r.tot.toLocaleString() + '</td>' +
-                  '<td style="text-align:right">' + r.yes.toLocaleString() + '</td>' +
-                  '<td style="text-align:right">' + r.no.toLocaleString() + '</td>' +
-                  '<td style="padding-left:10px"><div style="display:flex;align-items:center;gap:8px">' + barHtml(r.rate, r.color) + '<strong style="min-width:44px;text-align:right">' + r.rate.toFixed(1) + '%</strong></div></td>' +
-                '</tr>'
-              ).join('') +
-            '</tbody>' +
-          '</table>' +
-        '</div>' +
-        '<div>' +
-          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#64748b);margin-bottom:6px">By Exact Q1 Star Score (1★–5★)</div>' +
-          '<table class="compare-table" style="width:100%">' +
-            '<thead><tr><th style="text-align:left">Star</th><th style="text-align:right">Tickets</th><th style="text-align:right">Resolved</th><th style="text-align:left;padding-left:10px">Resolution Rate</th></tr></thead>' +
-            '<tbody>' +
-              starRows.map(r => {
-                const c = r.star <= 2 ? 'var(--red, #dc2626)' : (r.star === 3 ? '#d97706' : 'var(--green, #16a34a)');
-                return '<tr>' +
-                  '<td><strong style="color:' + c + '">' + r.star + '★</strong></td>' +
-                  '<td style="text-align:right">' + r.tot.toLocaleString() + '</td>' +
-                  '<td style="text-align:right">' + r.yes.toLocaleString() + '</td>' +
-                  '<td style="padding-left:10px"><div style="display:flex;align-items:center;gap:8px">' + barHtml(r.rate, c) + '<strong style="min-width:44px;text-align:right">' + r.rate.toFixed(1) + '%</strong></div></td>' +
-                '</tr>';
-              }).join('') +
-            '</tbody>' +
-          '</table>' +
-        '</div>' +
-      '</div>';
-  })();
 
   html += '<div class="q1-compare-bar-row"><div class="q1-compare-bar-label" style="color:var(--red);">Q1-Only Neg</div><div class="q1-compare-bar-track"><div class="q1-compare-bar-fill" style="width:' + Math.max(onlyNegPct, 1) + '%;background:var(--red);"></div></div><div class="q1-compare-bar-val">' + onlyNegPct.toFixed(1) + '% (' + onlyNeg + ')</div></div>';
   html += '<div class="q1-compare-bar-row"><div class="q1-compare-bar-label" style="color:var(--green);">Q1-Only Pos</div><div class="q1-compare-bar-track"><div class="q1-compare-bar-fill" style="width:' + Math.max(onlyPosPct, 1) + '%;background:var(--green);"></div></div><div class="q1-compare-bar-val">' + onlyPosPct.toFixed(1) + '% (' + onlyPos + ')</div></div>';
@@ -3100,6 +3021,56 @@ function renderQ1Compare(q1OnlyRows) {
   html += '<div class="q1-donut-legend"><div class="leg-neg">' + bothNegPct.toFixed(1) + '% Neg (' + bothNeg + ')</div><div class="leg-pos">' + bothPosPct.toFixed(1) + '% Pos (' + bothPos + ')</div><div style="color:var(--text-secondary);margin-top:2px;">With Q3 text</div></div></div>';
   html += '</div>';
   html += '</div>';
+
+  // --- Append Q2 Resolution Rate Mapped Against Q1 Rating full-width below q1-compare-grid ---
+  (() => {
+    const tRows = (typeof latestDisplayedTranscripts !== 'undefined' && Array.isArray(latestDisplayedTranscripts) && latestDisplayedTranscripts.length)
+      ? latestDisplayedTranscripts
+      : ((typeof periodTranscripts !== 'undefined' && Array.isArray(periodTranscripts)) ? periodTranscripts : []);
+    const calcQ2 = (arr) => {
+      const tot = arr.length;
+      const yes = arr.filter(t => t.q2 === 'Yes').length;
+      const no = tot - yes;
+      const rate = tot > 0 ? (yes / tot) * 100 : 0;
+      return { tot, yes, no, rate };
+    };
+    const allQ2 = calcQ2(tRows);
+    const negQ2 = calcQ2(tRows.filter(t => t.q1 === '1-2*' || Number(t.s) <= 2));
+    const posQ2 = calcQ2(tRows.filter(t => t.q1 === '3-5*' || Number(t.s) >= 3));
+    const starQ2 = [1, 2, 3, 4, 5].map(s => ({ star: s, ...calcQ2(tRows.filter(t => Number(t.s) === s)) }));
+    const bar = (pct, col) => '<div style="flex:1;height:8px;background:var(--border,#e2e8f0);border-radius:999px;overflow:hidden;min-width:70px"><div style="width:' + Math.min(100, pct).toFixed(1) + '%;height:100%;background:' + col + ';border-radius:999px"></div></div>';
+
+    html += '<div class="q1-compare-card" style="margin-top:14px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">' +
+        '<div class="q1-compare-title" style="margin:0">Q2 Resolution Rate Mapped Against Q1 Rating <span style="font-weight:400;font-size:11px;color:var(--muted,#64748b)">(Q1+Q3 Cohort: n=' + allQ2.tot.toLocaleString() + ')</span></div>' +
+        '<div style="font-size:12px;color:var(--muted,#64748b)">Overall Q2 Resolved: <strong style="color:var(--text,#0f172a)">' + allQ2.rate.toFixed(1) + '%</strong> (' + allQ2.yes.toLocaleString() + ' Yes / ' + allQ2.no.toLocaleString() + ' No)</div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px">' +
+        '<div>' +
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#64748b);margin-bottom:6px">By Q1 Sentiment Bucket</div>' +
+          '<table class="compare-table" style="width:100%">' +
+            '<thead><tr><th style="text-align:left">Q1 Rating</th><th style="text-align:right">Tickets</th><th style="text-align:right">Resolved</th><th style="text-align:right">Unresolved</th><th style="text-align:left;padding-left:10px">Resolution Rate</th></tr></thead>' +
+            '<tbody>' +
+              '<tr><td><strong style="color:var(--red,#dc2626)">Negative Q1 (1–2★)</strong></td><td style="text-align:right">' + negQ2.tot.toLocaleString() + '</td><td style="text-align:right">' + negQ2.yes.toLocaleString() + '</td><td style="text-align:right">' + negQ2.no.toLocaleString() + '</td><td style="padding-left:10px"><div style="display:flex;align-items:center;gap:8px">' + bar(negQ2.rate, 'var(--red,#dc2626)') + '<strong style="min-width:44px;text-align:right">' + negQ2.rate.toFixed(1) + '%</strong></div></td></tr>' +
+              '<tr><td><strong style="color:var(--green,#16a34a)">Positive Q1 (3–5★)</strong></td><td style="text-align:right">' + posQ2.tot.toLocaleString() + '</td><td style="text-align:right">' + posQ2.yes.toLocaleString() + '</td><td style="text-align:right">' + posQ2.no.toLocaleString() + '</td><td style="padding-left:10px"><div style="display:flex;align-items:center;gap:8px">' + bar(posQ2.rate, 'var(--green,#16a34a)') + '<strong style="min-width:44px;text-align:right">' + posQ2.rate.toFixed(1) + '%</strong></div></td></tr>' +
+            '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div>' +
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#64748b);margin-bottom:6px">By Exact Q1 Star Score (1★–5★)</div>' +
+          '<table class="compare-table" style="width:100%">' +
+            '<thead><tr><th style="text-align:left">Star</th><th style="text-align:right">Tickets</th><th style="text-align:right">Resolved</th><th style="text-align:left;padding-left:10px">Resolution Rate</th></tr></thead>' +
+            '<tbody>' +
+              starQ2.map(r => {
+                const c = r.star <= 2 ? 'var(--red,#dc2626)' : (r.star === 3 ? '#d97706' : 'var(--green,#16a34a)');
+                return '<tr><td><strong style="color:' + c + '">' + r.star + '★</strong></td><td style="text-align:right">' + r.tot.toLocaleString() + '</td><td style="text-align:right">' + r.yes.toLocaleString() + '</td><td style="padding-left:10px"><div style="display:flex;align-items:center;gap:8px">' + bar(r.rate, c) + '<strong style="min-width:44px;text-align:right">' + r.rate.toFixed(1) + '%</strong></div></td></tr>';
+              }).join('') +
+            '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  })();
   container.innerHTML = html;
 }
 
@@ -4623,6 +4594,39 @@ window.__compareMode = window.__compareMode || 'all-time';
   setTimeout(runAll, 850);
 })();
 
+
+// --- Live Q3 vs Q1+Q3 Resolution Rate Sub-line on Resolution Rate KPI Card ---
+(function initDualResolutionLine() {
+  const renderDualRes = () => {
+    const resValEl = document.getElementById('resVal');
+    const resSubEl = document.getElementById('resSub');
+    const resCard = (resSubEl || resValEl)?.closest('.kpi-card');
+    if (!resCard) return;
+    let line = resCard.querySelector('.res-q1q3-line');
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'res-q1q3-line';
+      line.style.cssText = 'font-size:11px;color:var(--muted,#64748b);margin-top:4px;line-height:1.35';
+      resCard.appendChild(line);
+    }
+    const tArr = (typeof latestDisplayedTranscripts !== 'undefined' && Array.isArray(latestDisplayedTranscripts)) ? latestDisplayedTranscripts : [];
+    const q3Yes = tArr.filter(t => t.q2 === 'Yes').length;
+    const q3Tot = tArr.length;
+    const fallbackRate = (resValEl?.textContent || '0%').trim();
+    const q3Rate = q3Tot > 0 ? (q3Yes / q3Tot * 100).toFixed(1) + '%' : fallbackRate;
+    const q1AllTot = (typeof latestAllQ1Period !== 'undefined' && Array.isArray(latestAllQ1Period)) ? latestAllQ1Period.length : 0;
+    const q1OnlyTot = Math.max(0, q1AllTot - q3Tot);
+    line.innerHTML = '<strong>Q3:</strong> ' + q3Rate + ' (' + q3Yes.toLocaleString() + '/' + q3Tot.toLocaleString() + ') &bull; <strong>Q1+Q3:</strong> ' + q3Rate + ' <span style="opacity:.8">(Q1-only: ' + q1OnlyTot.toLocaleString() + ' no Q2)</span>';
+  };
+
+  window.addEventListener('DOMContentLoaded', () => {
+    renderDualRes();
+    const target = document.getElementById('resVal') || document.getElementById('resSub');
+    if (target) {
+      new MutationObserver(renderDualRes).observe(target, { childList: true, characterData: true, subtree: true });
+    }
+  });
+})();
 </script>
 </body>
 </html>
