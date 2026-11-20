@@ -4595,36 +4595,64 @@ window.__compareMode = window.__compareMode || 'all-time';
 })();
 
 
-// --- Live Q3 vs Q1+Q3 Resolution Rate Sub-line on Resolution Rate KPI Card ---
-(function initDualResolutionLine() {
-  const renderDualRes = () => {
+// --- Resolution Rate KPI Card: Q3 Only vs All Respondents (Q1) ---
+(function initResolutionQ3VsAllQ1() {
+  const renderResCard = () => {
     const resValEl = document.getElementById('resVal');
     const resSubEl = document.getElementById('resSub');
     const resCard = (resSubEl || resValEl)?.closest('.kpi-card');
-    if (!resCard) return;
-    let line = resCard.querySelector('.res-q1q3-line');
-    if (!line) {
-      line = document.createElement('div');
-      line.className = 'res-q1q3-line';
-      line.style.cssText = 'font-size:11px;color:var(--muted,#64748b);margin-top:4px;line-height:1.35';
-      resCard.appendChild(line);
+    if (!resCard || !resSubEl) return;
+
+    // 1. Hide 'Q3 ONLY' pill badge so the heading is just 'RESOLUTION RATE'
+    resCard.querySelectorAll('span, div').forEach(el => {
+      if (el.children.length === 0 && el.textContent.trim().toUpperCase() === 'Q3 ONLY') {
+        el.style.display = 'none';
+      }
+    });
+
+    // Remove any extra stacked line from earlier patches
+    const extra = resCard.querySelector('.res-q1q3-line');
+    if (extra) extra.remove();
+
+    // 2. Capture native comparison text (vs. all-time / vs. prev period / No prior period)
+    if (!resSubEl.dataset.baseSub && !resSubEl.innerHTML.includes('All Respondents (Q1):')) {
+      resSubEl.dataset.baseSub = resSubEl.innerHTML;
     }
+    const baseComparison = (resSubEl.dataset.baseSub || resSubEl.innerHTML).trim();
+
+    // 3. Compute Q3-only rate and All-Respondents (Q1) rate dynamically from the active KPI values
+    const q3RateStr = (resValEl?.textContent || '0.0%').trim();
+    const q3RateNum = parseFloat(q3RateStr) || 0;
+    const q3Tot = parseInt((document.getElementById('countVal')?.textContent || '0').replace(/,/g, ''), 10);
+    const q1Tot = parseInt((document.getElementById('q1CountVal')?.textContent || '0').replace(/,/g, ''), 10);
+
+    // Exact resolved Yes count from active transcripts if available, else derived from Q3 rate * Q3 total
     const tArr = (typeof latestDisplayedTranscripts !== 'undefined' && Array.isArray(latestDisplayedTranscripts)) ? latestDisplayedTranscripts : [];
-    const q3Yes = tArr.filter(t => t.q2 === 'Yes').length;
-    const q3Tot = tArr.length;
-    const fallbackRate = (resValEl?.textContent || '0%').trim();
-    const q3Rate = q3Tot > 0 ? (q3Yes / q3Tot * 100).toFixed(1) + '%' : fallbackRate;
-    const q1AllTot = (typeof latestAllQ1Period !== 'undefined' && Array.isArray(latestAllQ1Period)) ? latestAllQ1Period.length : 0;
-    const q1OnlyTot = Math.max(0, q1AllTot - q3Tot);
-    line.innerHTML = '<strong>Q3:</strong> ' + q3Rate + ' (' + q3Yes.toLocaleString() + '/' + q3Tot.toLocaleString() + ') &bull; <strong>Q1+Q3:</strong> ' + q3Rate + ' <span style="opacity:.8">(Q1-only: ' + q1OnlyTot.toLocaleString() + ' no Q2)</span>';
+    const q3Yes = tArr.length > 0 ? tArr.filter(t => t.q2 === 'Yes').length : Math.round((q3RateNum / 100) * q3Tot);
+    const allQ1RateStr = (q1Tot > 0 ? (q3Yes / q1Tot) * 100 : 0).toFixed(1) + '%';
+
+    const desiredHtml =
+      'Q3 only: <strong>' + q3RateStr + '</strong> &bull; All Respondents (Q1): <strong>' + allQ1RateStr + '</strong>' +
+      '<div style="margin-top:2px">' + baseComparison + '</div>';
+
+    if (resSubEl.innerHTML !== desiredHtml) {
+      resSubEl.innerHTML = desiredHtml;
+    }
   };
 
   window.addEventListener('DOMContentLoaded', () => {
-    renderDualRes();
-    const target = document.getElementById('resVal') || document.getElementById('resSub');
-    if (target) {
-      new MutationObserver(renderDualRes).observe(target, { childList: true, characterData: true, subtree: true });
-    }
+    renderResCard();
+    const obs = new MutationObserver(() => {
+      const resSubEl = document.getElementById('resSub');
+      if (resSubEl && !resSubEl.innerHTML.includes('All Respondents (Q1):')) {
+        resSubEl.dataset.baseSub = resSubEl.innerHTML;
+      }
+      renderResCard();
+    });
+    ['resVal', 'resSub', 'countVal', 'q1CountVal'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) obs.observe(el, { childList: true, characterData: true, subtree: true });
+    });
   });
 })();
 </script>
