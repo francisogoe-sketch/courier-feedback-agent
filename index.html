@@ -2049,7 +2049,7 @@ function renderMarketPillarHeatmap(periodTranscripts) {
       const bdr = negPct >= 85 ? '1px solid rgba(220,38,38,0.45)' : lowVol ? '1px dashed rgba(148,163,184,0.55)' : '1px solid transparent';
       const op = lowVol ? 'opacity:0.78;' : '';
         const safePl = pl.replace(/'/g, "\\'");
-        html += '<td><span class="hm-cell" style="background:' + bg + ';color:' + fg + ';border:' + bdr + ';' + op + '" title="' + m + ' \u2022 ' + pl + ': ' + negPct.toFixed(1) + '% Neg (' + cell.neg + '/' + cell.tot + ') — Click to inspect" onclick="drillMarketPillar(\'' + m + '\', \'' + safePl + '\')">' + negPct.toFixed(0) + '% <span style="font-weight:400;font-size:10.5px;">(' + cell.tot + ')</span>' + ((showPrevDeltas && prevPeriodMarketPillarNeg[m + '||' + pl] !== undefined) ? (() => { const d = negPct - prevPeriodMarketPillarNeg[m + '||' + pl]; const cls = d > 0.5 ? 'delta-worse' : d < -0.5 ? 'delta-better' : 'delta-flat'; return '<span class="delta-pill ' + cls + '">' + (d > 0 ? '+' : '') + d.toFixed(0) + 'pp</span>'; })() : '') + '</span></td>';
+        html += '<td><span class="hm-cell" style="background:' + bg + ';color:' + fg + ';border:' + bdr + ';' + op + '" title="' + m + ' \u2022 ' + pl + ': ' + negPct.toFixed(1) + '% Neg (' + cell.neg + '/' + cell.tot + ') — Click to inspect" onclick="drillMarketPillar(\'' + m + '\', \'' + safePl + '\')">' + negPct.toFixed(1) + '% <span style="font-weight:400;font-size:10.5px;">(' + cell.tot + ')</span>' + ((showPrevDeltas && prevPeriodMarketPillarNeg[m + '||' + pl] !== undefined) ? (() => { const d = negPct - prevPeriodMarketPillarNeg[m + '||' + pl]; const cls = d > 0.5 ? 'delta-worse' : d < -0.5 ? 'delta-better' : 'delta-flat'; return '<span class="delta-pill ' + cls + '">' + (d > 0 ? '+' : '') + d.toFixed(0) + 'pp</span>'; })() : '') + '</span></td>';
       }
     });
     html += '</tr>';
@@ -2994,6 +2994,86 @@ function renderQ1Compare(q1OnlyRows) {
   const bothPosPct = bothTotal > 0 ? (bothPos / bothTotal * 100) : 0;
   let html = '<div class="q1-compare-grid">';
   html += '<div class="q1-compare-card"><div class="q1-compare-title">Negative vs Positive: Q1-Only vs Q1+Q3</div>';
+  // --- Q2 Resolution Rate Mapped Against Q1 Rating (Dynamic Filter-Aware) ---
+  (() => {
+    const host = document.getElementById('q1CompareContainer') || document.querySelector('.q1-compare-card')?.parentElement;
+    if (!host) return;
+    let box = document.getElementById('q2VsQ1Card');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'q2VsQ1Card';
+      box.className = 'q1-compare-card';
+      box.style.marginTop = '16px';
+      host.appendChild(box);
+    }
+    const rows = (typeof latestPeriodTranscripts !== 'undefined' && Array.isArray(latestPeriodTranscripts))
+      ? latestPeriodTranscripts : [];
+    const groups = [
+      { key: '1-2*', label: 'Negative Q1 (1–2★)', color: 'var(--red, #dc2626)', match: t => t.q1 === '1-2*' || t.s === 1 || t.s === 2 },
+      { key: '3-5*', label: 'Positive Q1 (3–5★)', color: 'var(--green, #16a34a)', match: t => t.q1 === '3-5*' || (t.s >= 3 && t.s <= 5) }
+    ];
+    const stars = [1, 2, 3, 4, 5];
+
+    const calc = (arr) => {
+      const tot = arr.length;
+      const yes = arr.filter(t => t.q2 === 'Yes').length;
+      const no = tot - yes;
+      const rate = tot > 0 ? (yes / tot) * 100 : 0;
+      return { tot, yes, no, rate };
+    };
+
+    const allStats = calc(rows);
+    const groupRows = groups.map(g => ({ ...g, ...calc(rows.filter(g.match)) }));
+    const starRows = stars.map(s => ({ star: s, ...calc(rows.filter(t => Number(t.s) === s)) }));
+
+    const barHtml = (pct, color) =>
+      '<div style="flex:1;height:8px;background:var(--border,#e2e8f0);border-radius:999px;overflow:hidden;min-width:70px">' +
+        '<div style="width:' + Math.min(100, pct).toFixed(1) + '%;height:100%;background:' + color + ';border-radius:999px"></div>' +
+      '</div>';
+
+    box.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">' +
+        '<div class="q1-compare-title" style="margin:0">Q2 Resolution Rate by Q1 Rating <span style="font-weight:400;font-size:11px;color:var(--muted,#64748b)">(Q1+Q3 Cohort: n=' + allStats.tot.toLocaleString() + ')</span></div>' +
+        '<div style="font-size:12px;color:var(--muted,#64748b)">Overall Resolved: <strong style="color:var(--text,#0f172a)">' + allStats.rate.toFixed(1) + '%</strong> (' + allStats.yes.toLocaleString() + ' Yes / ' + allStats.no.toLocaleString() + ' No)</div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">' +
+        '<div>' +
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#64748b);margin-bottom:6px">By Q1 Sentiment Bucket</div>' +
+          '<table class="compare-table" style="width:100%">' +
+            '<thead><tr><th style="text-align:left">Q1 Bucket</th><th style="text-align:right">Tickets</th><th style="text-align:right">Resolved</th><th style="text-align:right">Unresolved</th><th style="text-align:left;padding-left:10px">Resolution Rate</th></tr></thead>' +
+            '<tbody>' +
+              groupRows.map(r =>
+                '<tr>' +
+                  '<td><strong style="color:' + r.color + '">' + r.label + '</strong></td>' +
+                  '<td style="text-align:right">' + r.tot.toLocaleString() + '</td>' +
+                  '<td style="text-align:right">' + r.yes.toLocaleString() + '</td>' +
+                  '<td style="text-align:right">' + r.no.toLocaleString() + '</td>' +
+                  '<td style="padding-left:10px"><div style="display:flex;align-items:center;gap:8px">' + barHtml(r.rate, r.color) + '<strong style="min-width:44px;text-align:right">' + r.rate.toFixed(1) + '%</strong></div></td>' +
+                '</tr>'
+              ).join('') +
+            '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div>' +
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#64748b);margin-bottom:6px">By Exact Q1 Star Score (1★–5★)</div>' +
+          '<table class="compare-table" style="width:100%">' +
+            '<thead><tr><th style="text-align:left">Star</th><th style="text-align:right">Tickets</th><th style="text-align:right">Resolved</th><th style="text-align:left;padding-left:10px">Resolution Rate</th></tr></thead>' +
+            '<tbody>' +
+              starRows.map(r => {
+                const c = r.star <= 2 ? 'var(--red, #dc2626)' : (r.star === 3 ? '#d97706' : 'var(--green, #16a34a)');
+                return '<tr>' +
+                  '<td><strong style="color:' + c + '">' + r.star + '★</strong></td>' +
+                  '<td style="text-align:right">' + r.tot.toLocaleString() + '</td>' +
+                  '<td style="text-align:right">' + r.yes.toLocaleString() + '</td>' +
+                  '<td style="padding-left:10px"><div style="display:flex;align-items:center;gap:8px">' + barHtml(r.rate, c) + '<strong style="min-width:44px;text-align:right">' + r.rate.toFixed(1) + '%</strong></div></td>' +
+                '</tr>';
+              }).join('') +
+            '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+  })();
+
   html += '<div class="q1-compare-bar-row"><div class="q1-compare-bar-label" style="color:var(--red);">Q1-Only Neg</div><div class="q1-compare-bar-track"><div class="q1-compare-bar-fill" style="width:' + Math.max(onlyNegPct, 1) + '%;background:var(--red);"></div></div><div class="q1-compare-bar-val">' + onlyNegPct.toFixed(1) + '% (' + onlyNeg + ')</div></div>';
   html += '<div class="q1-compare-bar-row"><div class="q1-compare-bar-label" style="color:var(--green);">Q1-Only Pos</div><div class="q1-compare-bar-track"><div class="q1-compare-bar-fill" style="width:' + Math.max(onlyPosPct, 1) + '%;background:var(--green);"></div></div><div class="q1-compare-bar-val">' + onlyPosPct.toFixed(1) + '% (' + onlyPos + ')</div></div>';
   html += '<div style="height:6px;"></div>';
