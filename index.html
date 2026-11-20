@@ -4595,8 +4595,8 @@ window.__compareMode = window.__compareMode || 'all-time';
 })();
 
 
-// --- Resolution Rate KPI Card: Q3 Only vs All Respondents (Q1) ---
-(function initResolutionQ3VsAllQ1() {
+// --- Resolution Rate KPI Card: All Respondents (Q1) Primary + Q3 Only Breakdown ---
+(function initResolutionAllRespondentsPrimary() {
   let isRendering = false;
 
   const renderResCard = () => {
@@ -4604,40 +4604,69 @@ window.__compareMode = window.__compareMode || 'all-time';
     const resValEl = document.getElementById('resVal');
     const resSubEl = document.getElementById('resSub');
     const resCard = (resSubEl || resValEl)?.closest('.kpi-card');
-    if (!resCard || !resSubEl) return;
+    if (!resCard || !resSubEl || !resValEl) return;
 
     isRendering = true;
     try {
-      // 1. Hide 'Q3 ONLY' pill badge so the heading is just 'RESOLUTION RATE'
+      // 1. Set pill badge to 'ALL RESPONDENTS' (matching 'ALL Q1' / 'Q1 + Q3' badge style)
       resCard.querySelectorAll('span, div').forEach(el => {
-        if (el.children.length === 0 && el.textContent.trim().toUpperCase() === 'Q3 ONLY') {
-          el.style.display = 'none';
+        if (el.children.length === 0) {
+          const txt = el.textContent.trim().toUpperCase();
+          if (txt === 'Q3 ONLY' || txt === 'ALL RESPONDENTS') {
+            el.style.display = '';
+            el.textContent = 'ALL RESPONDENTS';
+          }
         }
       });
 
-      // Remove any extra stacked line from earlier patches
-      const extra = resCard.querySelector('.res-q1q3-line');
-      if (extra) extra.remove();
-
-      // 2. Capture native comparison text (vs. all-time / vs. prev period / No prior period)
-      if (!resSubEl.innerHTML.includes('All Respondents (Q1):')) {
+      // 2. Capture native Q3 rate & comparison text before overwriting
+      const rawVal = resValEl.textContent.trim();
+      if (!resValEl.dataset.q3Rate || !resSubEl.innerHTML.includes('Q3 only:')) {
+        if (rawVal.endsWith('%')) resValEl.dataset.q3Rate = rawVal;
+      }
+      if (!resSubEl.innerHTML.includes('Q3 only:')) {
         resSubEl.dataset.baseSub = resSubEl.innerHTML;
       }
+
+      const q3RateStr = resValEl.dataset.q3Rate || rawVal;
+      const q3RateNum = parseFloat(q3RateStr) || 0;
       const baseComparison = (resSubEl.dataset.baseSub || '').trim();
 
-      // 3. Compute Q3-only rate and All-Respondents (Q1) rate dynamically from the active KPI values
-      const q3RateStr = (resValEl?.textContent || '0.0%').trim();
-      const q3RateNum = parseFloat(q3RateStr) || 0;
+      // 3. Compute All-Respondents (Q1) Resolution Rate dynamically
       const q3Tot = parseInt((document.getElementById('countVal')?.textContent || '0').replace(/,/g, ''), 10);
       const q1Tot = parseInt((document.getElementById('q1CountVal')?.textContent || '0').replace(/,/g, ''), 10);
-
       const tArr = (typeof latestDisplayedTranscripts !== 'undefined' && Array.isArray(latestDisplayedTranscripts)) ? latestDisplayedTranscripts : [];
       const q3Yes = tArr.length > 0 ? tArr.filter(t => t.q2 === 'Yes').length : Math.round((q3RateNum / 100) * q3Tot);
-      const allQ1RateStr = (q1Tot > 0 ? (q3Yes / q1Tot) * 100 : 0).toFixed(1) + '%';
+
+      const allQ1RateNum = q1Tot > 0 ? (q3Yes / q1Tot) * 100 : 0;
+      const allQ1RateStr = allQ1RateNum.toFixed(1) + '%';
+
+      // Set headline KPI figure & progress bar to All Respondents (Q1)
+      resValEl.textContent = allQ1RateStr;
+      const barFill = resCard.querySelector('.kpi-bar-fill, .bar-fill, [style*="width:"]');
+      if (barFill) {
+        barFill.style.width = Math.min(100, allQ1RateNum).toFixed(1) + '%';
+      }
+
+      // Compute baseline comparison line for All Respondents (Q1) when in vs. All-Time mode
+      let compLine = baseComparison;
+      if (baseComparison.includes('vs. all-time')) {
+        const allTimeYes = 7153;
+        const allTimeQ1 = 104693;
+        const baseAllQ1 = (allTimeYes / allTimeQ1) * 100; // 6.8%
+        const diff = allQ1RateNum - baseAllQ1;
+        const absDiff = Math.abs(diff).toFixed(1);
+        const deltaHtml = Math.abs(diff) < 0.05
+          ? '<span style="color:var(--muted,#64748b)">unchanged</span>'
+          : (diff > 0
+              ? '<span style="color:var(--green,#16a34a);font-weight:600">up ' + absDiff + ' pp</span>'
+              : '<span style="color:var(--red,#dc2626);font-weight:600">down ' + absDiff + ' pp</span>');
+        compLine = 'vs. all-time ' + baseAllQ1.toFixed(1) + '%, ' + deltaHtml;
+      }
 
       resSubEl.innerHTML =
-        'Q3 only: <strong>' + q3RateStr + '</strong> • All Respondents (Q1): <strong>' + allQ1RateStr + '</strong>' +
-        (baseComparison ? '<div style="margin-top:2px">' + baseComparison + '</div>' : '');
+        'All Respondents (Q1): <strong>' + allQ1RateStr + '</strong> &bull; Q3 only: <strong>' + q3RateStr + '</strong>' +
+        (compLine ? '<div style="margin-top:2px">' + compLine + '</div>' : '');
     } finally {
       setTimeout(() => { isRendering = false; }, 0);
     }
@@ -4647,8 +4676,10 @@ window.__compareMode = window.__compareMode || 'all-time';
     renderResCard();
     const obs = new MutationObserver(() => {
       if (isRendering) return;
+      const resValEl = document.getElementById('resVal');
       const resSubEl = document.getElementById('resSub');
-      if (resSubEl && !resSubEl.innerHTML.includes('All Respondents (Q1):')) {
+      if (resSubEl && !resSubEl.innerHTML.includes('Q3 only:')) {
+        if (resValEl) resValEl.dataset.q3Rate = resValEl.textContent.trim();
         resSubEl.dataset.baseSub = resSubEl.innerHTML;
       }
       renderResCard();
