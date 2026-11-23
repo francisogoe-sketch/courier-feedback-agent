@@ -274,20 +274,40 @@ def process_and_assemble(df_raw, gold_ids):
     print(f"  Processed Total Q1: {len(piv):,} | With Q3 text: {len(df_transcripts):,} | Q1-only: {len(df_q1_only):,}")
 
     import re as _re
+    from difflib import get_close_matches as _gcm
+
+    PENDO_PILLAR_MAP = {
+        "pillar 1": "Support Quality",
+        "pillar 2": "App / Tech Issues",
+        "pillar 3": "Partner and External Delays",
+        "pillar 4": "Compensation",
+        "support quality": "Support Quality",
+        "app / tech issues": "App / Tech Issues",
+        "app/tech issues": "App / Tech Issues",
+        "partner and external delays": "Partner and External Delays",
+        "partner & external delays": "Partner and External Delays",
+        "compensation": "Compensation",
+    }
 
     PILLAR_RULES = [
         ("Support Quality", _re.compile(
-            r"\b(support|agent|chat|representative|rep|advisor|staff|service|help\s?desk|customer\s?care|"
+            r"(?:\b(?:support|agent|agents|chat|representative|rep|advisor|staff|service|help\s?desk|customer\s?care|"
             r"ticket|case|bot|automated|script|copy\s?paste|canned|template|rude|unhelpful|useless|ignorar|"
-            r"ignored|ignore|disconnected|hung\s?up|ended\s?chat|closed\s?chat|no\s?response|wait(ing|ed)?\s?(for|on)?\s?(support|agent|chat|reply|response)|"
-            r"long\s?wait|response\s?time|slow\s?response|didn.?t\s?help|never\s?helped|not\s?resolved|unresolved|"
-            r"soporte|agente|asistencia|ayuda|chat|servicio|grosero|inutil|sin\s?respuesta|"
-            r"assistenza|operatore|servizio|supporto|inutile|"
-            r"wsparcie|konsultant|czat|pomoc|obsluga|"
-            r"unterstutzung|kundenservice|mitarbeiter|hilfe|"
-            r"soutien|assistance|conseiller|service\s?client|inutile|repond)\b", _re.I)),
+            r"ignored|ignore|disconnected|hung\s?up|ended\s?chat|closed\s?chat|"
+            r"reply|replies|replied|replying|respond|responded|responding|response|answer|answered|"
+            r"sort(?:ed|ing)?\s+(?:the\s+|my\s+)?(?:issue|problem)|solv(?:e|ed|ing)\s+(?:the\s+|my\s+)?(?:issue|problem)|"
+            r"resolv(?:e|ed|ing)\s+(?:the\s+|my\s+|yhe\s+)?(?:issue|problem)|unresolved|"
+            r"didn.?t\s+help|never\s+helped|no\s+help|poor\s+response|slow\s+response|late\s+repl|"
+            r"so\s+slow|took\s+too\s+long|take\s+a\s?lot\s+of\s+time|taking\s+too\s+long|"
+            r"wait(?:ing|ed)?\s+(?:for\s+|here\s+)?(?:half\s+an\s+hour|\d+\s*(?:min|minute|minutes|mintues|hr|hour))|"
+            r"soporte|agente|asistencia|ayuda|chat|servicio|grosero|inutil|respuesta|"
+            r"assistenza|operatore|servizio|supporto|inutile|risposta|"
+            r"wsparcie|konsultant|czat|pomoc|obsluga|odpowiedz|"
+            r"unterstutzung|kundenservice|mitarbeiter|hilfe|antwort|"
+            r"soutien|assistance|conseiller|service\s?client|inutile|repond|reponse)\b|"
+            r"תמיכה|נציג|שירות|מענה|עונים|ענה|לפתור|בעיה|دعم|مندوب|رد|مساعدة)", _re.I)),
         ("App / Tech Issues", _re.compile(
-            r"\b(app|application|tech|technical|bug|glitch|crash(ed|ing|es)?|freez(e|es|ing)|froze|lag(ging|gy)?|"
+            r"(?:\b(?:app|application|tech|technical|bug|glitch|crash(?:ed|ing|es)?|freez(?:e|es|ing)|froze|lag(?:ging|gy)?|"
             r"gps|location|map|maps|navigation|route|routing|pin|address\s?wrong|wrong\s?address|"
             r"offline|online|network|connection|signal|server|error|screen|blank|white\s?screen|black\s?screen|"
             r"login|log\s?in|logout|logged\s?out|password|update|version|notification|alert|sound|ring|"
@@ -296,21 +316,23 @@ def process_and_assemble(df_raw, gold_ids):
             r"applicazione|errore|mappa|posizione|bloccata|schermo|aggiornamento|"
             r"aplikacja|blad|mapa|lokalizacja|zawiesza|ekran|aktualizacja|"
             r"anwendung|fehler|karte|standort|abgesturzt|bildschirm|"
-            r"application|bug|carte|localisation|ecran|bloque|mise\s?a\s?jour)\b", _re.I)),
+            r"application|bug|carte|localisation|ecran|bloque|mise\s?a\s?jour)\b|"
+            r"אפליקציה|באג|תקלה|מפה|מיקום|מסך|تطبيق|خلل|خريطة|موقع)", _re.I)),
         ("Partner and External Delays", _re.compile(
-            r"\b(restaurant|merchant|vendor|store|shop|kitchen|staff|McDonald|KFC|Burger|Subway|pizza|"
+            r"(?:\b(?:restaurant|merchant|vendor|store|shop|kitchen|mcdonald|kfc|burger|subway|pizza|"
             r"food\s?not\s?ready|not\s?ready|still\s?preparing|prep\s?time|preparation|long\s?wait\s?at|"
-            r"waiting\s?at\s?(the\s?)?(restaurant|store|merchant|pickup)|pick\s?up\s?wait|pickup\s?delay|"
-            r"delay(ed|s)?|traffic|road|closure|closed|parking|park|weather|rain|snow|storm|"
+            r"waiting\s?at\s?(?:the\s?)?(?:restaurant|store|merchant|pickup)|pick\s?up\s?wait|pickup\s?delay|"
+            r"delay(?:ed|s)?|traffic|road|closure|closed|parking|park|weather|rain|snow|storm|"
             r"customer|client|recipient|drop\s?off|dropoff|door|gate|code|buzzer|intercom|no\s?answer|"
-            r"wrong\s?pin|wrong\s?location|bag|spill|packaging|missing\s?item|busy|queue|line|"
-            r"restaurante|tienda|espera|retraso|trafico|cliente|entrega|estacionamiento|"
+            r"wrong\s?pin|wrong\s?location|bag|spill|packaging|missing\s?item|busy|queue|line)\b|"
+            r"\b(?:restaurante|tienda|espera|retraso|trafico|cliente|entrega|estacionamiento|"
             r"ristorante|negozio|attesa|ritardo|traffico|cliente|consegna|parcheggio|"
             r"restauracja|sklep|czekanie|opoznienie|korek|klient|dostawa|parking|"
             r"restaurant|laden|wartezeit|verspatung|verkehr|kunde|lieferung|parkplatz|"
-            r"restaurant|magasin|attente|retard|circulation|client|livraison|stationnement)\b", _re.I)),
+            r"restaurant|magasin|attente|retard|circulation|client|livraison|stationnement)\b|"
+            r"מסעדה|עסק|סגור|המתנה|לקוח|משלוח|חניה|פקק|مطعم|متجر|مغلق|انتظار|عميل|توصيل)", _re.I)),
         ("Compensation", _re.compile(
-            r"\b(pay|paid|payment|paymnt|underpaid|low\s?pay|bad\s?pay|poor\s?pay|unpaid|missing\s?pay|"
+            r"(?:\b(?:pay|paid|payment|paymnt|underpaid|low\s?pay|bad\s?pay|poor\s?pay|unpaid|missing\s?pay|"
             r"fee|fees|delivery\s?fee|base\s?pay|rate|rates|tariff|wage|earning|earnings|income|money|"
             r"tip|tips|tipping|bonus|boost|incentive|promotion|promo|surge|multiplier|guarantee|"
             r"distance|mileage|miles|km|kilometers|far|too\s?far|long\s?distance|fuel|petrol|gas|"
@@ -319,8 +341,28 @@ def process_and_assemble(df_raw, gold_ids):
             r"pagamento|pagato|tariffa|mancia|bonus|soldi|distanza|benzina|compenso|"
             r"wyplata|platnosc|stawka|napiwek|premia|pieniadze|dystans|paliwo|rekompensata|"
             r"bezahlung|zahlung|lohn|trinkgeld|bonus|geld|entfernung|benzin|entschadigung|"
-            r"paiement|paye|tarif|pourboire|prime|argent|distance|essence|compensation)\b", _re.I)),
+            r"paiement|paye|tarif|pourboire|prime|argent|distance|essence|compensation)\b|"
+            r"תשלום|שכר|טיפ|בונוס|כסף|מרחק|דלק|פיצוי|לקבל\s+על|דמי\s+ביטול|دفع|اجر|مكافأة|مسافة|تعويض)", _re.I)),
     ]
+
+    FUZZY_VOCAB = {
+        "support": "Support Quality", "agent": "Support Quality", "agents": "Support Quality",
+        "reply": "Support Quality", "replied": "Support Quality", "response": "Support Quality",
+        "responded": "Support Quality", "resolve": "Support Quality", "resolved": "Support Quality",
+        "sorted": "Support Quality", "problem": "Support Quality", "issue": "Support Quality",
+        "chat": "Support Quality", "advisor": "Support Quality", "ticket": "Support Quality",
+        "crash": "App / Tech Issues", "crashed": "App / Tech Issues", "freeze": "App / Tech Issues",
+        "glitch": "App / Tech Issues", "location": "App / Tech Issues", "navigation": "App / Tech Issues",
+        "update": "App / Tech Issues", "screen": "App / Tech Issues", "login": "App / Tech Issues",
+        "restaurant": "Partner and External Delays", "merchant": "Partner and External Delays",
+        "customer": "Partner and External Delays", "traffic": "Partner and External Delays",
+        "parking": "Partner and External Delays", "closed": "Partner and External Delays",
+        "delayed": "Partner and External Delays", "delivery": "Partner and External Delays",
+        "payment": "Compensation", "underpaid": "Compensation", "compensation": "Compensation",
+        "distance": "Compensation", "mileage": "Compensation", "bonus": "Compensation",
+        "earnings": "Compensation", "reimburse": "Compensation", "refund": "Compensation",
+    }
+    _FUZZY_KEYS = list(FUZZY_VOCAB.keys())
 
     def classify_transcript_text(text):
         t = str(text or "").strip()
@@ -329,13 +371,20 @@ def process_and_assemble(df_raw, gold_ids):
         for pillar_name, rx in PILLAR_RULES:
             if rx.search(t):
                 return pillar_name
+        # Fuzzy typo fallback (catches 'agenst', 'repky', 'sorrted', 'probelm', 'resturant', etc.)
+        for tok in _re.findall(r"[a-zA-Z]{4,}", t.lower()):
+            hit = _gcm(tok, _FUZZY_KEYS, n=1, cutoff=0.82)
+            if hit:
+                return FUZZY_VOCAB[hit[0]]
         return "General / Minimal"
 
     def build_transcript_record(r):
         cid = str(r.get('c', '')).strip()
         raw_q3 = str(r.get(q3_col, '')).strip()
         txt = raw_q3[:80].lower()
-        pl = pillar_lookup.get((cid, txt)) or str(r.get('pillar', r.get('pl', ''))).strip()
+        raw_pl = str(r.get('pillar_name', r.get('pillar', r.get('pl', '')))).strip()
+        mapped_pendo = PENDO_PILLAR_MAP.get(raw_pl.lower(), raw_pl)
+        pl = pillar_lookup.get((cid, txt)) or mapped_pendo
         if pl not in PILLAR_ORDER:
             pl = classify_transcript_text(raw_q3)
         return {
