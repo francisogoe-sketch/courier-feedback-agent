@@ -2,9 +2,7 @@ name: Courier Feedback Agent Workflow
 
 on:
   schedule:
-    - cron: '0 13 * * 1'
-    - cron: '0 17 * * 1'
-    - cron: '0 10 * * 2'
+    - cron: '0 16 * * 1'
   workflow_dispatch:
     inputs:
       dry_run:
