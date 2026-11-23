@@ -2104,7 +2104,6 @@ function renderKeywordPills(transcripts) {
     if (!t || !t.t) return;
     if (sVal === 'neg' && t.q1 !== Q1_NEG) return;
     if (sVal === 'pos' && t.q1 !== Q1_POS) return;
-    if (sVal === 'all' && t.q1 !== Q1_NEG) return;
     if (rVal === 'yes' && t.q2 !== 'Yes') return;
     if (rVal === 'no' && t.q2 !== 'No') return;
     getTranscriptRootCauses(t).forEach(rc => {
@@ -2182,6 +2181,7 @@ function downloadSelectedData() {
       Star_Score: t.s || '',
       Resolved_Q2: t.q2,
       L1_Pillar: t.pl || '',
+      Root_Cause: (getTranscriptRootCauses(t).join(' | ') || 'General / Other'),
       Courier_ID: t.c,
       Transcript: (t.t || '').replace(/[\r\n]+/g, ' ')
     }));
