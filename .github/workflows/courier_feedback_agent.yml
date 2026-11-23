@@ -58,6 +58,7 @@ jobs:
       - name: Update Master Dataset & Safe Parquet Base
         run: |
           python build_master_data.py
+          python rebuild_v2.py
 
       - name: Publish Dashboard to GitHub Pages
         run: |
