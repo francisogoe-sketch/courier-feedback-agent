@@ -154,12 +154,19 @@ def load_all_surveys(service):
         for o, n in {'region': 'market', 'response_datetime': 'Date', 'response_english': 'Response'}.items():
             if o in df_p.columns and n not in df_p.columns:
                 df_p[n] = df_p[o]
-        if 'week_start' in df_p.columns and ingested_mondays:
-            ws = pd.to_datetime(df_p['week_start'], errors='coerce').dt.strftime('%Y-%m-%d')
-            df_p = df_p[~ws.isin(ingested_mondays)]
         dfs.append(df_p)
     dfs.extend(drive_dfs)
-    return pd.concat(dfs, ignore_index=True)
+    combined = pd.concat(dfs, ignore_index=True)
+    # Deduplicate only exact identical survey responses (same courier, market, platform, question, exact timestamp)
+    # Preserves all prior weeks and counts repeat respondents across weeks & separate surveys
+    dedup_cols = [c for c in ['courier_id', 'market', 'platform', 'question', 'Date'] if c in combined.columns]
+    if dedup_cols:
+        combined = combined.drop_duplicates(subset=dedup_cols, keep='last').reset_index(drop=True)
+    if drive_dfs:
+        os.makedirs(os.path.dirname(pq), exist_ok=True)
+        combined.to_parquet(pq, index=False)
+        print(f" Saved cumulative Parquet base: {len(combined):,} rows -> {pq}")
+    return combined
 
 def process_and_assemble(df_raw, gold_ids):
     print("  Assembling survey sessions...")
@@ -180,11 +187,15 @@ def process_and_assemble(df_raw, gold_ids):
         df_raw["dt"] = pd.to_datetime(df_raw["Date"], errors="coerce")
         df_raw = df_raw.dropna(subset=["dt"])
         
-        session_col = "Visitor_ID" if "Visitor_ID" in df_raw.columns else "courier_id"
-        if "week_start" in df_raw.columns:
-            df_raw["session_key"] = df_raw[session_col].astype(str) + "__" + df_raw["week_start"].astype(str)
+        cid_str = df_raw["courier_id"].fillna("Unknown").astype(str).str.strip()
+        if "Visitor_ID" in df_raw.columns:
+            vid_str = df_raw["Visitor_ID"].fillna("").astype(str).str.strip()
+            valid_vid = (vid_str != "") & (~vid_str.str.lower().isin(["nan", "none", "null"]))
+            base_id = vid_str.where(valid_vid, cid_str)
         else:
-            df_raw["session_key"] = df_raw[session_col].astype(str) + "__" + df_raw["dt"].dt.strftime("%Y-%m-%d")
+            base_id = cid_str
+        # Pair Q1/Q2/Q3 within the same survey timestamp (to the minute) so every survey submission is counted
+        df_raw["session_key"] = base_id + "__" + df_raw["dt"].dt.strftime("%Y-%m-%d %H:%M")
         piv = df_raw.pivot_table(
             index=["session_key", "courier_id", "market", "platform"],
             columns="question",
