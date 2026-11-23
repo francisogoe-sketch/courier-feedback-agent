@@ -2066,6 +2066,407 @@ function drillMarketPillar(market, pillarName) {
   openPillarTranscripts(pillarName);
 }
 
+const ROOT_CAUSE_RULES = [
+  { label: 'Slow Reply / Long Wait', rx: /\b(reply|replies|replied|replying|repky|respond|responded|responding|response|answer|answered|slow|wait|waited|waiting|long|minute|minutes|mintues|hour|hours|late|delay|delayed)\b|מענה|עונים|המתנה|رد|انتظار/i },
+  { label: 'Unresolved / Not Fixed', rx: /\b(unresolved|not\s+resolv|without\s+resolv|never\s+resolv|not\s+solv|nobody\s+solv|didn.?t\s+solv|not\s+sort|sorrted|not\s+fix|didn.?t\s+help|never\s+helped|no\s+help|useless|unhelpful|still\s+same|issue\s+remain)\b|לפתור/i },
+  { label: 'Bot / Canned Script', rx: /\b(bot|automated|auto\s?reply|script|copy\s?paste|canned|template|robot|ai)\b/i },
+  { label: 'Agent Tone / Closed Chat', rx: /\b(rude|attitude|disrespect|hung\s?up|ended\s?chat|closed\s?chat|disconnect|disconnected|ignored|ignore|ignoring|agent|agenst|advisor)\b|נציג|תמיכה|مندوب/i },
+  { label: 'GPS / Map / Pin Error', rx: /\b(gps|map|maps|navigation|route|routing|pin|wrong\s?address|address\s?wrong|location|ubicacion|mappa|lokalizacja|standort|localisation)\b|מפה|מיקום|خريطة|موقع/i },
+  { label: 'App Crash / Freeze', rx: /\b(crash|crashed|crashing|freeze|freezes|freezing|froze|bug|glitch|lag|lagging|blank\s?screen|white\s?screen|black\s?screen|screen|stuck|congela|bloccata|zawiesza|abgesturzt)\b|אפליקציה|באג|תקלה|تطبيق|خلل/i },
+  { label: 'Login / Network / Update', rx: /\b(login|log\s?in|logout|logged\s?out|password|offline|online|network|connection|signal|server|error|update|version|notification|scan|scanning|camera|photo|upload)\b/i },
+  { label: 'Restaurant / Store Wait', rx: /\b(restaurant|merchant|vendor|store|shop|kitchen|mcdonald|kfc|burger|subway|pizza|not\s?ready|still\s?preparing|prep\s?time|pick\s?up\s?wait|pickup\s?delay|queue|line|restaurante|ristorante|restauracja)\b|מסעדה|مطعم/i },
+  { label: 'Closed Merchant / Stock', rx: /\b(closed|closure|shut|out\s?of\s?stock|missing\s?item|cancelled\s?by\s?store|סגור|מגلق)\b/i },
+  { label: 'Customer / Access / Parking', rx: /\b(customer|client|recipient|drop\s?off|dropoff|door|gate|code|buzzer|intercom|no\s?answer|parking|park|traffic|road|weather|rain|snow|storm|cliente|estacionamiento|parcheggio)\b|לקוח|חניה|عميل/i },
+  { label: 'Low / Missing Base Pay', rx: /\b(underpaid|low\s?pay|bad\s?pay|poor\s?pay|unpaid|missing\s?pay|base\s?pay|fee|fees|delivery\s?fee|rate|rates|tariff|wage|earning|earnings|money|distance|mileage|miles|km|fuel|petrol|gas|pago|pagamento|wyplata|bezahlung|paiement)\b|תשלום|שכר|מרחק|دفع|اجر/i },
+  { label: 'Unpaid Wait / Closed Fee', rx: /\b(wait\s?pay|waiting\s?pay|compensation|reimburse|reimbursement|refund|deduct|deduction|cancel\s?fee|cancellation\s?fee|לקבל\s+על|פיצוי|דמי\s+ביטול|تعويض)\b/i },
+  { label: 'Tips / Bonus / Boost', rx: /\b(tip|tips|tipping|bonus|boost|incentive|promotion|promo|surge|multiplier|guarantee|propina|mancia|napiwek|trinkgeld|pourboire)\b|טיפ|בונוס|مكافأة/i }
+];
+
+let selectedRootCause = '';
+
+function getTranscriptRootCauses(t) {
+  const txt = (t && t.t) ? String(t.t) : '';
+  if (!txt) return [];
+  const hits = [];
+  for (let i = 0; i < ROOT_CAUSE_RULES.length; i++) {
+    if (ROOT_CAUSE_RULES[i].rx.test(txt)) hits.push(ROOT_CAUSE_RULES[i].label);
+  }
+  return hits;
+}
+
+function renderKeywordPills(transcripts) {
+  const box = document.getElementById('txKeywordPills');
+  if (!box) return;
+  const sVal = document.getElementById('txSentFilter')?.value || 'all';
+  const rVal = document.getElementById('txResFilter')?.value || 'all';
+  const counts = {};
+  (transcripts || []).forEach(t => {
+    if (!t || !t.t) return;
+    if (sVal === 'neg' && t.q1 !== Q1_NEG) return;
+    if (sVal === 'pos' && t.q1 !== Q1_POS) return;
+    if (sVal === 'all' && t.q1 !== Q1_NEG) return;
+    if (rVal === 'yes' && t.q2 !== 'Yes') return;
+    if (rVal === 'no' && t.q2 !== 'No') return;
+    getTranscriptRootCauses(t).forEach(rc => {
+      counts[rc] = (counts[rc] || 0) + 1;
+    });
+  });
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (top.length === 0) {
+    box.innerHTML = '';
+    return;
+  }
+  let html = '<span style="font-size:11.5px;font-weight:700;color:var(--text-secondary);">Root Causes:</span>';
+  top.forEach(([rc, cnt]) => {
+    const active = selectedRootCause === rc ? ' active' : '';
+    const safeRc = rc.replace(/'/g, "\\'");
+    html += '<span class="kw-pill' + active + '" onclick="toggleKeywordPill(\'' + safeRc + '\')">' + rc + ' (' + cnt + ')</span>';
+  });
+  box.innerHTML = html;
+}
+
+function toggleKeywordPill(rc) {
+  selectedRootCause = (selectedRootCause === rc) ? '' : rc;
+  renderKeywordPills(latestPeriodTranscripts);
+  applyTxFilters();
+}
+
+function applyTxFilters() {
+  const q = (document.getElementById('txSearchInput')?.value || '').trim().toLowerCase();
+  const sVal = document.getElementById('txSentFilter')?.value || 'all';
+  const rVal = document.getElementById('txResFilter')?.value || 'all';
+  let filtered = latestPeriodTranscripts;
+  if (sVal === 'neg') filtered = filtered.filter(t => t.q1 === Q1_NEG);
+  else if (sVal === 'pos') filtered = filtered.filter(t => t.q1 === Q1_POS);
+  if (rVal === 'yes') filtered = filtered.filter(t => t.q2 === 'Yes');
+  else if (rVal === 'no') filtered = filtered.filter(t => t.q2 === 'No');
+  if (selectedRootCause) filtered = filtered.filter(t => getTranscriptRootCauses(t).includes(selectedRootCause));
+  if (q) filtered = filtered.filter(t => (t.t && t.t.toLowerCase().includes(q)) || (t.c && t.c.toLowerCase().includes(q)));
+  renderKeywordPills(latestPeriodTranscripts);
+  renderTranscriptsDynamic(filtered, true);
+  if (q || sVal !== 'all' || rVal !== 'all' || selectedRootCause) toggleAllTxAccordions(true);
+}
+
+function renderActiveFilterChips() {
+  const bar = document.getElementById('activeFilterChips');
+  if (!bar) return;
+  let chips = [];
+  if (marketFilter && marketFilter !== 'all') {
+    chips.push('<span class="filter-chip" onclick="document.getElementById(\'marketFilter\').value=\'all\';marketFilter=\'all\';render();">Market: ' + marketFilter + ' &#10005;</span>');
+  }
+  if (platformFilter && platformFilter !== 'all') {
+    chips.push('<span class="filter-chip" onclick="document.getElementById(\'platformFilter\').value=\'all\';platformFilter=\'all\';render();">Platform: ' + platformFilter + ' &#10005;</span>');
+  }
+  if (goldOnly) {
+    chips.push('<span class="filter-chip" onclick="document.getElementById(\'goldOnly\').checked=false;goldOnly=false;render();">Gold Only &#10005;</span>');
+  }
+  if (courierFilter) {
+    chips.push('<span class="filter-chip" onclick="clearCourierFilter()">Courier: ' + courierFilter + ' &#10005;</span>');
+  }
+  if (chips.length > 0) {
+    chips.push('<span class="filter-reset" onclick="resetAllFilters()">Reset All</span>');
+  }
+  bar.innerHTML = chips.join('');
+}
+
+function resetAllFilters() {
+  marketFilter = 'all';
+  const mf = document.getElementById('marketFilter'); if (mf) mf.value = 'all';
+  if (typeof platformFilter !== 'undefined') {
+    platformFilter = 'all';
+    const pf = document.getElementById('platformFilter'); if (pf) pf.value = 'all';
+  }
+  goldOnly = false;
+  const go = document.getElementById('goldOnly'); if (go) go.checked = false;
+  courierFilter = '';
+  const cf = document.getElementById('courierFilter'); if (cf) cf.value = '';
+  const cc = document.getElementById('courierClear'); if (cc) cc.classList.add('hidden');
+  render();
+}
+
+function renderTrendAndStars(q1PeriodMetrics, q1AllTimeMetrics) {
+  const container = document.getElementById('trendChartContainer');
+  const starBox = document.getElementById('starDistContainer');
+  const baseLbl = document.getElementById('trendBaselineLabel');
+  if (!container) return;
+
+  // 1. 1-5 Star Distribution for active period
+  const rows = q1PeriodMetrics.rows || [];
+  if (starBox && rows.length > 0) {
+    const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    rows.forEach(r => {
+      const s = Math.round(Number(r.s) || (r.neg ? 1 : 5));
+      if (counts[s] !== undefined) counts[s]++;
+    });
+    const tot = rows.length;
+    const colors = { 1: '#c0392b', 2: '#e74c3c', 3: '#f39c12', 4: '#2ecc71', 5: '#27ae60' };
+    let barHtml = '<div class="star-dist-bar">';
+    let lblHtml = '<div class="star-dist-labels">';
+    [1, 2, 3, 4, 5].forEach(st => {
+      const pct = (counts[st] / tot) * 100;
+      barHtml += '<div style="width:' + pct.toFixed(2) + '%;background:' + colors[st] + ';" title="' + st + '\u2605: ' + counts[st].toLocaleString() + ' (' + pct.toFixed(1) + '%)"></div>';
+      lblHtml += '<span style="color:' + colors[st] + '">' + st + '\u2605: ' + pct.toFixed(1) + '%</span>';
+    });
+    barHtml += '</div>';
+    lblHtml += '</div>';
+    starBox.innerHTML = '<strong style="color:var(--navy);">Rating Breakdown (' + tot.toLocaleString() + ' Q1):</strong>' + barHtml + lblHtml;
+  }
+
+  // 2. Build full historical Q1 pool across all periods (respecting Market, Gold, Courier filters)
+  const ds = getDataset();
+  const q1No = D.q1NoQ3 || { all: [], gold: [] };
+  let q1OnlyPool = goldOnly ? (q1No.gold || []) : (q1No.all || []);
+  let q3Pool = ds.transcripts || [];
+  if (marketFilter && marketFilter !== 'all') {
+    q1OnlyPool = q1OnlyPool.filter(r => r.m === marketFilter);
+    q3Pool = q3Pool.filter(t => t.m === marketFilter);
+  }
+  if (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') {
+    const pfLow = platformFilter.toLowerCase();
+    q1OnlyPool = q1OnlyPool.filter(r => (r.p || '').toLowerCase() === pfLow);
+    q3Pool = q3Pool.filter(t => (t.p || '').toLowerCase() === pfLow);
+  }
+  if (courierFilter) {
+    q1OnlyPool = q1OnlyPool.filter(r => r.c === courierFilter);
+    q3Pool = q3Pool.filter(t => t.c === courierFilter);
+  }
+
+  const mode = periodMode === 'custom' ? 'weekly' : periodMode;
+  const sel = document.getElementById('periodValueSelect');
+  const keys = sel ? Array.from(sel.options).map(o => o.value).slice(-10) : [];
+  if (keys.length < 2) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);">Switch Period to Weekly, Monthly, or Quarterly to view multi-period trend trajectory.</div>';
+    return;
+  }
+
+  const matchKey = (r) => mode === 'weekly' ? r.w : mode === 'monthly' ? r.d.substring(0, 7) : mode === 'quarterly' ? getQuarter(r.d) : r.d.substring(0, 4);
+  const byKey = {};
+  keys.forEach(k => { byKey[k] = { sumS: 0, neg: 0, tot: 0 }; });
+
+  q1OnlyPool.forEach(r => {
+    const k = matchKey(r);
+    if (byKey[k]) {
+      byKey[k].tot++;
+      if (r.neg) byKey[k].neg++;
+      byKey[k].sumS += (Number(r.s) || (r.neg ? 1.5 : 4.5));
+    }
+  });
+  q3Pool.forEach(t => {
+    const k = matchKey(t);
+    if (byKey[k]) {
+      const isNeg = t.q1 === Q1_NEG;
+      byKey[k].tot++;
+      if (isNeg) byKey[k].neg++;
+      byKey[k].sumS += (Number(t.s) || (isNeg ? 1.5 : 4.5));
+    }
+  });
+
+  const pts = keys.map(k => {
+    const b = byKey[k];
+    return {
+      key: k,
+      csat: b.tot ? (b.sumS / b.tot) : 0,
+      neg: b.tot ? (b.neg / b.tot) * 100 : 0,
+      total: b.tot
+    };
+  });
+
+  const baseCsat = q1AllTimeMetrics.avgCsat || 2.97;
+  const baseNeg = (q1AllTimeMetrics && q1AllTimeMetrics.total > 0) ? q1AllTimeMetrics.negQ1Pct : 48.7;
+  if (baseLbl) {
+    baseLbl.innerHTML = 'All-time baselines: <strong style="color:var(--blue);">' + baseCsat.toFixed(2) + '&#9733; CSAT</strong> &nbsp;|&nbsp; <strong style="color:var(--red);">' + baseNeg.toFixed(1) + '% Neg Q1</strong> &nbsp;(click any point to inspect period)';
+  }
+
+  function buildPanel(title, color, minV, maxV, baseV, fmtFn, getVal) {
+    const W = 460, H = 155, padL = 38, padR = 20, padT = 22, padB = 26;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const xStep = innerW / Math.max(1, pts.length - 1);
+    const toY = v => padT + innerH - ((Math.min(maxV, Math.max(minV, v)) - minV) / (maxV - minV)) * innerH;
+
+    let svg = '<div style="flex:1;min-width:300px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">';
+    svg += '<div style="font-size:11.5px;font-weight:700;color:' + color + ';margin-bottom:4px;">' + title + '</div>';
+    svg += '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:150px;display:block;overflow:visible;">';
+
+    // Horizontal gridlines + Y-axis labels
+    [minV, (minV + maxV) / 2, maxV].forEach(gv => {
+      const gy = toY(gv);
+      svg += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + gy.toFixed(1) + '" stroke="var(--border)" stroke-width="1"/>';
+      svg += '<text x="' + (padL - 6) + '" y="' + (gy + 3).toFixed(1) + '" text-anchor="end" font-size="9.5" fill="#64748b">' + fmtFn(gv) + '</text>';
+    });
+
+    // Dashed all-time baseline
+    const by = toY(baseV);
+    svg += '<line x1="' + padL + '" y1="' + by.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + by.toFixed(1) + '" stroke="' + color + '" stroke-opacity="0.45" stroke-dasharray="4,4" stroke-width="1.2"/>';
+
+    const coords = pts.map((p, i) => ({ x: padL + i * xStep, y: toY(getVal(p)), val: getVal(p), key: p.key, total: p.total }));
+    const pathD = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c.x.toFixed(1) + ',' + c.y.toFixed(1)).join(' ');
+    svg += '<path d="' + pathD + '" fill="none" stroke="' + color + '" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>';
+
+    coords.forEach((c, i) => {
+      const isCur = c.key === currentPeriod;
+      const shortLbl = c.key.length > 7 ? c.key.slice(5) : c.key;
+      svg += '<g style="cursor:pointer;" onclick="currentPeriod=\'' + c.key + '\';const s=document.getElementById(\'periodValueSelect\');if(s)s.value=\'' + c.key + '\';render();">';
+      const prevSlice = i >= 2 ? coords.slice(Math.max(0, i - 4), i).filter(x => x.total >= 10) : [];
+      const prevAvg = prevSlice.length ? (prevSlice.reduce((s, x) => s + x.val, 0) / prevSlice.length) : null;
+      const isSpike = (color === '#e74c3c' && c.total >= 10 && prevAvg !== null && (c.val - prevAvg) > 10);
+      if (isSpike) {
+        svg += '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) + '" r="8.5" fill="rgba(231,76,60,0.22)" stroke="#e74c3c" stroke-width="1.2"/>';
+      }
+      svg += '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) + '" r="' + (isCur ? 5.5 : (isSpike ? 4.8 : 3.5)) + '" fill="' + (isCur ? '#0f172a' : color) + '" stroke="#fff" stroke-width="1.2"><title>' + c.key + ': ' + fmtFn(c.val) + ' (' + c.total.toLocaleString() + ' responses)' + (isSpike ? ' — SPIKE: +' + (c.val - prevAvg).toFixed(1) + 'pp vs trailing 4-period avg' : '') + '</title></circle>';
+      svg += '<text x="' + c.x.toFixed(1) + '" y="' + (c.y - 8).toFixed(1) + '" text-anchor="middle" font-size="9.5" font-weight="700" fill="' + color + '">' + fmtFn(c.val) + '</text>';
+      svg += '<text x="' + c.x.toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="9.5" font-weight="' + (isCur ? '700' : '400') + '" fill="' + (isCur ? 'var(--navy)' : '#64748b') + '">' + shortLbl + '</text>';
+      svg += '</g>';
+    });
+    svg += '</svg></div>';
+    return svg;
+  }
+
+  const leftPanel = buildPanel('Combined CSAT Score (1.00\u2605 – 5.00\u2605)', '#2980b9', 1, 5, baseCsat, v => v.toFixed(2) + '\u2605', p => p.csat);
+  const rightPanel = buildPanel('Negative Q1 Sentiment % (1–2\u2605 Share)', '#e74c3c', 0, 100, baseNeg, v => v.toFixed(1) + '%', p => p.neg);
+  container.innerHTML = '<div style="display:flex;gap:14px;flex-wrap:wrap;">' + leftPanel + rightPanel + '</div>';
+}
+
+
+let latestDisplayedTranscripts = [];
+let latestAllQ1Period = [];
+
+function toggleDarkMode() {
+  const isDark = document.body.classList.toggle('dark-mode');
+  const btn = document.getElementById('darkModeBtn');
+  if (btn) btn.innerHTML = isDark ? '&#9728; Light' : '&#9790; Dark';
+  try { localStorage.setItem('courierDashDark', isDark ? '1' : '0'); } catch (e) {}
+}
+
+function togglePresentationMode() {
+  const isPres = document.body.classList.toggle('presentation-mode');
+  const btn = document.getElementById('presModeBtn');
+  if (btn) btn.innerHTML = isPres ? '&#10005; Exit Present' : '&#9974; Present';
+}
+
+(function initSavedTheme() {
+  try {
+    if (localStorage.getItem('courierDashDark') === '1') {
+      document.body.classList.add('dark-mode');
+      window.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('darkModeBtn');
+        if (btn) btn.innerHTML = '&#9728; Light';
+      });
+    }
+  } catch (e) {}
+})();
+
+function renderExecutiveBrief(period, allTime, q1PeriodMetrics, q1AllTimeMetrics) {
+  const el = document.getElementById('execBriefBanner');
+  if (!el) return;
+  const csat = q1PeriodMetrics.avgCsat || 0;
+  const baseCsat = q1AllTimeMetrics.avgCsat || 0;
+  const csatDiff = csat - baseCsat;
+  const csatDir = csatDiff >= 0 ? ('+' + csatDiff.toFixed(2) + '\u2605 above') : (csatDiff.toFixed(2) + '\u2605 below');
+
+  // Top negative pillar
+  const pillars = period.pillars || {};
+  let topPillar = 'None', topPillarNeg = 0, topPillarShare = 0;
+  Object.entries(pillars).forEach(([name, p]) => {
+    if ((p.neg || 0) > topPillarNeg) {
+      topPillarNeg = p.neg;
+      topPillar = name;
+      topPillarShare = period.neg > 0 ? (p.neg / period.neg) * 100 : 0;
+    }
+  });
+
+  // Top negative market
+  const mNeg = q1PeriodMetrics.marketNeg || {};
+  let topMarket = 'All Markets', topMarketPct = 0;
+  Object.entries(mNeg).forEach(([m, d]) => {
+    if ((d.pct || 0) > topMarketPct) {
+      topMarketPct = d.pct;
+      topMarket = m;
+    }
+  });
+
+  el.style.display = 'none'; return; el.innerHTML = '<div><strong>Executive Brief:</strong> Combined CSAT is <strong>' + csat.toFixed(2) + '\u2605</strong> (' + csatDir + ' all-time baseline of ' + baseCsat.toFixed(2) + '\u2605) across <strong>' + (q1PeriodMetrics.total || 0).toLocaleString() + '</strong> responses. <strong>' + topPillar + '</strong> drives <strong>' + topPillarShare.toFixed(0) + '%</strong> of negative Q3 transcripts (' + topPillarNeg.toLocaleString() + '), while <strong>' + topMarket + '</strong> leads negative Q1 share at <strong>' + topMarketPct.toFixed(1) + '%</strong>.</div>';
+}
+
+function renderMarketPillarHeatmap(periodTranscripts) {
+  const container = document.getElementById('heatmapContainer');
+  if (!container) return;
+  if (!periodTranscripts || periodTranscripts.length === 0) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);">No Q3 transcripts in this period to build heatmap.</div>';
+    return;
+  }
+
+  const pField = getPillarField();
+  const pillars = getPillarOrder();
+  const markets = [...new Set(periodTranscripts.map(t => t.m).filter(Boolean))].sort();
+
+  const grid = {};
+  markets.forEach(m => {
+    grid[m] = {};
+    pillars.forEach(pl => { grid[m][pl] = { tot: 0, neg: 0 }; });
+  });
+
+  periodTranscripts.forEach(t => {
+    if (grid[t.m] && grid[t.m][t[pField]]) {
+      grid[t.m][t[pField]].tot++;
+      if (t.q1 === Q1_NEG) grid[t.m][t[pField]].neg++;
+    }
+  });
+
+  let html = '<table class="heatmap-table"><thead><tr><th>Market</th>';
+  pillars.forEach(pl => {
+    const shortName = pl;
+    html += '<th title="' + pl + '">' + shortName + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  markets.sort((a, b) => {
+    const totA = pillars.reduce((s, pl) => s + (grid[a][pl]?.tot || 0), 0);
+    const totB = pillars.reduce((s, pl) => s + (grid[b][pl]?.tot || 0), 0);
+    return totB - totA;
+  });
+  const maxRowTot = Math.max(1, ...markets.map(mk => pillars.reduce((s, pl) => s + (grid[mk][pl]?.tot || 0), 0)));
+  markets.forEach(m => {
+    const rowTot = pillars.reduce((s, pl) => s + (grid[m][pl]?.tot || 0), 0);
+    const barW = Math.max(4, Math.round((rowTot / maxRowTot) * 64));
+    html += '<tr><td class="hm-market"><div style="display:flex;align-items:center;gap:6px;"><span>' + m + '</span><span style="background:rgba(59,130,246,0.12);color:var(--blue,#2563eb);border:1px solid rgba(59,130,246,0.28);border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700;">' + rowTot.toLocaleString() + '</span></div><div style="width:64px;height:3px;background:rgba(148,163,184,0.25);border-radius:2px;margin-top:4px;overflow:hidden;"><div style="width:' + barW + 'px;height:100%;background:var(--blue,#2563eb);border-radius:2px;"></div></div></td>';
+    pillars.forEach(pl => {
+      const cell = grid[m][pl];
+      if (!cell.tot) {
+        html += '<td><span style="color:var(--text-secondary);font-size:11px;">—</span></td>';
+      } else {
+        const negPct = (cell.neg / cell.tot) * 100;
+        const isDark = document.body.classList.contains('dark-mode') || document.documentElement.getAttribute('data-theme') === 'dark';
+      const lowVol = cell.tot < 5;
+      const bg = negPct >= 85 ? (isDark ? 'rgba(220,38,38,0.42)' : 'rgba(220,38,38,0.30)')
+               : negPct >= 70 ? (isDark ? 'rgba(239,68,68,0.28)' : 'rgba(239,68,68,0.20)')
+               : negPct >= 55 ? (isDark ? 'rgba(245,158,11,0.28)' : 'rgba(245,158,11,0.22)')
+               : negPct >= 35 ? (isDark ? 'rgba(148,163,184,0.22)' : 'rgba(148,163,184,0.18)')
+               : (isDark ? 'rgba(16,185,129,0.28)' : 'rgba(16,185,129,0.20)');
+        const fg = negPct >= 85 ? (isDark ? '#fecaca' : '#991b1b')
+               : negPct >= 70 ? (isDark ? '#fca5a5' : '#b91c1c')
+               : negPct >= 55 ? (isDark ? '#fcd34d' : '#b45309')
+               : negPct >= 35 ? (isDark ? '#cbd5e1' : '#334155')
+               : (isDark ? '#6ee7b7' : '#047857');
+      const bdr = negPct >= 85 ? '1px solid rgba(220,38,38,0.45)' : lowVol ? '1px dashed rgba(148,163,184,0.55)' : '1px solid transparent';
+      const op = lowVol ? 'opacity:0.78;' : '';
+        const safePl = pl.replace(/'/g, "\\'");
+        html += '<td><span class="hm-cell" style="background:' + bg + ';color:' + fg + ';border:' + bdr + ';' + op + '" title="' + m + ' \u2022 ' + pl + ': ' + negPct.toFixed(1) + '% Neg (' + cell.neg + '/' + cell.tot + ') — Click to inspect" onclick="drillMarketPillar(\'' + m + '\', \'' + safePl + '\')">' + negPct.toFixed(1) + '% <span style="font-weight:400;font-size:10.5px;">(' + cell.tot + ')</span>' + ((showPrevDeltas && prevPeriodMarketPillarNeg[m + '||' + pl] !== undefined) ? (() => { const d = negPct - prevPeriodMarketPillarNeg[m + '||' + pl]; const cls = d > 0.5 ? 'delta-worse' : d < -0.5 ? 'delta-better' : 'delta-flat'; return '<span class="delta-pill ' + cls + '">' + (d > 0 ? '+' : '') + d.toFixed(0) + 'pp</span>'; })() : '') + '</span></td>';
+      }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function drillMarketPillar(market, pillarName) {
+  const mf = document.getElementById('marketFilter');
+  if (mf) mf.value = market;
+  marketFilter = market;
+  render();
+  openPillarTranscripts(pillarName);
+}
+
 function renderKeywordPills(transcripts) {
   const box = document.getElementById('txKeywordPills');
   if (!box) return;
