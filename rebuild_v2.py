@@ -164,6 +164,10 @@ def load_all_surveys(service):
         combined = combined.drop_duplicates(subset=dedup_cols, keep='last').reset_index(drop=True)
     if drive_dfs:
         os.makedirs(os.path.dirname(pq), exist_ok=True)
+        if "response_datetime" in combined.columns:
+            combined["response_datetime"] = pd.to_datetime(combined["response_datetime"], errors="coerce")
+        for _c in combined.select_dtypes(include=["object"]).columns:
+            combined[_c] = combined[_c].where(combined[_c].isna(), combined[_c].astype(str))
         combined.to_parquet(pq, index=False)
         print(f" Saved cumulative Parquet base: {len(combined):,} rows -> {pq}")
     return combined
