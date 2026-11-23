@@ -273,12 +273,71 @@ def process_and_assemble(df_raw, gold_ids):
 
     print(f"  Processed Total Q1: {len(piv):,} | With Q3 text: {len(df_transcripts):,} | Q1-only: {len(df_q1_only):,}")
 
+    import re as _re
+
+    PILLAR_RULES = [
+        ("Support Quality", _re.compile(
+            r"\b(support|agent|chat|representative|rep|advisor|staff|service|help\s?desk|customer\s?care|"
+            r"ticket|case|bot|automated|script|copy\s?paste|canned|template|rude|unhelpful|useless|ignorar|"
+            r"ignored|ignore|disconnected|hung\s?up|ended\s?chat|closed\s?chat|no\s?response|wait(ing|ed)?\s?(for|on)?\s?(support|agent|chat|reply|response)|"
+            r"long\s?wait|response\s?time|slow\s?response|didn.?t\s?help|never\s?helped|not\s?resolved|unresolved|"
+            r"soporte|agente|asistencia|ayuda|chat|servicio|grosero|inutil|sin\s?respuesta|"
+            r"assistenza|operatore|servizio|supporto|inutile|"
+            r"wsparcie|konsultant|czat|pomoc|obsluga|"
+            r"unterstutzung|kundenservice|mitarbeiter|hilfe|"
+            r"soutien|assistance|conseiller|service\s?client|inutile|repond)\b", _re.I)),
+        ("App / Tech Issues", _re.compile(
+            r"\b(app|application|tech|technical|bug|glitch|crash(ed|ing|es)?|freez(e|es|ing)|froze|lag(ging|gy)?|"
+            r"gps|location|map|maps|navigation|route|routing|pin|address\s?wrong|wrong\s?address|"
+            r"offline|online|network|connection|signal|server|error|screen|blank|white\s?screen|black\s?screen|"
+            r"login|log\s?in|logout|logged\s?out|password|update|version|notification|alert|sound|ring|"
+            r"scan|scanning|barcode|camera|photo|upload|button|swipe|accept|order\s?disappear|ghost\s?order|"
+            r"aplicacion|fallo|error|mapa|ubicacion|pantalla|congela|cuelga|actualizacion|"
+            r"applicazione|errore|mappa|posizione|bloccata|schermo|aggiornamento|"
+            r"aplikacja|blad|mapa|lokalizacja|zawiesza|ekran|aktualizacja|"
+            r"anwendung|fehler|karte|standort|abgesturzt|bildschirm|"
+            r"application|bug|carte|localisation|ecran|bloque|mise\s?a\s?jour)\b", _re.I)),
+        ("Partner and External Delays", _re.compile(
+            r"\b(restaurant|merchant|vendor|store|shop|kitchen|staff|McDonald|KFC|Burger|Subway|pizza|"
+            r"food\s?not\s?ready|not\s?ready|still\s?preparing|prep\s?time|preparation|long\s?wait\s?at|"
+            r"waiting\s?at\s?(the\s?)?(restaurant|store|merchant|pickup)|pick\s?up\s?wait|pickup\s?delay|"
+            r"delay(ed|s)?|traffic|road|closure|closed|parking|park|weather|rain|snow|storm|"
+            r"customer|client|recipient|drop\s?off|dropoff|door|gate|code|buzzer|intercom|no\s?answer|"
+            r"wrong\s?pin|wrong\s?location|bag|spill|packaging|missing\s?item|busy|queue|line|"
+            r"restaurante|tienda|espera|retraso|trafico|cliente|entrega|estacionamiento|"
+            r"ristorante|negozio|attesa|ritardo|traffico|cliente|consegna|parcheggio|"
+            r"restauracja|sklep|czekanie|opoznienie|korek|klient|dostawa|parking|"
+            r"restaurant|laden|wartezeit|verspatung|verkehr|kunde|lieferung|parkplatz|"
+            r"restaurant|magasin|attente|retard|circulation|client|livraison|stationnement)\b", _re.I)),
+        ("Compensation", _re.compile(
+            r"\b(pay|paid|payment|paymnt|underpaid|low\s?pay|bad\s?pay|poor\s?pay|unpaid|missing\s?pay|"
+            r"fee|fees|delivery\s?fee|base\s?pay|rate|rates|tariff|wage|earning|earnings|income|money|"
+            r"tip|tips|tipping|bonus|boost|incentive|promotion|promo|surge|multiplier|guarantee|"
+            r"distance|mileage|miles|km|kilometers|far|too\s?far|long\s?distance|fuel|petrol|gas|"
+            r"wait\s?pay|waiting\s?pay|compensation|reimburse|reimbursement|refund|deduct|deduction|"
+            r"pago|pagar|tarifa|propina|bono|dinero|distancia|gasolina|compensacion|"
+            r"pagamento|pagato|tariffa|mancia|bonus|soldi|distanza|benzina|compenso|"
+            r"wyplata|platnosc|stawka|napiwek|premia|pieniadze|dystans|paliwo|rekompensata|"
+            r"bezahlung|zahlung|lohn|trinkgeld|bonus|geld|entfernung|benzin|entschadigung|"
+            r"paiement|paye|tarif|pourboire|prime|argent|distance|essence|compensation)\b", _re.I)),
+    ]
+
+    def classify_transcript_text(text):
+        t = str(text or "").strip()
+        if not t:
+            return "General / Minimal"
+        for pillar_name, rx in PILLAR_RULES:
+            if rx.search(t):
+                return pillar_name
+        return "General / Minimal"
+
     def build_transcript_record(r):
         cid = str(r.get('c', '')).strip()
-        txt = str(r.get(q3_col, '')).strip()[:80].lower()
-        pl = pillar_lookup.get((cid, txt)) or pillar_lookup.get(cid) or str(r.get('pillar', r.get('pl', 'General / Minimal'))).strip()
+        raw_q3 = str(r.get(q3_col, '')).strip()
+        txt = raw_q3[:80].lower()
+        pl = pillar_lookup.get((cid, txt)) or str(r.get('pillar', r.get('pl', ''))).strip()
         if pl not in PILLAR_ORDER:
-            pl = "General / Minimal"
+            pl = classify_transcript_text(raw_q3)
         return {
             "d": r["d"],
             "m": r["m"],
