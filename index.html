@@ -1023,9 +1023,12 @@ header, .top-header, .header-bar {
       </select>
     </div>
   <div class="control-group">
-    <label class="checkbox-wrap">
-      <input type="checkbox" id="goldOnly"> <span style="font-weight:600;">Gold Only</span>
-    </label>
+    <span class="control-label">TIER</span>
+    <select id="goldOnly" aria-label="Courier Tier">
+      <option value="all">All Couriers</option>
+      <option value="gold">Gold Only</option>
+      <option value="nongold">Non-Gold Only</option>
+    </select>
   </div>
   <div class="control-group">
     <span class="control-label" style="display:none;">View</span>
@@ -1309,7 +1312,7 @@ function init() {
   document.getElementById('nextBtn').addEventListener('click', () => navPeriod(1));
 
   document.getElementById('goldOnly').addEventListener('change', e => {
-    goldOnly = e.target.checked;
+    goldOnly = e.target.value === 'gold' ? true : (e.target.value === 'nongold' ? 'nongold' : false);
     
     // Clear individual courier filter on toggle change
     courierFilter = null;
@@ -1375,8 +1378,52 @@ function init() {
   render();
 }
 
-function getDataset() { 
-  return goldOnly ? D.gold : D.all; 
+let _goldCourierSet = null;
+let _nonGoldDatasetCache = null;
+let _nonGoldQ1Cache = null;
+
+function getGoldCourierSet() {
+  if (_goldCourierSet) return _goldCourierSet;
+  const set = new Set();
+  if (typeof D !== 'undefined' && D) {
+    ((D.gold && D.gold.transcripts) || []).forEach(t => { if (t && t.c) set.add(String(t.c)); });
+    ((D.q1NoQ3 && D.q1NoQ3.gold) || []).forEach(r => { if (r && r.c) set.add(String(r.c)); });
+  }
+  _goldCourierSet = set;
+  return set;
+}
+
+function isGoldCourier(cid) {
+  return !!cid && getGoldCourierSet().has(String(cid));
+}
+
+function formatCourierBadge(cid) {
+  if (!cid) return '';
+  if (!isGoldCourier(cid)) return escapeHTML(String(cid));
+  return escapeHTML(String(cid)) + ' <span title="Gold Courier" style="display:inline-flex;align-items:center;gap:2px;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:999px;padding:1px 6px;font-size:10px;font-weight:700;vertical-align:middle;margin-left:4px;">&#9733; Gold</span>';
+}
+
+function getNonGoldDataset() {
+  if (_nonGoldDatasetCache) return _nonGoldDatasetCache;
+  const gSet = getGoldCourierSet();
+  const base = (D && D.all) ? D.all : {};
+  const tx = (base.transcripts || []).filter(t => !gSet.has(String(t.c)));
+  _nonGoldDatasetCache = Object.assign({}, base, { transcripts: tx });
+  return _nonGoldDatasetCache;
+}
+
+function getNonGoldQ1Rows() {
+  if (_nonGoldQ1Cache) return _nonGoldQ1Cache;
+  const gSet = getGoldCourierSet();
+  const allRows = (D && D.q1NoQ3 && D.q1NoQ3.all) ? D.q1NoQ3.all : [];
+  _nonGoldQ1Cache = allRows.filter(r => !gSet.has(String(r.c)));
+  return _nonGoldQ1Cache;
+}
+
+function getDataset() {
+  if (goldOnly === true) return D.gold;
+  if (goldOnly === 'nongold') return getNonGoldDataset();
+  return D.all;
 }
 
 function populateCourierList() {
@@ -1592,7 +1639,7 @@ function computeMetrics(dataRows) {
 function getAllQ1Responses() {
   const periodTranscripts = getPeriodTranscripts();
   const ds = D.q1NoQ3 || { all: [], gold: [] };
-  let q1only = goldOnly ? (ds.gold || []) : (ds.all || []);
+  let q1only = (goldOnly === true ? (ds.gold || []) : (goldOnly === 'nongold' ? getNonGoldQ1Rows() : (ds.all || [])));
 
   if (courierFilter) q1only = q1only.filter(r => r.c === courierFilter);
   if (marketFilter !== 'all') q1only = q1only.filter(r => r.m === marketFilter);
@@ -1814,7 +1861,7 @@ function renderTrendAndStars(q1PeriodMetrics, q1AllTimeMetrics) {
   // 2. Build full historical Q1 pool across all periods (respecting Market, Gold, Courier filters)
   const ds = getDataset();
   const q1No = D.q1NoQ3 || { all: [], gold: [] };
-  let q1OnlyPool = goldOnly ? (q1No.gold || []) : (q1No.all || []);
+  let q1OnlyPool = (goldOnly === true ? (q1No.gold || []) : (goldOnly === 'nongold' ? getNonGoldQ1Rows() : (q1No.all || [])));
   let q3Pool = ds.transcripts || [];
   if (marketFilter && marketFilter !== 'all') {
     q1OnlyPool = q1OnlyPool.filter(r => r.m === marketFilter);
@@ -2151,11 +2198,11 @@ function downloadSelectedData() {
   let rowsToExport = [];
   let filename = 'courier_feedback_' + (currentPeriod || 'selected');
   if (marketFilter && marketFilter !== 'all') filename += '_' + marketFilter;
-  if (goldOnly) filename += '_gold';
+  if (goldOnly === true) filename += '_gold'; else if (goldOnly === 'nongold') filename += '_nongold';
 
   if (activeTab === 'q1only') {
     const ds = D.q1NoQ3 || { all: [], gold: [] };
-    let q1Rows = goldOnly ? (ds.gold || []) : (ds.all || []);
+    let q1Rows = (goldOnly === true ? (ds.gold || []) : (goldOnly === 'nongold' ? getNonGoldQ1Rows() : (ds.all || [])));
     if (marketFilter && marketFilter !== 'all') q1Rows = q1Rows.filter(r => r.m === marketFilter);
     if (courierFilter) q1Rows = q1Rows.filter(r => r.c === courierFilter);
     const sentVal = document.getElementById('q1SentimentSelect')?.value || 'all';
@@ -2168,7 +2215,8 @@ function downloadSelectedData() {
       Q1_Rating: r.q1,
       Star_Score: r.s || (r.neg ? 1 : 5),
       Sentiment: r.neg ? 'Negative' : 'Positive',
-      Courier_ID: r.c
+      Courier_ID: r.c,
+      Courier_Tier: isGoldCourier(r.c) ? 'Gold' : 'Non-Gold'
     }));
     filename += '_q1_only.csv';
   } else {
@@ -2183,6 +2231,7 @@ function downloadSelectedData() {
       L1_Pillar: t.pl || '',
       Root_Cause: (getTranscriptRootCauses(t).join(' | ') || 'General / Other'),
       Courier_ID: t.c,
+      Courier_Tier: isGoldCourier(t.c) ? 'Gold' : 'Non-Gold',
       Transcript: (t.t || '').replace(/[\r\n]+/g, ' ')
     }));
     filename += '_selected_transcripts.csv';
@@ -2457,7 +2506,7 @@ function promptSaveCurrentView() {
   const defaultName = [
     marketFilter && marketFilter !== 'all' ? marketFilter : 'All Markets',
     (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') ? platformFilter : '',
-    goldOnly ? 'Gold' : '',
+    (goldOnly === true ? 'Gold' : (goldOnly === 'nongold' ? 'Non-Gold' : '')),
     courierFilter ? ('Courier ' + courierFilter) : ''
   ].filter(Boolean).join(' + ');
 
@@ -2548,7 +2597,7 @@ function render() {
     ? (goldOnly ? 'Courier CSAT Analysis — Gold Couriers (L2: 12 Pillars)' : 'Courier CSAT Analysis (L2: 12 Pillars)')
     : baseTitle;
 
-  const label = goldOnly ? 'Gold Couriers' : 'All Couriers';
+  const label = (goldOnly === true ? 'Gold Couriers' : (goldOnly === 'nongold' ? 'Non-Gold Couriers' : 'All Couriers'));
   const filterLabel = courierFilter ? ' (filtered)' : '';
   document.getElementById('transcriptLabel').innerHTML = '<strong>' + label + filterLabel + ': ' + allTime.total.toLocaleString() + ' Q3 transcripts</strong>';
   document.getElementById('periodLabel').textContent = period.total.toLocaleString() + ' Q3 transcripts this period';
@@ -2559,7 +2608,7 @@ function render() {
     platformFilter = targetPlat;
     const allQ1Period = getAllQ1Responses();
   const allQ1AllTime = allTranscripts.concat(
-    (goldOnly ? (D.q1NoQ3.gold || []) : (D.q1NoQ3.all || []))
+    ((goldOnly === true ? (D.q1NoQ3.gold || []) : (goldOnly === 'nongold' ? getNonGoldQ1Rows() : (D.q1NoQ3.all || []))))
       .filter(r => !courierFilter || r.c === courierFilter)
       .filter(r => marketFilter === 'all' || r.m === marketFilter)
       .map(r => ({
@@ -2574,7 +2623,7 @@ function render() {
   };
   const allQ1Period = getAllQ1Responses();
   const allQ1AllTime = allTranscripts.concat(
-    (goldOnly ? (D.q1NoQ3.gold || []) : (D.q1NoQ3.all || []))
+    ((goldOnly === true ? (D.q1NoQ3.gold || []) : (goldOnly === 'nongold' ? getNonGoldQ1Rows() : (D.q1NoQ3.all || []))))
       .filter(r => !courierFilter || r.c === courierFilter)
       .filter(r => marketFilter === 'all' || r.m === marketFilter)
       .map(r => ({
@@ -2667,7 +2716,7 @@ function render() {
 
         // 2. Previous period Q1-only ratings from D.q1NoQ3
         const _rawQ1Pool = (typeof D !== 'undefined' && D && D.q1NoQ3)
-          ? (goldOnly ? (D.q1NoQ3.gold || []) : (D.q1NoQ3.all || []))
+          ? ((goldOnly === true ? (D.q1NoQ3.gold || []) : (goldOnly === 'nongold' ? getNonGoldQ1Rows() : (D.q1NoQ3.all || []))))
           : [];
         let _prevQ1Only = _rawQ1Pool.filter(r => _inPrev(periodMode === 'weekly' ? (r.w || r.d) : r.d));
         if (_mkt) _prevQ1Only = _prevQ1Only.filter(r => r.m === _mkt);
@@ -2831,7 +2880,7 @@ function renderTranscriptsDynamic(periodTranscripts, fromFilter) {
     plRows.slice(0, 150).forEach(t => {
       const q1Class = t.q1 === Q1_NEG ? 'neg' : 'pos';
       const q2Class = t.q2 === 'Yes' ? 'yes' : 'no';
-      tableHTML += '<tr><td style="white-space:nowrap;">' + t.d + '</td><td><strong>' + t.m + '</strong></td><td>' + t.p + '</td><td><span class="q1-badge ' + q1Class + '">' + t.q1 + '</span></td><td><span class="q2-badge ' + q2Class + '">' + t.q2 + '</span></td><td><div class="courier-id" title="' + t.c + '">' + t.c + '</div></td><td class="q3-text">' + escapeHTML(t.t) + '</td></tr>';
+      tableHTML += '<tr><td style="white-space:nowrap;">' + t.d + '</td><td><strong>' + t.m + '</strong></td><td>' + t.p + '</td><td><span class="q1-badge ' + q1Class + '">' + t.q1 + '</span></td><td><span class="q2-badge ' + q2Class + '">' + t.q2 + '</span></td><td><div class="courier-id" title="' + t.c + '">' + formatCourierBadge(t.c) + '</div></td><td class="q3-text">' + escapeHTML(t.t) + '</td></tr>';
     });
     if (plRows.length > 150) tableHTML += '<tr><td colspan=7 style=text-align:center;padding:8px;color:var(--text-secondary);font-size:12px>Showing first 150 of ' + plRows.length.toLocaleString() + ' transcripts (download CSV for full list)</td></tr>'; tableHTML += '</tbody></table></div>';
     section.innerHTML = '<div class="transcript-header" onclick="this.parentElement.classList.toggle(\'expanded\')"><div class="transcript-dot" style="background:' + color + ';"></div><div class="transcript-name">' + pl + '</div><span class="transcript-badge" style="background:' + color + '22;color:' + color + ';">' + negPct + '% neg</span><span class="transcript-count">' + plRows.length + ' transcript' + (plRows.length > 1 ? 's' : '') + '</span><span class="transcript-chevron">\u25BC</span></div>' + tableHTML;
@@ -2901,7 +2950,7 @@ function onQ1PeriodModeChange() {
 
 function populateQ1PeriodValue() {
   const ds = D.q1NoQ3 || { all: [], gold: [] };
-  let rows = goldOnly ? (ds.gold || []) : (ds.all || []);
+  let rows = (goldOnly === true ? (ds.gold || []) : (goldOnly === 'nongold' ? getNonGoldQ1Rows() : (ds.all || [])));
   if (courierFilter) rows = rows.filter(r => r.c === courierFilter);
   const sel = document.getElementById('q1PeriodValue');
   sel.innerHTML = '';
@@ -2960,7 +3009,7 @@ function navQ1Period(dir) {
 
 function renderQ1Only() {
   const ds = D.q1NoQ3 || { all: [], gold: [] };
-  let rows = goldOnly ? (ds.gold || []) : (ds.all || []);
+  let rows = (goldOnly === true ? (ds.gold || []) : (goldOnly === 'nongold' ? getNonGoldQ1Rows() : (ds.all || [])));
   if (courierFilter) rows = rows.filter(r => r.c === courierFilter);
 
   if (q1PeriodMode === 'weekly') {
@@ -3118,12 +3167,12 @@ function renderQ1Compare(q1OnlyRows) {
 
 function downloadPeriodCSV() {
   const rows = getPeriodTranscripts();
-  downloadCSV(rows, 'csat_period_' + (periodMode === 'custom' ? customStart + '_to_' + customEnd : currentPeriod) + (goldOnly ? '_gold' : '_all') + (courierFilter ? '_' + courierFilter.substring(0, 8) : '') + '.csv');
+  downloadCSV(rows, 'csat_period_' + (periodMode === 'custom' ? customStart + '_to_' + customEnd : currentPeriod) + ((goldOnly === true ? '_gold' : (goldOnly === 'nongold' ? '_nongold' : '_all'))) + (courierFilter ? '_' + courierFilter.substring(0, 8) : '') + '.csv');
 }
 
 function downloadAllCSV() {
   const rows = getFilteredTranscripts();
-  downloadCSV(rows, 'csat_all_transcripts' + (goldOnly ? '_gold' : '_all') + (courierFilter ? '_' + courierFilter.substring(0, 8) : '') + '.csv');
+  downloadCSV(rows, 'csat_all_transcripts' + ((goldOnly === true ? '_gold' : (goldOnly === 'nongold' ? '_nongold' : '_all'))) + (courierFilter ? '_' + courierFilter.substring(0, 8) : '') + '.csv');
 }
 
 function downloadCSV(rows, filename) {
@@ -3956,7 +4005,7 @@ function copyExecutiveSummaryToClipboard(btn) {
       if (historyStack.length > 1) {
         const prev = historyStack[historyStack.length - 2];
         const prevDesc = [
-          prev.goldOnly ? 'Gold Only' : null,
+          (prev.goldOnly === true ? 'Gold Only' : (prev.goldOnly === 'nongold' ? 'Non-Gold Only' : null)),
           prev.marketFilter !== 'all' ? prev.marketFilter : 'All Markets',
           prev.platformFilter !== 'all' ? prev.platformFilter : 'All Platforms',
           prev.courierFilter ? ('Courier ' + prev.courierFilter) : null
