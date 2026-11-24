@@ -1386,21 +1386,22 @@ function getGoldCourierSet() {
   if (_goldCourierSet) return _goldCourierSet;
   const set = new Set();
   if (typeof D !== 'undefined' && D) {
-    ((D.gold && D.gold.transcripts) || []).forEach(t => { if (t && t.c) set.add(String(t.c)); });
-    ((D.q1NoQ3 && D.q1NoQ3.gold) || []).forEach(r => { if (r && r.c) set.add(String(r.c)); });
+    ((D.gold && D.gold.transcripts) || []).forEach(t => { if (t && t.c) set.add(String(t.c).trim().toLowerCase()); });
+    ((D.q1NoQ3 && D.q1NoQ3.gold) || []).forEach(r => { if (r && r.c) set.add(String(r.c).trim().toLowerCase()); });
   }
   _goldCourierSet = set;
   return set;
 }
 
 function isGoldCourier(cid) {
-  return !!cid && getGoldCourierSet().has(String(cid));
+  return !!cid && getGoldCourierSet().has(String(cid).trim().toLowerCase());
 }
 
 function formatCourierBadge(cid) {
   if (!cid) return '';
-  if (!isGoldCourier(cid)) return escapeHTML(String(cid));
-  return escapeHTML(String(cid)) + ' <span title="Gold Courier" style="display:inline-flex;align-items:center;gap:2px;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:999px;padding:1px 6px;font-size:10px;font-weight:700;vertical-align:middle;margin-left:4px;">&#9733; Gold</span>';
+  const cleanId = String(cid).trim();
+  if (!isGoldCourier(cleanId)) return escapeHTML(cleanId);
+  return '<span title="Gold Courier" style="display:inline-flex;align-items:center;gap:2px;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:999px;padding:1px 6px;font-size:10px;font-weight:700;vertical-align:middle;margin-right:5px;flex-shrink:0;">&#9733; Gold</span>' + escapeHTML(cleanId);
 }
 
 function getNonGoldDataset() {
