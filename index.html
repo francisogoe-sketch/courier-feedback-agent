@@ -1401,7 +1401,7 @@ function formatCourierBadge(cid) {
   if (!cid) return '';
   const cleanId = String(cid).trim();
   if (!isGoldCourier(cleanId)) return escapeHTML(cleanId);
-  return '<span title="Gold Courier" style="display:inline-flex;align-items:center;gap:2px;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:999px;padding:1px 6px;font-size:10px;font-weight:700;vertical-align:middle;margin-right:5px;flex-shrink:0;">&#9733; Gold</span>' + escapeHTML(cleanId);
+  return '<span title="Gold Courier" style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:999px;padding:0px 6px;font-size:10px;font-weight:700;line-height:1.4;margin-right:5px;">&#9733; Gold</span>' + escapeHTML(cleanId);
 }
 
 function getNonGoldDataset() {
@@ -1709,7 +1709,7 @@ function updateExecutiveSummary(period, allTime) {
   const s = document.getElementById('periodValueSelect');
   const pn = periodMode === 'custom' ? customStart + ' to ' + customEnd : (s && s.options[s.selectedIndex] ? s.options[s.selectedIndex].text : 'Selected Period');
   const sp = [];
-  if (goldOnly) sp.push('Gold Couriers');
+  if (goldOnly === true) sp.push('Gold Couriers'); else if (goldOnly === 'nongold') sp.push('Non-Gold Couriers');
   if (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all') {
     sp.push(platformFilter.toLowerCase() === 'ios' ? 'iOS' : 'Android');
   }
@@ -1804,8 +1804,10 @@ function renderActiveFilterChips() {
   if (platformFilter && platformFilter !== 'all') {
     chips.push('<span class="filter-chip" onclick="document.getElementById(\'platformFilter\').value=\'all\';platformFilter=\'all\';render();">Platform: ' + platformFilter + ' &#10005;</span>');
   }
-  if (goldOnly) {
-    chips.push('<span class="filter-chip" onclick="document.getElementById(\'goldOnly\').checked=false;goldOnly=false;render();">Gold Only &#10005;</span>');
+  if (goldOnly === true) {
+    chips.push('<span class="filter-chip" onclick="document.getElementById(\'goldOnly\').value=\'all\';goldOnly=false;render();">Gold Only &#10005;</span>');
+  } else if (goldOnly === 'nongold') {
+    chips.push('<span class="filter-chip" onclick="document.getElementById(\'goldOnly\').value=\'all\';goldOnly=false;render();">Non-Gold Only &#10005;</span>');
   }
   if (courierFilter) {
     chips.push('<span class="filter-chip" onclick="clearCourierFilter()">Courier: ' + courierFilter + ' &#10005;</span>');
@@ -2591,11 +2593,11 @@ function render() {
   const allTime = computeMetrics(allTranscripts); updateExecutiveSummary(period, allTime);
 
   // Renamed Dashboard Header Title
-  const baseTitle = goldOnly
+  const baseTitle = goldOnly === true
     ? 'Courier CSAT Analysis — Gold Couriers (CA & UK)'
-    : 'Courier CSAT Analysis';
+    : (goldOnly === 'nongold' ? 'Courier CSAT Analysis — Non-Gold Couriers (CA & UK)' : 'Courier CSAT Analysis');
   document.getElementById('dashTitle').textContent = currentView === 'L2'
-    ? (goldOnly ? 'Courier CSAT Analysis — Gold Couriers (L2: 12 Pillars)' : 'Courier CSAT Analysis (L2: 12 Pillars)')
+    ? (goldOnly === true ? 'Courier CSAT Analysis — Gold Couriers (L2: 12 Pillars)' : (goldOnly === 'nongold' ? 'Courier CSAT Analysis — Non-Gold Couriers (L2: 12 Pillars)' : 'Courier CSAT Analysis (L2: 12 Pillars)'))
     : baseTitle;
 
   const label = (goldOnly === true ? 'Gold Couriers' : (goldOnly === 'nongold' ? 'Non-Gold Couriers' : 'All Couriers'));
@@ -3045,7 +3047,7 @@ function renderQ1Only() {
 
   const table = document.getElementById('q1OnlyTable');
   if (rows.length === 0) {
-    table.innerHTML = '<tbody><tr><td style="padding:20px;color:var(--text-secondary);">' + (goldOnly ? 'No gold couriers in this category.' : 'No couriers in this category for the selected filters.') + '</td></tr></tbody>';
+    table.innerHTML = '<tbody><tr><td style="padding:20px;color:var(--text-secondary);">' + (goldOnly === true ? 'No gold couriers in this category.' : (goldOnly === 'nongold' ? 'No non-gold couriers in this category.' : 'No couriers in this category for the selected filters.')) + '</td></tr></tbody>';
     return;
   }
 
@@ -3054,7 +3056,7 @@ function renderQ1Only() {
     const q1Class = r.neg ? 'neg' : 'pos';
     const sentLabel = r.neg ? 'Negative' : 'Positive';
     const sentColor = r.neg ? 'var(--red)' : 'var(--green)';
-    html += '<tr><td style="white-space:nowrap;">' + r.d + '</td><td><strong>' + r.m + '</strong></td><td>' + r.p + '</td><td><span class="q1-badge ' + q1Class + '">' + r.q1 + '</span></td><td style="color:' + sentColor + ';font-weight:600;">' + sentLabel + '</td><td><div class="courier-id" title="' + r.c + '">' + r.c + '</div></td></tr>';
+    html += '<tr><td style="white-space:nowrap;">' + r.d + '</td><td><strong>' + r.m + '</strong></td><td>' + r.p + '</td><td><span class="q1-badge ' + q1Class + '">' + r.q1 + '</span></td><td style="color:' + sentColor + ';font-weight:600;">' + sentLabel + '</td><td><div class="courier-id" title="' + r.c + '">' + formatCourierBadge(r.c) + '</div></td></tr>';
   });
   html += '</tbody>';
   table.innerHTML = html;
@@ -3388,7 +3390,7 @@ function exportFilteredTranscriptsCSV() {
   };
 
   const applyGoldAccents = () => {
-    const isGoldActive = (typeof goldOnly !== 'undefined' && Boolean(goldOnly));
+    const isGoldActive = (typeof goldOnly !== 'undefined' && goldOnly === true);
 
     // 1. Highlight the "Gold Only" filter control when checked
     const goldChk = document.getElementById('goldOnly');
@@ -3557,7 +3559,7 @@ function copyExecutiveSummaryToClipboard(btn) {
       const pLabel = (typeof platformFilter !== 'undefined' && platformFilter && platformFilter !== 'all')
         ? (platformFilter.toLowerCase() === 'ios' ? 'iOS' : 'Android') : 'All Platforms';
       const parts = [];
-      if (typeof goldOnly !== 'undefined' && goldOnly) parts.push('Gold Couriers');
+      if (typeof goldOnly !== 'undefined' && goldOnly === true) parts.push('Gold Couriers'); else if (typeof goldOnly !== 'undefined' && goldOnly === 'nongold') parts.push('Non-Gold Couriers');
       if (typeof courierFilter !== 'undefined' && courierFilter) parts.push('Courier ' + courierFilter);
       if (mLabel === 'All Markets' && pLabel === 'All Platforms' && parts.length === 0) {
         titleEl.textContent = 'Executive Summary & Period Analysis — All Platforms & All Markets';
