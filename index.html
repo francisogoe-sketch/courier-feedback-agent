@@ -1408,7 +1408,7 @@ function getNonGoldDataset() {
   if (_nonGoldDatasetCache) return _nonGoldDatasetCache;
   const gSet = getGoldCourierSet();
   const base = (D && D.all) ? D.all : {};
-  const tx = (base.transcripts || []).filter(t => !gSet.has(String(t.c)));
+  const tx = (base.transcripts || []).filter(t => !isGoldCourier(t.c));
   _nonGoldDatasetCache = Object.assign({}, base, { transcripts: tx });
   return _nonGoldDatasetCache;
 }
@@ -1417,7 +1417,7 @@ function getNonGoldQ1Rows() {
   if (_nonGoldQ1Cache) return _nonGoldQ1Cache;
   const gSet = getGoldCourierSet();
   const allRows = (D && D.q1NoQ3 && D.q1NoQ3.all) ? D.q1NoQ3.all : [];
-  _nonGoldQ1Cache = allRows.filter(r => !gSet.has(String(r.c)));
+  _nonGoldQ1Cache = allRows.filter(r => !isGoldCourier(r.c));
   return _nonGoldQ1Cache;
 }
 
